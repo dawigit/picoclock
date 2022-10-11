@@ -45,7 +45,9 @@ problems, bugs:
 - gyro-control has to be improved/adjusted.
 - gfx is slow
 
-to flash the image: (remember to exchange XX with your corresponding values)
+to flash the image: 
+(remember to exchange XX with your corresponding values)
+
 sudo picotool load .uf2/wspicoclock.uf2 -x --bus 1 --address XX
 
 you can find out the '--address' with:
