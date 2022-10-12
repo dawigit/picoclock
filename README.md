@@ -45,7 +45,7 @@ problems, bugs:
 - gyro-control has to be improved/adjusted.
 - gfx is slow
 
-to flash the image: 
+to flash the (prepared) image: 
 (remember to exchange XX with your corresponding values)
 
 sudo picotool load .uf2/wspicoclock.uf2 -x --bus 1 --address XX
@@ -56,4 +56,4 @@ picotool info
 remember you have to hold 'boot' button, press 'reset', release the 'boot' button
 before you can flash using picotool.
 
-
+if you 'make' your own the 'main.uf2' file will be in ./build/ folder.
