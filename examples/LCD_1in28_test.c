@@ -505,7 +505,7 @@ int LCD_1in28_test(void)
           if(tcw){
             colors[editpos]=dcol;
             switch(editpos){
-              case 0: (t.day==last[t.month])?t.day=1:++t.day;break;
+              case 0: (t.day==last[t.month]+((t.year%4)?1:0))?t.day=1:++t.day;break;
               case 1: (t.month==12)?t.month=1:++t.month;break;
               case 2: (t.dotw==6)?t.dotw=0:++t.dotw;break;
               case 3: (t.year==2099)?t.year=2022:++t.year;break;
@@ -520,7 +520,7 @@ int LCD_1in28_test(void)
           if(tccw){
             colors[editpos]=dcol;
             switch(editpos){
-              case 0: (t.day==1)?t.day=last[t.month]:--t.day;break;
+              case 0: (t.day==1)?t.day=last[t.month]+((t.year%4)?1:0):--t.day;break;
               case 1: (t.month==12)?t.month=1:--t.month;break;
               case 2: (t.year==2099)?t.year=2022:--t.year;break;
               case 3: (t.dotw==0)?t.dotw=6:--t.dotw;break;
