@@ -123,8 +123,8 @@ char* dt_time;
 // Start on Friday 5th of June 2020 15:45:00
 datetime_t t = {
   .year  = 2022,
-  .month = 10,
-  .day   = 11,
+  .month = 2,
+  .day   = 25,
   .dotw  = 2, // 0 is Sunday, so 5 is Friday
   .hour  = 16,
   .min   = 55,
@@ -217,7 +217,8 @@ void gpio_callback(uint gpio, uint32_t events) {
 
   char* week[7] = {"Sun\0","Mon\0","Tue\0","Wen\0","Thu\0","Fri\0","Sat\0"};
   //char* week[7] = {"So\0","Mo\0","Di\0","Mi\0","Do\0","Fr\0","Sa\0"};
-  uint8_t last[12] = {31,27,31,30,31,30,31,31,30,31,30,31};
+  // dummy month0
+  uint8_t last[13] = {0,31,28,31,30,31,30,31,31,30,31,30,31};
 
 void blit(int x, int y,int sx, int sy,char* data, uint16_t alpha){
   int iso=0;
@@ -398,7 +399,7 @@ int LCD_1in28_test(void)
     //gpio_pull_up(CBUT);
     rtc_init();
     rtc_set_datetime(&t);
-
+    if(!(t.year%4)){last[2]=29;}else{last[2]=28;}
     UDOUBLE Imagesize = LCD_1IN28_HEIGHT * LCD_1IN28_WIDTH * 2;
     UWORD *BlackImage;
     if ((BlackImage = (UWORD *)malloc(Imagesize)) == NULL)
@@ -505,9 +506,9 @@ int LCD_1in28_test(void)
           if(tcw){
             colors[editpos]=dcol;
             switch(editpos){
-              case 0: (t.day==last[t.month]+((t.year%4)?1:0))?t.day=1:++t.day;break;
-              case 1: (t.month==12)?t.month=1:++t.month;break;
-              case 2: (t.dotw==6)?t.dotw=0:++t.dotw;break;
+              case 0: (t.dotw==6)?t.dotw=0:++t.dotw;break;
+              case 1: (t.day==last[t.month])?t.day=1:++t.day;break;
+              case 2: (t.month==12)?t.month=1:++t.month;break;
               case 3: (t.year==2099)?t.year=2022:++t.year;break;
               case 4: (t.hour==23)?t.hour=0:++t.hour;break;
               case 5: (t.min==59)?t.min=0:++t.min;break;
@@ -520,10 +521,10 @@ int LCD_1in28_test(void)
           if(tccw){
             colors[editpos]=dcol;
             switch(editpos){
-              case 0: (t.day==1)?t.day=last[t.month]+((t.year%4)?1:0):--t.day;break;
-              case 1: (t.month==12)?t.month=1:--t.month;break;
-              case 2: (t.year==2099)?t.year=2022:--t.year;break;
-              case 3: (t.dotw==0)?t.dotw=6:--t.dotw;break;
+              case 0: (t.dotw==0)?t.dotw=6:--t.dotw;break;
+              case 1: (t.day==1)?t.day=last[t.month]:--t.day;break;
+              case 2: (t.month==1)?t.month=12:--t.month;break;
+              case 3: (t.year==2099)?t.year=2022:--t.year;break;
               case 4: (t.hour==0)?t.hour=23:--t.hour;break;
               case 5: (t.min==0)?t.min=59:--t.min;break;
               case 6: (t.sec==0)?t.sec=59:--t.sec;break;
@@ -532,7 +533,10 @@ int LCD_1in28_test(void)
             tccw=false;
             set=true;
           }
-          if(set){rtc_set_datetime(&t);}
+          if(set){
+            rtc_set_datetime(&t);
+            if(!(t.year%4)){last[2]=29;}else{last[2]=28;}
+          }
         }
 
 
@@ -572,7 +576,7 @@ int LCD_1in28_test(void)
           }
         }
         if(gyro[1]>THRS){printf("up\n");} // shake up
-				if(gyro[1]<-THRS){printf("down\n");} //shake down
+        if(gyro[1]<-THRS){printf("down\n");} //shake down
         //printf("%d\n",st/100000);
         //printf("[%d] {as%d} fd=%d\n",flag_pos,as,flagsdelay);
 
