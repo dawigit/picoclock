@@ -1,7 +1,8 @@
 # picoclock
+### for use with WAVESHARE RP2040-LCD-1.28
 ![pc_usa_cn](https://user-images.githubusercontent.com/26333559/195168002-3e70b9dc-ee9e-4af8-8cbc-15525633de07.jpg)
 
-uses RP2040-LCD-1.28
+
 
 the button is simply plugged into GND and GP22 (h2)
 (ky-040 test code is there)
@@ -42,6 +43,7 @@ problems, bugs:
 
 - analog seconds (pointer) not working properly
 - battery display has to be adjusted depending on battery (still testing)
+- theme colors selection for clock dial (seconds, every 5th second)
 - gyro-control has to be improved/adjusted.
 - gfx is slow
 
