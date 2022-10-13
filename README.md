@@ -5,42 +5,29 @@
 
 
 
-the button is simply plugged into GND and GP22 (h2)
+#### The button is simply plugged into GND and GP22 (h2)
 (ky-040 test code is there)
-e.g. the left image shows a simple button plugged into the h2 header.
+E.g. the left image shows a simple button plugged into the h2 header.
 
-with a button attached the rp2040-lcd is controlled with the gyroscope
+#### With a button attached the rp2040-lcd is controlled with the gyroscopef
 
-1st button press:
-- you enter 'editmode'
-- color changes from WHITE to YELLOW.
-- you can now change the position (up/down)
-- in 'editmode' you can change the theme (left/right)
+##### Every button press changes the mode:
 
-2nd button press:
-- you change to 'changemode'
-- color changes to ORANGE
-- now with up/down (so x-axis) you change the values.
+- 1st: [WHITE]  None  [default mode, startup]
+- 2nd: [CYAN]   Config (shows a cyan gyro-pointer, no use yet)
+- 3rd: [YELLOW] ChangePosition (to change position in date/time/day of the week)
+- 4rd: [ORANGE] EditPosition (to change value in that position: up/down)
+- 5th: [RED/BLUE] ChangeTheme (to change the theme: left/right)
 
-3rd button press:
-- you change back to regular mode and the color is WHITE again.
 
-for now there is us, china, german and turkye themes.
-the images are in the ./examples folder.
-img2data.md contains a shell script (a function 'img2data')
+For now there are USA, China, Germany and Türkiye themes.
+The images are in the ./examples folder.
+
+The file 'img2data.md' contains a shell script (a function 'img2data')
 so you can convert any image to to rgb565 format and then
 into a header file (img.h) [in one turn].
 
-functions for sleep_on/sleep_off for the display 
-were added in ./examples/LCD_1in28.c
-
-all the other changes from the original waveshare code
-are in ./examples/LCD_1in28_test.c
-
-this is the file to start for changes!
-
-
-problems, bugs:
+#### Problems, bugs:
 
 - analog seconds (pointer) not working properly
 - battery display has to be adjusted depending on battery (still testing)
@@ -48,15 +35,8 @@ problems, bugs:
 - gyro-control has to be improved/adjusted.
 - gfx is slow
 
-to flash the (prepared) image: 
-(remember to exchange XX with your corresponding values)
+## To flash the image
+sudo picotool load ./build/main.uf2 -x --bus 1 --address XX
 
-sudo picotool load .uf2/wspicoclock.uf2 -x --bus 1 --address XX
-
-you can find out the '--address' with:
+You can find out the '--address' with:
 picotool info
-
-remember you have to hold 'boot' button, press 'reset', release the 'boot' button
-before you can flash using picotool.
-
-if you 'make' your own the 'main.uf2' file will be in ./build/ folder.
