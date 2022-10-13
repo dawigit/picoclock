@@ -31,7 +31,6 @@ into a header file (img.h) [in one turn].
 
 - analog seconds (pointer) not working properly
 - battery display has to be adjusted depending on battery (still testing)
-- theme colors selection for clock dial (seconds, every 5th second)
 - gyro-control has to be improved/adjusted.
 - gfx is slow
 
