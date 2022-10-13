@@ -93,6 +93,14 @@ datetime_t t = {
 
 void sincosf(float,float*,float*);
 
+typedef enum CMode {
+  CM_None = 0,
+  CM_Config = 1,
+  CM_Editpos = 2,
+  CM_Changepos = 3,
+  CM_Changetheme = 4
+} CMode;
+
 typedef struct ColorTheme_t{
   uint16_t alpha;
   uint16_t col1;
@@ -113,6 +121,7 @@ typedef struct ColorTheme_t{
 #define THEMES 4
 //#define FLAGS_MAX 4
 
+CMode cmode = CM_None;
 
 uint8_t theme_pos = 0;
 uint8_t* flags[] = {cn32,usa32,ger32,tr32};
@@ -159,11 +168,14 @@ uint32_t stime;
 uint8_t tseco;
 int hourglass=HOURGLASS;
 int hgb;
+int hgx;
 int hgy;
 int buttonglass=BUTTONGLASS;
 int screensaver=SCRSAV;
-int flagsdelay = FLAGS_DELAY;
 
+int flagsdelay = FLAGS_DELAY;
+int blink_counter = 0;
+bool bmode = false;
 
 float tsin[360];
 float tcos[360];
@@ -210,7 +222,7 @@ uint8_t find_cc(uint8_t a, uint8_t b, uint8_t c){
   for(int i=0; i<cn_chars+1;i++){
     //printf("[%02x%02x%02x] %02x %02x %02x\n",a,b,c,ftst[fo],ftst[fo+1],ftst[fo+2]);
     if( (ftst[fo+0]==a) && (ftst[fo+1]==b) && (ftst[fo+2]==c) ){
-      printf("find_cc: %d %d\n",i,i+228);
+      //printf("find_cc: %d %d\n",i,i+228);
       return i;
     }
     fo+=4;
@@ -462,7 +474,7 @@ void draw_text(){
     Paint_ext=true;
     Paint_DrawString_EN(200, 72, cn_buffer, &Font30, WHITE, colors[0]);
     Paint_ext=false;
-    printf("cn_buffer: %s\n",cn_buffer);
+    //printf("cn_buffer: %s\n",cn_buffer);
   }else{
     Paint_DrawString_EN(20, 111, week[theme_pos][t.dotw], &TFONT, WHITE, colors[0]);
   }
@@ -585,14 +597,46 @@ int LCD_1in28_test(void)
 
 
         if(fire){
-          hgb = acc[0];
+          hgx = acc[0];
           hgy = acc[1];
-          if(!edittime && !changetime){edittime=true;colors[editpos]=editcol;}
-          else if(!changetime){edittime=false;changetime=true;colors[editpos]=changecol;}
-          else if(!edittime){changetime=false;colors[editpos]=dcol;}
+          if(cmode==CM_None){
+            puts("CM_Config");
+            cmode=CM_Config;
+          }else if(cmode==CM_Config){
+            puts("CM_Changepos");
+            cmode=CM_Changepos;
+            colors[editpos]=editcol;
+          }else if(cmode==CM_Changepos){
+            puts("CM_Editpos");
+            cmode=CM_Editpos;
+            colors[editpos]=changecol;
+          }else if(cmode==CM_Editpos){
+            puts("CM_Changetheme");
+            cmode=CM_Changetheme;
+            colors[editpos]=dcol;
+          }else if(cmode==CM_Changetheme){
+            puts("CM_None");
+            cmode=CM_None;
+          }
+
           fire=false;
         }
-        if(edittime || changetime){
+        if(cmode == CM_Config){
+          float cx = acc[0]-hgx;
+          float cy = acc[1]-hgy;
+          float r;
+          cx/=1000;
+          cy/=1000;
+          r = sqrt(cx*cx+cy*cy);
+          printf("cxy: %0.3f %0.3f  r=%0.3f\n",cx,cy,r);
+          cx/=r;
+          cy/=r;
+          printf("cxy: %0.3f %0.3f\n",cx,cy);
+          Paint_DrawLine(120,120, 120+cy*110, 120-cx*110, CYAN , 3, LINE_STYLE_DOTTED);
+
+
+        }
+        if(cmode==CM_Changepos || cmode==CM_Editpos){
           // wrist-control (arm==x-axis)
           int as = acc[0];
           as-=hgb;
@@ -609,7 +653,7 @@ int LCD_1in28_test(void)
           }
         }
 
-        if(edittime){
+        if(cmode==CM_Changepos){
           if(tcw){
             colors[editpos]=dcol;
             if(editpos==6){editpos=0;}else{++editpos;}
@@ -623,7 +667,7 @@ int LCD_1in28_test(void)
           }
         }
 
-        if(changetime){
+        if(cmode==CM_Editpos){
           bool set=false;
           if(tcw){
             colors[editpos]=dcol;
@@ -660,7 +704,11 @@ int LCD_1in28_test(void)
             if(!(t.year%4)){last[2]=29;}else{last[2]=28;}
           }
         }
-
+        if(cmode==CM_Changetheme){
+          blink_counter++;
+          if(blink_counter==5){bmode=!bmode;blink_counter=0;}
+          Paint_DrawCircle(120,120,20,bmode?RED:BLUE,2,0);
+        }
 
 
         if(draw_gfx_first){
@@ -677,7 +725,7 @@ int LCD_1in28_test(void)
         int as = acc[1];  // y-axis
         as-=hgy;
 
-				if((as>THRLY) && edittime){
+				if((as>THRLY) && cmode==CM_Changetheme){
           printf("right\n");
           if(!flagsdelay){
             theme_pos++;
@@ -687,7 +735,7 @@ int LCD_1in28_test(void)
             --flagsdelay;
           }
         }
-				if((as<-THRLY) && edittime){
+				if((as<-THRLY) && cmode==CM_Changetheme){
           printf("left\n");
           if(!flagsdelay){
             if(theme_pos==0){theme_pos=THEMES;}
