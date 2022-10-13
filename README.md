@@ -9,7 +9,7 @@
 (ky-040 test code is there)
 E.g. the left image shows a simple button plugged into the h2 header.
 
-#### With a button attached the rp2040-lcd is controlled with the gyroscopef
+#### With a button attached the rp2040-lcd is controlled with the gyroscope
 
 ##### Every button press changes the mode:
 
