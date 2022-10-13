@@ -1,5 +1,6 @@
 # picoclock
 ### for use with WAVESHARE RP2040-LCD-1.28
+### RP2040 LCD 1.28
 ![pc_usa_cn](https://user-images.githubusercontent.com/26333559/195168002-3e70b9dc-ee9e-4af8-8cbc-15525633de07.jpg)
 
 
