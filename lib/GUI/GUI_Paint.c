@@ -7,7 +7,7 @@
 #include <math.h>
 
 PAINT Paint;
-
+bool Paint_ext=false;
 /******************************************************************************
 function: Create Image
 parameter:
@@ -23,17 +23,17 @@ void Paint_NewImage(UBYTE *image, UWORD Width, UWORD Height, UWORD Rotate, UWORD
 
     Paint.WidthMemory = Width;
     Paint.HeightMemory = Height;
-    Paint.Color = Color;    
+    Paint.Color = Color;
 	Paint.Scale = 2;
-		
+
     Paint.WidthByte = (Width % 8 == 0)? (Width / 8 ): (Width / 8 + 1);
-    Paint.HeightByte = Height;    
+    Paint.HeightByte = Height;
 //    printf("WidthByte = %d, HeightByte = %d\r\n", Paint.WidthByte, Paint.HeightByte);
 //    printf(" LCD_WIDTH / 8 = %d\r\n",  122 / 8);
-   
+
     Paint.Rotate = Rotate;
     Paint.Mirror = MIRROR_NONE;
-    
+
     if(Rotate == ROTATE_0 || Rotate == ROTATE_180) {
         Paint.Width = Width;
         Paint.Height = Height;
@@ -78,10 +78,10 @@ void Paint_SetScale(UBYTE scale)
         Paint.WidthByte = (Paint.WidthMemory % 4 == 0)? (Paint.WidthMemory / 4 ): (Paint.WidthMemory / 4 + 1);
     }else if(scale ==16) {
         Paint.Scale = scale;
-        Paint.WidthByte = (Paint.WidthMemory%2==0) ? (Paint.WidthMemory/2) : (Paint.WidthMemory/2+1); 
+        Paint.WidthByte = (Paint.WidthMemory%2==0) ? (Paint.WidthMemory/2) : (Paint.WidthMemory/2+1);
     }else if(scale ==65) {
         Paint.Scale = scale;
-        Paint.WidthByte = Paint.WidthMemory*2; 
+        Paint.WidthByte = Paint.WidthMemory*2;
     }else{
         Debug("Set Scale Input parameter error\r\n");
         Debug("Scale Only support: 2 4 16 65\r\n");
@@ -94,14 +94,14 @@ parameter:
 ******************************************************************************/
 void Paint_SetMirroring(UBYTE mirror)
 {
-    if(mirror == MIRROR_NONE || mirror == MIRROR_HORIZONTAL || 
+    if(mirror == MIRROR_NONE || mirror == MIRROR_HORIZONTAL ||
         mirror == MIRROR_VERTICAL || mirror == MIRROR_ORIGIN) {
         Debug("mirror image x:%s, y:%s\r\n",(mirror & 0x01)? "mirror":"none", ((mirror >> 1) & 0x01)? "mirror":"none");
         Paint.Mirror = mirror;
     } else {
         Debug("mirror should be MIRROR_NONE, MIRROR_HORIZONTAL, \
         MIRROR_VERTICAL or MIRROR_ORIGIN\r\n");
-    }    
+    }
 }
 
 /******************************************************************************
@@ -116,13 +116,13 @@ void Paint_SetPixel(UWORD Xpoint, UWORD Ypoint, UWORD Color)
     if(Xpoint > Paint.Width || Ypoint > Paint.Height){
         Debug("Exceeding display boundaries\r\n");
         return;
-    }      
+    }
     UWORD X, Y;
 
     switch(Paint.Rotate) {
     case 0:
         X = Xpoint;
-        Y = Ypoint;  
+        Y = Ypoint;
         break;
     case 90:
         X = Paint.WidthMemory - Ypoint - 1;
@@ -139,7 +139,7 @@ void Paint_SetPixel(UWORD Xpoint, UWORD Ypoint, UWORD Color)
     default:
         return;
     }
-    
+
     switch(Paint.Mirror) {
     case MIRROR_NONE:
         break;
@@ -161,7 +161,7 @@ void Paint_SetPixel(UWORD Xpoint, UWORD Ypoint, UWORD Color)
         Debug("Exceeding display boundaries\r\n");
         return;
     }
-    
+
     if(Paint.Scale == 2){
         UDOUBLE Addr = X / 8 + Y * Paint.WidthByte;
         UBYTE Rdata = Paint.Image[Addr];
@@ -173,7 +173,7 @@ void Paint_SetPixel(UWORD Xpoint, UWORD Ypoint, UWORD Color)
         UDOUBLE Addr = X / 4 + Y * Paint.WidthByte;
         Color = Color % 4;//Guaranteed color scale is 4  --- 0~3
         UBYTE Rdata = Paint.Image[Addr];
-        
+
         Rdata = Rdata & (~(0xC0 >> ((X % 4)*2)));
         Paint.Image[Addr] = Rdata | ((Color << 6) >> ((X % 4)*2));
     }else if(Paint.Scale == 16) {
@@ -464,7 +464,12 @@ void Paint_DrawChar(UWORD Xpoint, UWORD Ypoint, const char Acsii_Char,
         return;
     }
 
-    uint32_t Char_Offset = (Acsii_Char - ' ') * Font->Height * (Font->Width / 8 + (Font->Width % 8 ? 1 : 0));
+    uint32_t Char_Offset;
+    if(Paint_ext==false){
+      Char_Offset = (Acsii_Char - ' ') * Font->Height * (Font->Width / 8 + (Font->Width % 8 ? 1 : 0));
+    } else{
+      Char_Offset = Acsii_Char * Font->Height * (Font->Width / 8 + (Font->Width % 8 ? 1 : 0));
+    }
     const unsigned char *ptr = &Font->table[Char_Offset];
 
     for (Page = 0; Page < Font->Height; Page ++ ) {
@@ -527,12 +532,14 @@ void Paint_DrawString_EN(UWORD Xstart, UWORD Ystart, const char * pString,
             Ypoint = Ystart;
         }
         Paint_DrawChar(Xpoint, Ypoint, * pString, Font, Color_Background, Color_Foreground);
-
-        //The next character of the address
+        Xpoint += Font->Width;
+        if(Paint_ext){
+          Ystart+=Font->Height;
+          Ypoint = Ystart;
+          Xpoint = Xstart;
+        }
         pString ++;
 
-        //The next word of the abscissa increases the font of the broadband
-        Xpoint += Font->Width;
     }
 }
 
@@ -660,7 +667,7 @@ void Paint_DrawNum(UWORD Xpoint, UWORD Ypoint, double Nummber,
     }
 
 
-	if(Digit > 0) {		
+	if(Digit > 0) {
 		decimals = Nummber>0?Nummber - temp:-(Nummber+temp);
 		for(i=Digit; i > 0; i--) {
 			decimals*=10;
@@ -670,8 +677,8 @@ void Paint_DrawNum(UWORD Xpoint, UWORD Ypoint, double Nummber,
 		for(i=Digit; i>0; i--) {
 			Num_Array[Num_Bit] = temp % 10 + '0';
 			Num_Bit++;
-			temp /= 10;						
-		}	
+			temp /= 10;
+		}
 		Num_Array[Num_Bit] = '.';
 		Num_Bit++;
 	}
@@ -692,7 +699,7 @@ void Paint_DrawNum(UWORD Xpoint, UWORD Ypoint, double Nummber,
     {
         Num_Array[Num_Bit] = '-';
         Num_Bit++;
-    }	
+    }
     //The string is inverted
     while (Num_Bit > 0) {
         Str_Array[Str_Bit] = Num_Array[Num_Bit - 1];
@@ -730,13 +737,13 @@ void Paint_DrawTime(UWORD Xstart, UWORD Ystart, PAINT_TIME *pTime, sFONT* Font,
     Paint_DrawChar(Xstart + Dx * 4 + Dx / 2 - Dx / 4, Ystart, ':'                    , Font, Color_Background, Color_Foreground);
     Paint_DrawChar(Xstart + Dx * 5                  , Ystart, value[pTime->Sec / 10] , Font, Color_Background, Color_Foreground);
     Paint_DrawChar(Xstart + Dx * 6                  , Ystart, value[pTime->Sec % 10] , Font, Color_Background, Color_Foreground);
-    
+
 }
 
 
-void Paint_DrawImage(const unsigned char *image, UWORD xStart, UWORD yStart, UWORD W_Image, UWORD H_Image) 
+void Paint_DrawImage(const unsigned char *image, UWORD xStart, UWORD yStart, UWORD W_Image, UWORD H_Image)
 {
-    int i,j; 
+    int i,j;
 		for(j = 0; j < H_Image; j++){
 			for(i = 0; i < W_Image; i++){
 				if(xStart+i < Paint.WidthMemory  &&  yStart+j < Paint.HeightMemory)//Exceeded part does not display
@@ -745,12 +752,12 @@ void Paint_DrawImage(const unsigned char *image, UWORD xStart, UWORD yStart, UWO
 				//j*W_Image*2 			   Y offset
 				//i*2              	   X offset
 			}
-		} 
+		}
 }
 
-void Paint_DrawImage1(const unsigned char *image, UWORD xStart, UWORD yStart, UWORD W_Image, UWORD H_Image) 
+void Paint_DrawImage1(const unsigned char *image, UWORD xStart, UWORD yStart, UWORD W_Image, UWORD H_Image)
 {
-    int i,j; 
+    int i,j;
 		for(j = 0; j < H_Image; j++){
 			for(i = 0; i < W_Image; i++){
 				if(xStart+i < Paint.HeightMemory  &&  yStart+j < Paint.WidthMemory)//Exceeded part does not display
@@ -759,7 +766,7 @@ void Paint_DrawImage1(const unsigned char *image, UWORD xStart, UWORD yStart, UW
 				//j*W_Image*2 			   Y offset
 				//i*2              	   X offset
 			}
-		} 
+		}
 }
 
 /******************************************************************************
@@ -810,5 +817,3 @@ void Paint_DrawBitMap_Block(const unsigned char* image_buffer, UBYTE Region)
         }
     }
 }
-         
-

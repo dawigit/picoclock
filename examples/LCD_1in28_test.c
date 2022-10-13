@@ -42,7 +42,8 @@
 #include "pico/types.h"
 #include "pico/bootrom/sf_table.h"
 #include "stdlib.h"
-
+#include "Font32ALL.h"
+#include "Font30.h"
 #include "cn16.h"
 #include "usa16.h"
 #include "ger16.h"
@@ -52,6 +53,19 @@
 #include "ger32.h"
 #include "tr32.h"
 
+// Start on Friday 5th of June 2020 15:45:00
+datetime_t t = {
+  .year  = 2022,
+  .month = 10,
+  .day   = 13,
+  .dotw  = 4, // 0 is Sunday, so 5 is Friday
+  .hour  = 7,
+  .min   = 10,
+  .sec   = 0
+};
+
+
+#define DRAW_GFX_FIRST true //1 == text floating above clock
 #define to_rad(angleInDegrees) ((angleInDegrees) * M_PI / 180.0)
 #define to_deg(angleInRadians) ((angleInRadians) * 180.0 / M_PI)
 #define HOURGLASSBORDER 200 // minimum rise/fall of acc_x
@@ -96,8 +110,11 @@ typedef struct ColorTheme_t{
 
 #define TR_Red 0xF800
 
-#define FLAGS_MAX 4
-uint8_t flag_pos = 0;
+#define THEMES 4
+//#define FLAGS_MAX 4
+
+
+uint8_t theme_pos = 0;
 uint8_t* flags[] = {cn32,usa32,ger32,tr32};
 uint8_t* stars[] = {cn16,usa16,ger16,tr16};
 uint16_t alpha[] = {BLACK,BLACK};
@@ -110,7 +127,7 @@ ColorTheme_t colt3={BLACK,0xF800,0x0001,GER_Gold};
 ColorTheme_t colt4={BLACK,TR_Red,TR_Red,WHITE};
 
 //ColorTheme_t* colt[2] = [&colt1,&colt2];
-ColorTheme_t* colt[4];
+ColorTheme_t* colt[THEMES];
 
 char timebuffer[16] = {0};
 char* ptimebuffer=timebuffer;
@@ -120,16 +137,6 @@ char datetime_buf[256];
 char *datetime_str = &datetime_buf[0];
 char* dt_date;
 char* dt_time;
-// Start on Friday 5th of June 2020 15:45:00
-datetime_t t = {
-  .year  = 2022,
-  .month = 2,
-  .day   = 25,
-  .dotw  = 2, // 0 is Sunday, so 5 is Friday
-  .hour  = 16,
-  .min   = 55,
-  .sec   = 0
-};
 
 //ky-040
 #define CCLK 16
@@ -176,7 +183,7 @@ uint16_t acol=WHITE;
 uint16_t colors[7] = {WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE};
 
 float mag[3];
-bool draw_gfx_first = false;
+bool draw_gfx_first = DRAW_GFX_FIRST;
 bool usb_loading = false;
 
 uint16_t result;
@@ -185,6 +192,115 @@ const float conversion_factor = 3.3f / (1 << 12) * 2;
 float acc[3], gyro[3];
 unsigned int tim_count = 0;
 
+uint16_t cn_chars=0;
+char ftst[128*4] = {0};
+
+char* week_usa[7] = {"Sun\0","Mon\0","Tue\0","Wed\0","Thu\0","Fri\0","Sat\0"};
+char* week_cn[7] = {"星期日\0","星期一\0","星期二\0","星期三\0","星期四\0","星期五\0","星期六\0"};
+char* week_ger[7] = {"Son\0","Mon\0","Die\0","Mit\0","Don\0","Fre\0","Sam\0"};
+char* week_tr[7] = {"PAZ\0","PZT\0","SAL\0","CAR\0","PER\0","CUM\0","CMT\0"};
+char** week[THEMES] = {week_cn,week_usa,week_ger,week_tr};
+ // dummy month0
+uint8_t last[13] = {0,31,28,31,30,31,30,31,31,30,31,30,31};
+
+char cn_buffer[32] = {0};
+
+uint8_t find_cc(uint8_t a, uint8_t b, uint8_t c){
+  uint fo=0;
+  for(int i=0; i<cn_chars+1;i++){
+    //printf("[%02x%02x%02x] %02x %02x %02x\n",a,b,c,ftst[fo],ftst[fo+1],ftst[fo+2]);
+    if( (ftst[fo+0]==a) && (ftst[fo+1]==b) && (ftst[fo+2]==c) ){
+      printf("find_cc: %d %d\n",i,i+228);
+      return i;
+    }
+    fo+=4;
+  }
+}
+
+void convert_cs(char* source, char* target){
+  uint32_t si=0, ti=0;
+  while(source[si]){
+    //printf("%02x %02x %02x\n",source[si],source[si+1],source[si+2]);
+    target[ti]=find_cc(source[si],source[si+1],source[si+2]);
+    //printf("%d [%d]\n",target[ti],target[ti]+228);
+    si+=3;
+    target[ti]+=(256-32);
+    ++ti;
+    target[ti]+='\n';
+  }
+  target[ti]=0;
+}
+
+void print_font_table(){
+  uint8_t fts=0;
+  uint8_t n=0;
+  uint8_t nbytes=0;
+  uint32_t ft[128];
+  uint32_t sti=0;
+  char ftc[5] = {0};
+  uint8_t cbu[5];
+  puts("TESTING...");
+  printf("symcheck\n");
+  char* pc;
+  for(int i=0;i<7;i++){
+    int c=0;
+    pc = week_cn[i];
+    while(pc[c]){
+      n=pc[c];
+
+      if((0b10000000&n)==0b00000000){nbytes=1;}
+      if((0b11100000&n)==0b11000000){nbytes=2;}
+      if((0b11110000&n)==0b11100000){nbytes=3;}
+      if((0b11111000&n)==0b11110000){nbytes=4;}
+      //printf("n=%02x (%02b) [%d]",n,(n&0b10000000),nbytes);
+      switch(nbytes){
+        case 1: ft[fts]=n;c+=1;break;
+        case 2: ft[fts]=(pc[c+1]<<8)+(pc[c+0]);c+=2;break;
+        case 3: ft[fts]=(pc[c+0]<<16)+(pc[c+1]<<8) +(pc[c+2]);c+=3;break;
+        case 4: ft[fts]=(pc[c+0]<<24)+(pc[c+1]<<16)+(pc[c+2]<<8)+(pc[c+3]);c+=4;
+      }
+      //printf("ft=%d\n",ft[fts]);
+      bool dupe=false;
+      for(int j=0;j<fts;j++){
+        if(ft[j]==ft[fts]){dupe=true;break;}
+      }
+      if(!dupe){++fts;}
+    }
+  }
+
+  uint32_t i,k;
+  uint32_t temp;
+
+  n=fts;
+  for(i = 0; i<n-1; i++) {
+    for(k = 0; k<n-1-i; k++) {
+      if(ft[k] > ft[k+1]) {
+        temp = ft[k];
+        ft[k] = ft[k+1];
+        ft[k+1] = temp;
+      }
+    }
+  }
+  pc=(char*)&ft[0];
+  sti=0;
+  for(i=0;i<fts;i++){
+    //printf("%02d : %d %02x %02x %02x %02x\n",i,ft[i],pc[0],pc[1],pc[2],pc[3]);
+    ftc[0]=pc[2];
+    ftc[1]=pc[1];
+    ftc[2]=pc[0];
+    ftc[3]=pc[3];
+    printf("S: %02x %02x %02x %s\n",ftc[0],ftc[1],ftc[2],ftc);
+    ftst[sti+0]=ftc[0];
+    ftst[sti+1]=ftc[1];
+    ftst[sti+2]=ftc[2];
+    ftst[sti+3]='\n';
+    pc+=4;
+    sti+=4;
+  }
+  ftst[sti]=0;
+  printf("CHARLIST:\n%s\n",ftst);
+  cn_chars=fts;
+}
 
 void gpio_callback(uint gpio, uint32_t events) {
     if(events&GPIO_IRQ_EDGE_RISE){
@@ -215,10 +331,6 @@ void gpio_callback(uint gpio, uint32_t events) {
     if(osw){osw=false;ceasefire=true;}
 }
 
-  char* week[7] = {"Sun\0","Mon\0","Tue\0","Wen\0","Thu\0","Fri\0","Sat\0"};
-  //char* week[7] = {"So\0","Mo\0","Di\0","Mi\0","Do\0","Fr\0","Sa\0"};
-  // dummy month0
-  uint8_t last[13] = {0,31,28,31,30,31,30,31,31,30,31,30,31};
 
 void blit(int x, int y,int sx, int sy,char* data, uint16_t alpha){
   int iso=0;
@@ -271,18 +383,18 @@ void draw_gfx(){
     if(!(i%5)){
       xi = (int)(tcos[i*6]*110);
       yi = (int)(tsin[i*6]*110);
-      Paint_DrawLine((uint8_t)x0+xi,(uint8_t)y0+yi, x1, y1, colt[flag_pos]->col1 , 1, LINE_STYLE_SOLID);
+      Paint_DrawLine((uint8_t)x0+xi,(uint8_t)y0+yi, x1, y1, colt[theme_pos]->col1 , 1, LINE_STYLE_SOLID);
     }else{
       xi = (int)(tcos[i*6]*115);
       yi = (int)(tsin[i*6]*115);
-      Paint_DrawLine((uint8_t)x0+xi,(uint8_t)y0+yi, x1, y1, colt[flag_pos]->col2 , 1, LINE_STYLE_SOLID);
+      Paint_DrawLine((uint8_t)x0+xi,(uint8_t)y0+yi, x1, y1, colt[theme_pos]->col2 , 1, LINE_STYLE_SOLID);
     }
   }
   xi = (int)(tcos[t.min*6]*105);
   yi = (int)(tsin[t.min*6]*105);
   x1 = (uint8_t)x0+xi;
   y1 = (uint8_t)y0+yi;
-  Paint_DrawLine(x0,y0, x1, y1, colt[flag_pos]->col3 , 2, LINE_STYLE_SOLID);
+  Paint_DrawLine(x0,y0, x1, y1, colt[theme_pos]->col3 , 2, LINE_STYLE_SOLID);
 
   int th=(int)t.hour;
   if(th>=12){th-=12;}
@@ -292,7 +404,7 @@ void draw_gfx(){
   yi = (int)(tsin[th]*64);
   x1 = (uint8_t)x0+xi;
   y1 = (uint8_t)y0+yi;
-  Paint_DrawLine(x0,y0, x1, y1, colt[flag_pos]->col1 , 3, LINE_STYLE_SOLID);
+  Paint_DrawLine(x0,y0, x1, y1, colt[theme_pos]->col1 , 3, LINE_STYLE_SOLID);
 
   if(tseco!=t.sec){
     tseco=t.sec;
@@ -309,20 +421,20 @@ void draw_gfx(){
     yi = (int)(tsin[t.sec*6]*114);
     x1 = (uint8_t)x0+xi;
     y1 = (uint8_t)y0+yi;
-    Paint_DrawLine(x0,y0, x1, y1, colt[flag_pos]->col2 , 1, LINE_STYLE_SOLID);
-    blit((int)(x0-8+tcos[t.sec*6]*102),(int)(y0-8+tsin[t.sec*6]*102),16,16,stars[flag_pos],colt[flag_pos]->alpha);
+    Paint_DrawLine(x0,y0, x1, y1, colt[theme_pos]->col2 , 1, LINE_STYLE_SOLID);
+    blit((int)(x0-8+tcos[t.sec*6]*102),(int)(y0-8+tsin[t.sec*6]*102),16,16,stars[theme_pos],colt[theme_pos]->alpha);
   }else{
     // 'analog' seconds
     xi = (int)(tfcos[t.sec*10+st]*114);
     yi = (int)(tfsin[t.sec*10+st]*114);
     x1 = (uint8_t)x0+xi;
     y1 = (uint8_t)y0+yi;
-    Paint_DrawLine(x0,y0, x1, y1, colt[flag_pos]->col2 , 1, LINE_STYLE_SOLID);
-    blit((int)(x0-8+tfcos[t.sec*10+st]*102),(int)(y0-8+tfsin[t.sec*10+st]*102),16,16,stars[flag_pos],colt[flag_pos]->alpha);
+    Paint_DrawLine(x0,y0, x1, y1, colt[theme_pos]->col2 , 1, LINE_STYLE_SOLID);
+    blit((int)(x0-8+tfcos[t.sec*10+st]*102),(int)(y0-8+tfsin[t.sec*10+st]*102),16,16,stars[theme_pos],colt[theme_pos]->alpha);
 
   }
 
-  blit(120-16,120-16,32,32,flags[flag_pos],colt[flag_pos]->alpha); // center
+  blit(120-16,120-16,32,32,flags[theme_pos],colt[theme_pos]->alpha); // center
 
 }
 
@@ -345,7 +457,15 @@ void draw_text(){
   Paint_DrawString_EN(50, 208, "BAT(V)=", &Font16, WHITE, BLACK);
   Paint_DrawNum(130, 208, result * conversion_factor, &Font16, 2, BLACK, WHITE);
 
-  Paint_DrawString_EN(20, 111, week[t.dotw], &TFONT, WHITE, colors[0]);
+  if(!theme_pos){
+    convert_cs(week[theme_pos][t.dotw],cn_buffer);
+    Paint_ext=true;
+    Paint_DrawString_EN(200, 72, cn_buffer, &Font30, WHITE, colors[0]);
+    Paint_ext=false;
+    printf("cn_buffer: %s\n",cn_buffer);
+  }else{
+    Paint_DrawString_EN(20, 111, week[theme_pos][t.dotw], &TFONT, WHITE, colors[0]);
+  }
 
   sprintf(dbuf,"%02d",t.day);
   Paint_DrawString_EN(DATIX+3*TFW, DATIY, dbuf, &TFONT, WHITE, colors[1]);
@@ -419,6 +539,7 @@ int LCD_1in28_test(void)
 
     QMI8658_init();
     printf("QMI8658_init\r\n");
+
     for(uint16_t i=0;i<360;i++){
       float f = (float)i;
       sincosf(to_rad(f-90),&tsin[i],&tcos[i]);
@@ -428,7 +549,8 @@ int LCD_1in28_test(void)
       sincosf(to_rad(ff-90),&tfsin[i],&tfcos[i]);
       ff+=0.6f;
     }
-
+    DEV_Delay_ms(1000);
+    print_font_table();
     while (true)    {
         QMI8658_read_xyz(acc, gyro, &tim_count);
         //check if not moving
@@ -558,8 +680,8 @@ int LCD_1in28_test(void)
 				if((as>THRLY) && edittime){
           printf("right\n");
           if(!flagsdelay){
-            flag_pos++;
-            if(flag_pos==FLAGS_MAX){flag_pos=0;}
+            theme_pos++;
+            if(theme_pos==THEMES){theme_pos=0;}
             flagsdelay=FLAGS_DELAY;
           }else{
             --flagsdelay;
@@ -568,8 +690,8 @@ int LCD_1in28_test(void)
 				if((as<-THRLY) && edittime){
           printf("left\n");
           if(!flagsdelay){
-            if(flag_pos==0){flag_pos=FLAGS_MAX;}
-            flag_pos--;
+            if(theme_pos==0){theme_pos=THEMES;}
+            theme_pos--;
             flagsdelay=FLAGS_DELAY;
           }else{
             --flagsdelay;
@@ -578,7 +700,7 @@ int LCD_1in28_test(void)
         if(gyro[1]>THRS){printf("up\n");} // shake up
         if(gyro[1]<-THRS){printf("down\n");} //shake down
         //printf("%d\n",st/100000);
-        //printf("[%d] {as%d} fd=%d\n",flag_pos,as,flagsdelay);
+        //printf("[%d] {as%d} fd=%d\n",theme_pos,as,flagsdelay);
 
         DEV_Delay_ms((analog_seconds)?1:100);
     }
