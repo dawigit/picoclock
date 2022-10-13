@@ -42,8 +42,7 @@
 #include "pico/types.h"
 #include "pico/bootrom/sf_table.h"
 #include "stdlib.h"
-#include "Font32ALL.h"
-#include "Font30.h"
+#include "Font34.h"
 #include "cn16.h"
 #include "usa16.h"
 #include "ger16.h"
@@ -52,6 +51,9 @@
 #include "usa32.h"
 #include "ger32.h"
 #include "tr32.h"
+#include "earth.h"
+#include "bega.h"
+#include "sand.h"
 
 // Start on Friday 5th of June 2020 15:45:00
 datetime_t t = {
@@ -59,12 +61,12 @@ datetime_t t = {
   .month = 10,
   .day   = 13,
   .dotw  = 4, // 0 is Sunday, so 5 is Friday
-  .hour  = 7,
-  .min   = 10,
+  .hour  = 11,
+  .min   = 0,
   .sec   = 0
 };
 
-
+#define CNFONT Font30
 #define DRAW_GFX_FIRST true //1 == text floating above clock
 #define to_rad(angleInDegrees) ((angleInDegrees) * M_PI / 180.0)
 #define to_deg(angleInRadians) ((angleInRadians) * 180.0 / M_PI)
@@ -103,9 +105,14 @@ typedef enum CMode {
 
 typedef struct ColorTheme_t{
   uint16_t alpha;
-  uint16_t col1;
-  uint16_t col2;
-  uint16_t col3;
+  uint16_t col_h;
+  uint16_t col_m;
+  uint16_t col_s;
+  uint16_t col_cs;
+  uint16_t col_cs5;
+  uint16_t col_dotw;
+  uint16_t col_date;
+  uint16_t col_time;
 } ColorTheme_t;
 
 #define USA_Old_Glory_Red 0xB0C8 //0xB31942
@@ -115,8 +122,10 @@ typedef struct ColorTheme_t{
 #define CN_Gold 0xFFE0 //0xffff00
 
 #define GER_Gold 0xFE60
+#define GER_Red 0xF800
 
 #define TR_Red 0xF800
+#define TR_Green (0x1e<<11)+(0x2f<<5)+0x1d //0x0480
 
 #define THEMES 4
 //#define FLAGS_MAX 4
@@ -127,13 +136,14 @@ uint8_t theme_pos = 0;
 uint8_t* flags[] = {cn32,usa32,ger32,tr32};
 uint8_t* stars[] = {cn16,usa16,ger16,tr16};
 uint16_t alpha[] = {BLACK,BLACK};
+const char* backgrounds[] = {earth,earth,bega,sand};
 
 
 
-ColorTheme_t colt1={BLACK,CN_Red,CN_Red,CN_Gold};
-ColorTheme_t colt2={BLACK,USA_Old_Glory_Red,USA_Old_Glory_Blue,WHITE};
-ColorTheme_t colt3={BLACK,0xF800,0x0001,GER_Gold};
-ColorTheme_t colt4={BLACK,TR_Red,TR_Red,WHITE};
+ColorTheme_t colt1={BLACK,CN_Red,CN_Red,CN_Gold,CN_Red,CN_Gold,LGRAY,WHITE,WHITE};
+ColorTheme_t colt2={BLACK,USA_Old_Glory_Red,USA_Old_Glory_Blue,WHITE,USA_Old_Glory_Red,WHITE,NBLACK,WHITE,WHITE};
+ColorTheme_t colt3={BLACK,GER_Red,0x0001,GER_Gold,GER_Red,GER_Gold,WHITE,WHITE,WHITE};
+ColorTheme_t colt4={BLACK,TR_Red,TR_Red,WHITE,WHITE,TR_Red,WHITE,WHITE,WHITE};
 
 //ColorTheme_t* colt[2] = [&colt1,&colt2];
 ColorTheme_t* colt[THEMES];
@@ -193,6 +203,7 @@ uint16_t editcol = YELLOW;
 uint16_t changecol = ORANGE;
 uint16_t acol=WHITE;
 uint16_t colors[7] = {WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE};
+uint16_t dcolors[7];
 
 float mag[3];
 bool draw_gfx_first = DRAW_GFX_FIRST;
@@ -216,6 +227,39 @@ char** week[THEMES] = {week_cn,week_usa,week_ger,week_tr};
 uint8_t last[13] = {0,31,28,31,30,31,30,31,31,30,31,30,31};
 
 char cn_buffer[32] = {0};
+
+uint16_t to_rgb565(uint8_t r,uint8_t g,uint8_t b){
+  r>>=3;
+  g>>=2;
+  b>>=3;
+  return ((r<<11)+(g<<5)+b);
+}
+
+uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b){
+  return ((r<<11)+(g<<5)+b);
+}
+
+void to_rgb(uint16_t rgb, uint8_t* r, uint8_t* g, uint8_t* b){
+  *r=((rgb>>11)&0x1f)<<3;
+  *g=((rgb>>5)&0x3f)<<3;
+  *b=(rgb&0x1f)<<3;
+}
+
+void set_colors(){
+  for(int i=0;i<7;i++){
+    colors[i]=dcolors[i];
+  }
+}
+
+void set_dcolors(){
+  dcolors[0]=colt[theme_pos]->col_dotw;
+  dcolors[1]=colt[theme_pos]->col_date;
+  dcolors[2]=colt[theme_pos]->col_date;
+  dcolors[3]=colt[theme_pos]->col_date;
+  dcolors[4]=colt[theme_pos]->col_time;
+  dcolors[5]=colt[theme_pos]->col_time;
+  dcolors[6]=colt[theme_pos]->col_time;
+}
 
 uint8_t find_cc(uint8_t a, uint8_t b, uint8_t c){
   uint fo=0;
@@ -395,18 +439,18 @@ void draw_gfx(){
     if(!(i%5)){
       xi = (int)(tcos[i*6]*110);
       yi = (int)(tsin[i*6]*110);
-      Paint_DrawLine((uint8_t)x0+xi,(uint8_t)y0+yi, x1, y1, colt[theme_pos]->col1 , 1, LINE_STYLE_SOLID);
+      Paint_DrawLine((uint8_t)x0+xi,(uint8_t)y0+yi, x1, y1, colt[theme_pos]->col_cs5 , 1, LINE_STYLE_SOLID);
     }else{
       xi = (int)(tcos[i*6]*115);
       yi = (int)(tsin[i*6]*115);
-      Paint_DrawLine((uint8_t)x0+xi,(uint8_t)y0+yi, x1, y1, colt[theme_pos]->col2 , 1, LINE_STYLE_SOLID);
+      Paint_DrawLine((uint8_t)x0+xi,(uint8_t)y0+yi, x1, y1, colt[theme_pos]->col_cs , 1, LINE_STYLE_SOLID);
     }
   }
   xi = (int)(tcos[t.min*6]*105);
   yi = (int)(tsin[t.min*6]*105);
   x1 = (uint8_t)x0+xi;
   y1 = (uint8_t)y0+yi;
-  Paint_DrawLine(x0,y0, x1, y1, colt[theme_pos]->col3 , 2, LINE_STYLE_SOLID);
+  Paint_DrawLine(x0,y0, x1, y1, colt[theme_pos]->col_m , 2, LINE_STYLE_SOLID);
 
   int th=(int)t.hour;
   if(th>=12){th-=12;}
@@ -416,7 +460,7 @@ void draw_gfx(){
   yi = (int)(tsin[th]*64);
   x1 = (uint8_t)x0+xi;
   y1 = (uint8_t)y0+yi;
-  Paint_DrawLine(x0,y0, x1, y1, colt[theme_pos]->col1 , 3, LINE_STYLE_SOLID);
+  Paint_DrawLine(x0,y0, x1, y1, colt[theme_pos]->col_h , 3, LINE_STYLE_SOLID);
 
   if(tseco!=t.sec){
     tseco=t.sec;
@@ -433,7 +477,7 @@ void draw_gfx(){
     yi = (int)(tsin[t.sec*6]*114);
     x1 = (uint8_t)x0+xi;
     y1 = (uint8_t)y0+yi;
-    Paint_DrawLine(x0,y0, x1, y1, colt[theme_pos]->col2 , 1, LINE_STYLE_SOLID);
+    Paint_DrawLine(x0,y0, x1, y1, colt[theme_pos]->col_s , 1, LINE_STYLE_SOLID);
     blit((int)(x0-8+tcos[t.sec*6]*102),(int)(y0-8+tsin[t.sec*6]*102),16,16,stars[theme_pos],colt[theme_pos]->alpha);
   }else{
     // 'analog' seconds
@@ -441,7 +485,7 @@ void draw_gfx(){
     yi = (int)(tfsin[t.sec*10+st]*114);
     x1 = (uint8_t)x0+xi;
     y1 = (uint8_t)y0+yi;
-    Paint_DrawLine(x0,y0, x1, y1, colt[theme_pos]->col2 , 1, LINE_STYLE_SOLID);
+    Paint_DrawLine(x0,y0, x1, y1, colt[theme_pos]->col_s , 1, LINE_STYLE_SOLID);
     blit((int)(x0-8+tfcos[t.sec*10+st]*102),(int)(y0-8+tfsin[t.sec*10+st]*102),16,16,stars[theme_pos],colt[theme_pos]->alpha);
 
   }
@@ -452,12 +496,12 @@ void draw_gfx(){
 
 
 void draw_text(){
-  Paint_DrawString_EN(ACCX, ACCY    ,     "ACC_X = ", &Font12, WHITE,  CYAN);
-  Paint_DrawString_EN(ACCX, ACCY+16 , "ACC_Y = ", &Font12, WHITE,  CYAN);
-  Paint_DrawString_EN(ACCX, ACCY+32 , "ACC_Z = ", &Font12, WHITE, CYAN);
-  Paint_DrawString_EN(ACCX, ACCY+114 , "GYR_X = ", &Font12, WHITE, CYAN);
-  Paint_DrawString_EN(ACCX, ACCY+128, "GYR_Y = ", &Font12, WHITE, CYAN);
-  Paint_DrawString_EN(ACCX, ACCY+142, "GYR_Z = ", &Font12, WHITE, CYAN);
+  Paint_DrawString_EN(ACCX, ACCY    , "GYR_X = ", &Font12, WHITE,  CYAN);
+  Paint_DrawString_EN(ACCX, ACCY+16 , "GYR_Y = ", &Font12, WHITE,  CYAN);
+  Paint_DrawString_EN(ACCX, ACCY+32 , "GYR_Z = ", &Font12, WHITE, CYAN);
+  Paint_DrawString_EN(ACCX, ACCY+114 ,"ACC_X = ", &Font12, WHITE, CYAN);
+  Paint_DrawString_EN(ACCX, ACCY+128, "ACC_Y = ", &Font12, WHITE, CYAN);
+  Paint_DrawString_EN(ACCX, ACCY+142, "ACC_Z = ", &Font12, WHITE, CYAN);
   Paint_DrawNum(130, ACCY    , acc[0], &Font12, 2,   YELLOW,   WHITE);
   Paint_DrawNum(130, ACCY+16 , acc[1], &Font12, 2,   YELLOW,   WHITE);
   Paint_DrawNum(130, ACCY+32 , acc[2], &Font12, 2,  YELLOW,  WHITE);
@@ -466,13 +510,13 @@ void draw_text(){
   Paint_DrawNum(130, ACCY+142, gyro[2], &Font12, 2, YELLOW, WHITE);
   Paint_DrawString_EN(70, 194, "TEMP = ", &Font12, WHITE, CYAN);
   Paint_DrawNum(120, 194, temperature, &Font12, 2, YELLOW, WHITE);
-  Paint_DrawString_EN(50, 208, "BAT(V)=", &Font16, WHITE, BLACK);
-  Paint_DrawNum(130, 208, result * conversion_factor, &Font16, 2, BLACK, WHITE);
+  Paint_DrawString_EN(50, 208, "BAT(V)=", &Font16, WHITE, ORANGE);
+  Paint_DrawNum(130, 208, result * conversion_factor, &Font16, 2, ORANGE, WHITE);
 
   if(!theme_pos){
     convert_cs(week[theme_pos][t.dotw],cn_buffer);
     Paint_ext=true;
-    Paint_DrawString_EN(200, 72, cn_buffer, &Font30, WHITE, colors[0]);
+    Paint_DrawString_EN(190, 72, cn_buffer, &Font34, WHITE, colors[0]);
     Paint_ext=false;
     //printf("cn_buffer: %s\n",cn_buffer);
   }else{
@@ -532,6 +576,10 @@ int LCD_1in28_test(void)
     rtc_init();
     rtc_set_datetime(&t);
     if(!(t.year%4)){last[2]=29;}else{last[2]=28;}
+
+    set_dcolors();
+    set_colors(); // are set from dcolors so set em first
+
     UDOUBLE Imagesize = LCD_1IN28_HEIGHT * LCD_1IN28_WIDTH * 2;
     UWORD *BlackImage;
     if ((BlackImage = (UWORD *)malloc(Imagesize)) == NULL)
@@ -544,10 +592,11 @@ int LCD_1in28_test(void)
     Paint_SetScale(65);
     Paint_Clear(WHITE);
     Paint_SetRotate(ROTATE_0);
-    Paint_Clear(WHITE);
+    Paint_Clear(BLACK);
     LCD_1IN28_Display(BlackImage);
     Paint_DrawImage(gImage_1inch3_1, 0, 0, 240, 240);
     LCD_1IN28_Display(BlackImage);
+
 
     QMI8658_init();
     printf("QMI8658_init\r\n");
@@ -567,7 +616,7 @@ int LCD_1in28_test(void)
         QMI8658_read_xyz(acc, gyro, &tim_count);
         //check if not moving
         if((gyro[0]>-10.0f&&gyro[0]<10.0f)&&(gyro[1]>-10.0f&&gyro[1]<10.0f)&&(gyro[2]>-10.0f&&gyro[2]<10.0f)){
-          if(!is_sleeping && !edittime && !changetime && !usb_loading){
+          if(!is_sleeping && cmode==CM_None && !usb_loading){
             screensaver--;
             if(screensaver<=0){
               is_sleeping=true;
@@ -593,8 +642,10 @@ int LCD_1in28_test(void)
         result = adc_read();
         // (v>4.15)?true:false
         usb_loading = ((result * conversion_factor)>=4.15);
-        Paint_DrawImage(gImage_1inch3_1, 0, 0, 240, 240);
-
+        //Paint_DrawImage(gImage_1inch3_1, 0, 0, 240, 240);
+        //Paint_DrawImage(earth, 0, 0, 240, 240);
+        Paint_DrawImage(backgrounds[theme_pos], 0, 0, 240, 240);
+        //blit(0,0,240,240,br,BLACK);
 
         if(fire){
           hgx = acc[0];
@@ -613,7 +664,7 @@ int LCD_1in28_test(void)
           }else if(cmode==CM_Editpos){
             puts("CM_Changetheme");
             cmode=CM_Changetheme;
-            colors[editpos]=dcol;
+            colors[editpos]=dcolors[editpos];
           }else if(cmode==CM_Changetheme){
             puts("CM_None");
             cmode=CM_None;
@@ -670,7 +721,7 @@ int LCD_1in28_test(void)
         if(cmode==CM_Editpos){
           bool set=false;
           if(tcw){
-            colors[editpos]=dcol;
+            colors[editpos]=dcolors[editpos];
             switch(editpos){
               case 0: (t.dotw==6)?t.dotw=0:++t.dotw;break;
               case 1: (t.day==last[t.month])?t.day=1:++t.day;break;
@@ -685,7 +736,7 @@ int LCD_1in28_test(void)
             set=true;
           }
           if(tccw){
-            colors[editpos]=dcol;
+            colors[editpos]=dcolors[editpos];
             switch(editpos){
               case 0: (t.dotw==0)?t.dotw=6:--t.dotw;break;
               case 1: (t.day==1)?t.day=last[t.month]:--t.day;break;
@@ -731,6 +782,8 @@ int LCD_1in28_test(void)
             theme_pos++;
             if(theme_pos==THEMES){theme_pos=0;}
             flagsdelay=FLAGS_DELAY;
+            set_dcolors();
+            set_colors();
           }else{
             --flagsdelay;
           }
@@ -741,6 +794,8 @@ int LCD_1in28_test(void)
             if(theme_pos==0){theme_pos=THEMES;}
             theme_pos--;
             flagsdelay=FLAGS_DELAY;
+            set_dcolors();
+            set_colors();
           }else{
             --flagsdelay;
           }
