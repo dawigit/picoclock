@@ -61,7 +61,7 @@ datetime_t t = {
   .month = 10,
   .day   = 13,
   .dotw  = 4, // 0 is Sunday, so 5 is Friday
-  .hour  = 11,
+  .hour  = 21,
   .min   = 0,
   .sec   = 0
 };
