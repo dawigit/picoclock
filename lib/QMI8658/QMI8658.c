@@ -31,6 +31,52 @@ static unsigned int imu_timestamp = 0;
 static struct QMI8658Config QMI8658_config;
 static unsigned char QMI8658_slave_addr = QMI8658_SLAVE_ADDR_L;
 
+void DEV_I2C_Write_Byte(uint8_t addr, uint8_t reg, uint8_t Value)
+{
+    uint8_t data[2] = {reg, Value};
+    i2c_write_blocking(I2C_PORT, addr, data, 2, false);
+}
+void DEV_I2C_Write_Register(uint8_t addr, uint8_t reg, uint16_t value)
+{
+
+    uint8_t tmpi[3];
+    tmpi[0] = reg;
+    tmpi[1] = (value >> 8) & 0xFF;
+    tmpi[2] = value & 0xFF;
+    DEV_I2C_Write_nByte(addr, tmpi, 3);
+}
+void DEV_I2C_Write_nByte(uint8_t addr, uint8_t *pData, uint32_t Len)
+{
+    i2c_write_blocking(I2C_PORT, addr, pData, Len, false);
+}
+
+uint8_t DEV_I2C_Read_Byte(uint8_t addr, uint8_t reg)
+{
+    uint8_t buf;
+    i2c_write_blocking(I2C_PORT, addr, &reg, 1, true);
+    i2c_read_blocking(I2C_PORT, addr, &buf, 1, false);
+    return buf;
+}
+void DEV_I2C_Read_Register(uint8_t addr, uint8_t reg, uint16_t *value)
+{
+
+    uint8_t tmpi[2];
+    i2c_write_blocking(I2C_PORT, addr, &reg, 1, true); // true to keep master control of bus
+    i2c_read_blocking(I2C_PORT, addr, tmpi, 2, false);
+    *value = (((uint16_t)tmpi[0] << 8) | (uint16_t)tmpi[1]);
+}
+void DEV_I2C_Read_nByte(uint8_t addr, uint8_t reg, uint8_t *pData, uint32_t Len)
+{
+    i2c_write_blocking(I2C_PORT, addr, &reg, 1, true);
+    i2c_read_blocking(I2C_PORT, addr, pData, Len, false);
+}
+
+uint16_t DEC_ADC_Read(void)
+{
+    return adc_read();
+}
+
+
 unsigned char QMI8658_write_reg(unsigned char reg, unsigned char value)
 {
 	unsigned char ret = 0;

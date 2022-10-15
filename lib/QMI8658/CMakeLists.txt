@@ -6,4 +6,4 @@ include_directories(../Config)
 
 # 生成链接库
 add_library(QMI8658 ${DIR_QMI8658_SRCS})
-target_link_libraries(QMI8658 PUBLIC Config)
+target_link_libraries(QMI8658 PUBLIC pico_stdlib hardware_i2c hardware_adc)
