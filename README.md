@@ -11,21 +11,21 @@ E.g. the left image shows a simple button plugged into the h2 header.
 
 #### With a button attached the rp2040-lcd is controlled with the gyroscope
 
-##### Every button press changes the mode:
-
+##### Every button press changes the mode and it starts in 1st mode:
+###### modes:
 - 1st: [WHITE]  None  [default mode, startup]
 - 2nd: [CYAN]   Config (shows a cyan gyro-pointer, no use yet)
 - 3rd: [YELLOW] ChangePosition (to change position in date/time/day of the week)
 - 4rd: [ORANGE] EditPosition (to change value in that position: up/down)
+
+[5th mode has no graphical indicator atm]
 - 5th: [RED/BLUE] ChangeTheme (to change the theme: left/right)
 
 
 For now there are USA, China, Germany and Türkiye themes.
-The images are in the ./examples folder.
+The images/fonts are in the ./img folder.
 
-The file 'img2data.md' contains a shell script (a function 'img2data')
-so you can convert any image to to rgb565 format and then
-into a header file (img.h) [in one turn].
+The file 'img2data.md' contains shell scripts for converting image data and fonts into header files.
 
 #### Problems, bugs:
 
@@ -35,7 +35,16 @@ into a header file (img.h) [in one turn].
 - gfx is slow
 
 ## To flash the image
-sudo picotool load ./build/main.uf2 -x --bus 1 --address XX
+
+`sudo picotool load ./build/main.uf2 -x --bus 1 --address XX`
 
 You can find out the '--address' with:
-picotool info
+
+`picotool info`
+
+
+## Building the image
+
+`cd picoclock;mkdir build;cd build;cmake ..;make`
+
+
