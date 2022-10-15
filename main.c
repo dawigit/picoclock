@@ -21,7 +21,7 @@
 #include "img/Font30.h"
 #include "img/earth.h"
 #include "img/bega.h"
-//#include "img/sand.h"
+#include "img/sand.h"
 //#include "img/maple.h"
 #include "img/usa32.h"
 #include "img/cn32.h"
@@ -126,14 +126,14 @@ uint8_t theme_pos = 0;
 const uint8_t* flags[] = {cn32,usa32,ger32,tr32};
 const uint8_t* stars[] = {cn16,usa16,ger16,tr16};
 uint16_t alpha[] = {BLACK,BLACK};
-const char* backgrounds[] = {earth,earth,bega,bega};
+const char* backgrounds[] = {earth,earth,bega,sand};
 
 
 
 ColorTheme_t colt1={BLACK,CN_Red,CN_Red,CN_Gold,CN_Red,CN_Gold,LGRAY,WHITE,WHITE};
 ColorTheme_t colt2={BLACK,USA_Old_Glory_Red,USA_Old_Glory_Blue,WHITE,USA_Old_Glory_Red,WHITE,NBLACK,WHITE,WHITE};
 ColorTheme_t colt3={BLACK,GER_Red,0x0001,GER_Gold,GER_Red,GER_Gold,WHITE,WHITE,WHITE};
-ColorTheme_t colt4={BLACK,TR_Red,TR_Red,WHITE,WHITE,TR_Red,WHITE,WHITE,WHITE};
+ColorTheme_t colt4={BLACK,WHITE,TR_Red,WHITE,WHITE,TR_Red,WHITE,WHITE,WHITE};
 
 //ColorTheme_t* colt[2] = [&colt1,&colt2];
 ColorTheme_t* colt[THEMES];
@@ -748,7 +748,7 @@ int main(void)
       lcd_display(b0);
 
 #define THRS 12
-#define THRLY 30
+#define THRLY 40
       int as = acc[1];  // y-axis
       as-=hgy;
 
@@ -781,7 +781,8 @@ int main(void)
       //printf("%d\n",st/100000);
       //printf("[%d] {as%d} fd=%d\n",theme_pos,as,flagsdelay);
 
-      sleep_ms((analog_seconds)?1:100);
+      //sleep_ms((analog_seconds)?1:100);
+
 
     }
     return 0;

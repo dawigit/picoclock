@@ -10,7 +10,8 @@ oname=$(echo "$1" | cut -f 1 -d '.')
 name=$(echo "$1" | cut -f 1 -d '.')rgb565
 echo "name: $name"
 convert $1 -rotate 180 -flop -alpha off -define bmp:subtype=RGB565 $name.bmp
-dd bs=138 skip=1 if=$name.bmp of=$oname.raw
+#conversion: swap bytes (hi/lo)
+dd conv=swab bs=138 skip=1 if=$name.bmp of=$oname.raw
 touch $oname.h
 echo "const unsigned char $oname[$2*2] = {" > $oname.h
 hexdump -v -e '"0x" 1/1 "%02X" ","' $oname.raw >> $oname.h
