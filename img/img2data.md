@@ -1,8 +1,10 @@
-# usage: img2data IMAGEFILE SIZE*SIZE
-# example usage: img2data us16.png 16*16
-# generates file 'us16.h' with rgb565 data
 
-# you can add it to your .bashrc or whatever you use
+
+### usage: img2data IMAGEFILE SIZE*SIZE
+#### example usage: img2data us16.png 16*16
+#### generates file 'us16.h' with rgb565 data
+
+#### you can add it to your .bashrc or whatever you use
 
 function img2data()
 {
@@ -21,7 +23,22 @@ echo "};" >> $oname.h
 }
 
 
-#
+### usage: mkfontimagexy FONT X Y POINTSIZE
+#### example usage: mkfontimagexy nf.ttc 31 40 27;
+#### generates file 'nf.tcc.png' (2color)
+
+#### POINTSIZE is responsible for X/Y of fonts so you have 'play' with the values a bit
+
+A complete conversion process would be:
+- install fonts
+- cp /usr/share/fonts/opentype/noto/NotoSansCJK-Thin.ttc ./nf.ttc
+- mkfontimagexy nf.ttc 31 40 27;
+- eog nf.ttc.png
+
+This generates 'nf.ttc.h' (aka Font40.h) and Font30.h is made alike.
+Those fonts contain Latin, Cyrillic and a bunch of 'Chinese' characters – to write the weekdays.
+A bit of show - generally it's NOT a good idea mixing fonts of different dimensions (rect vs. square)
+or better: square-rect == waste-o-space
 
 function mkfontimagexy()
 {
@@ -35,3 +52,5 @@ sed -i -r 's/\w+\[\]/Font'$3'_table\[\]/g' $1.h
 sed -i -r 's/\w+_len/Font'$3'_len/g' $1.h
 echo -e "\nsFONT Font"$3" = {\n  Font"$3"_table,\n  "$2", /* Width */\n  "$3", /* Height */\n};\n" >> $1.h
 }
+
+

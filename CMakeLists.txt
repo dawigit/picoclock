@@ -4,18 +4,6 @@ include(pico_sdk_import.cmake)
 project(picoclock)
 pico_sdk_init()
 
-#add_subdirectory(./lib/Config)
-#add_subdirectory(./lib/LCD)
-#add_subdirectory(./lib/Fonts)
-#add_subdirectory(./lib/GUI)
-#add_subdirectory(./examples)
-#include_directories(./examples)
-#include_directories(./lib/Config)
-#include_directories(./lib/Fonts)
-#include_directories(./lib/GUI)
-#include_directories(./lib/LCD)
-
-
 add_subdirectory(./lib/lcd)
 include_directories(./lib/lcd)
 add_subdirectory(./lib/QMI8658)

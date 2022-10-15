@@ -17,11 +17,12 @@
 
 #include "lib/Fonts/fonts.h"
 #include "img/Font34.h"
-//#include "img/hanamin.h"
 #include "img/Font30.h"
 #include "img/earth.h"
 #include "img/bega.h"
 #include "img/sand.h"
+#include "img/irisa190.h"
+
 //#include "img/maple.h"
 #include "img/usa32.h"
 #include "img/cn32.h"
@@ -32,12 +33,14 @@
 #include "img/ger16.h"
 #include "img/tr16.h"
 
+#define TFONT Font20
+#define CNFONT Font30
+
 
 #define mcpy(d,s,sz) for(int i=0;i<sz;i++){d[i]=s[i];}
 #define THEMES 4
 
-bool Paint_ext=false;
-
+#define EYE irisa190
 
 // Start on Friday 5th of June 2020 15:45:00
 datetime_t t = {
@@ -50,7 +53,6 @@ datetime_t t = {
   .sec   = 0
 };
 
-#define CNFONT Font30
 #define DRAW_GFX_FIRST false //1 == text floating above clock
 #define to_rad(angleInDegrees) ((angleInDegrees) * M_PI / 180.0)
 #define to_deg(angleInRadians) ((angleInRadians) * 180.0 / M_PI)
@@ -69,12 +71,21 @@ datetime_t t = {
 #define BATX 70
 #define BATY 30
 #define BATYS 4
-#define TFONT Font20
+
 #define TFW 14
 #define DATIX 2
 #define DATIY 86
 #define HXST 64
 #define HYST 136
+
+
+// eye dimensions
+#define EYE_X 25
+#define EYE_Y 25
+#define EYE_SZ 190
+#define EYE_R EYE_SZ/2
+#define EYE_MAX 50
+
 
 
 void sincosf(float,float*,float*);
@@ -131,7 +142,7 @@ const char* backgrounds[] = {earth,earth,bega,sand};
 
 
 ColorTheme_t colt1={BLACK,CN_Red,CN_Red,CN_Gold,CN_Red,CN_Gold,LGRAY,WHITE,WHITE};
-ColorTheme_t colt2={BLACK,USA_Old_Glory_Red,USA_Old_Glory_Blue,WHITE,USA_Old_Glory_Red,WHITE,NBLACK,WHITE,WHITE};
+ColorTheme_t colt2={BLACK,USA_Old_Glory_Red,USA_Old_Glory_Blue,WHITE,USA_Old_Glory_Red,WHITE,WHITE,WHITE,WHITE};
 ColorTheme_t colt3={BLACK,GER_Red,0x0001,GER_Gold,GER_Red,GER_Gold,WHITE,WHITE,WHITE};
 ColorTheme_t colt4={BLACK,WHITE,TR_Red,WHITE,WHITE,TR_Red,WHITE,WHITE,WHITE};
 
@@ -571,18 +582,12 @@ int main(void)
       ff+=0.6f;
     }
     print_font_table();
-
+    acc[0]=0.0f;
+    acc[1]=0.0f;
+    acc[2]=0.0f;
 
     while(true){
-      mcpy(b0,backgrounds[theme_pos],LCD_SZ);
-      //lcd_blit(104,54,32,32, 0x0000,ger32);
-      //lcd_blit(104,92,32,32, 0x0000,cn32);
-      //lcd_blit(104,124,32,32,0x0000,usa32);
-      //lcd_blit(104,164,32,32,0x0000,tr32);
-      //lcd_display(b0);
-      //o++;
-      //if(o==THEMES){o=0;}
-      //sleep_ms(1000);
+
 
 
       QMI8658_read_xyz(acc, gyro, &tim_count);
@@ -609,6 +614,22 @@ int main(void)
         sleep_ms(1000);
         continue;
       }
+
+      if(theme_pos==1){
+        //lcd_clr(WHITE);
+        for(int i=0;i<LCD_SZ;i++){b0[i]=0x00;}
+
+        int8_t xa = (int8_t)(acc[1]/50.0f);
+        int8_t ya = (int8_t)(acc[0]/50.0f);
+        if(xa>EYE_MAX){xa=EYE_MAX;}
+        if(xa<-EYE_MAX){xa=-EYE_MAX;}
+        if(ya>EYE_MAX){ya=EYE_MAX;}
+        if(ya<-EYE_MAX){ya=-EYE_MAX;}
+        lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,EYE);
+      }else{
+        mcpy(b0,backgrounds[theme_pos],LCD_SZ);
+      }
+
 
       rtc_get_datetime(&t);
       result = adc_read();
@@ -748,7 +769,7 @@ int main(void)
       lcd_display(b0);
 
 #define THRS 12
-#define THRLY 40
+#define THRLY 120
       int as = acc[1];  // y-axis
       as-=hgy;
 
@@ -781,7 +802,7 @@ int main(void)
       //printf("%d\n",st/100000);
       //printf("[%d] {as%d} fd=%d\n",theme_pos,as,flagsdelay);
 
-      //sleep_ms((analog_seconds)?1:100);
+      sleep_ms((analog_seconds)?1:50);
 
 
     }

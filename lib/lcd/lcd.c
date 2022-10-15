@@ -424,7 +424,7 @@ void lcd_copyalpha(uint16_t* dst, uint16_t* src, uint8_t xs, uint8_t ys, uint16_
 }
 
 void lcd_line(uint8_t xs, uint8_t ys, uint8_t xe, uint8_t ye, uint16_t color, uint8_t ps){
-  printf("L: %d %d %d %d [%04x] %d\n",xs,ys,xe,ye,color,ps);
+  //printf("L: %d %d %d %d [%04x] %d\n",xs,ys,xe,ye,color,ps);
   uint8_t t;
   int16_t px=xs,py=ys;
   int dx = (int)xe - (int)xs >= 0 ? xe - xs : xs - xe;
