@@ -94,6 +94,10 @@ void lcd_float(uint8_t x, uint8_t y, float f ,sFONT* font, uint16_t cf, uint16_t
 void lcd_sleepon();
 void lcd_sleepoff();
 
+void lcd_pixel_raw(uint16_t x, uint16_t y, uint16_t c); // no bswap color
+void lcd_pixel_rawps(uint16_t x, uint16_t y, uint16_t c, uint16_t ps); //no swap with pointstrength
+void lcd_circle(uint16_t X_Center, uint16_t Y_Center, uint16_t Radius, uint16_t Color, uint16_t ps, bool fill);
+
 uint8_t slice_num;
 
 #endif //__GC9A01_H

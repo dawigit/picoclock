@@ -10307,6 +10307,3 @@ sFONT Font34 = {
     17, /* Width */
     24, /* Height */
   };
-
-
-  

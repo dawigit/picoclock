@@ -13,7 +13,6 @@ void lcd_init(){
   lcd_module_init();
   printf("module init ok\n");
 
-
   lcd_reset();
   lcd_setatt(HORIZONTAL);
   lcd_init_reg();
@@ -531,3 +530,71 @@ void lcd_float(uint8_t x, uint8_t y, float f ,sFONT* font, uint16_t cf, uint16_t
 
 void lcd_sleepon(){  lcd_cmd(0x10);}
 void lcd_sleepoff(){  lcd_cmd(0x11);}
+
+
+inline void lcd_pixel_raw(uint16_t x, uint16_t y, uint16_t c){
+  img[LCD_W*y+x] = c;
+}
+
+inline void lcd_pixel_rawps(uint16_t x, uint16_t y, uint16_t c, uint16_t ps){
+  x-=(ps>>1);
+  y-=(ps>>1);
+  img[LCD_W*y+x] = c;
+  while(ps){
+    img[LCD_W*(ps+y)+x] = c;
+    img[LCD_W*y +    x+ps] = c;
+    img[LCD_W*(ps+y)+x+ps] = c;
+    ps--;
+  }
+}
+
+void lcd_circle(uint16_t X_Center, uint16_t Y_Center, uint16_t Radius, uint16_t Color, uint16_t ps, bool fill)
+{
+    int16_t XCurrent, YCurrent;
+    XCurrent = 0;
+    YCurrent = Radius;
+    Color = __builtin_bswap16(Color);
+    int16_t Line_width = ps;
+    int16_t Esp = 3 - (Radius << 1 );
+    int16_t sCountY;
+    if (fill == true) {
+        while (XCurrent <= YCurrent ) { //Realistic circles
+            for (sCountY = XCurrent; sCountY <= YCurrent; sCountY ++ ) {
+                lcd_pixel_raw(X_Center + XCurrent, Y_Center + sCountY, Color);//1
+                lcd_pixel_raw(X_Center - XCurrent, Y_Center + sCountY, Color);//2
+                lcd_pixel_raw(X_Center - sCountY, Y_Center + XCurrent, Color);//3
+                lcd_pixel_raw(X_Center - sCountY, Y_Center - XCurrent, Color);//4
+                lcd_pixel_raw(X_Center - XCurrent, Y_Center - sCountY, Color);//5
+                lcd_pixel_raw(X_Center + XCurrent, Y_Center - sCountY, Color);//6
+                lcd_pixel_raw(X_Center + sCountY, Y_Center - XCurrent, Color);//7
+                lcd_pixel_raw(X_Center + sCountY, Y_Center + XCurrent, Color);
+            }
+            if (Esp < 0 ){
+                Esp += 4 * XCurrent + 6;
+            }else {
+                Esp += 10 + 4 * (XCurrent - YCurrent );
+                YCurrent --;
+            }
+            XCurrent ++;
+        }
+    } else { //Draw a hollow circle
+        while (XCurrent <= YCurrent ) {
+            lcd_pixel_rawps(X_Center + XCurrent, Y_Center + YCurrent, Color, Line_width);//1
+            lcd_pixel_rawps(X_Center - XCurrent, Y_Center + YCurrent, Color, Line_width);//2
+            lcd_pixel_rawps(X_Center - YCurrent, Y_Center + XCurrent, Color, Line_width);//3
+            lcd_pixel_rawps(X_Center - YCurrent, Y_Center - XCurrent, Color, Line_width);//4
+            lcd_pixel_rawps(X_Center - XCurrent, Y_Center - YCurrent, Color, Line_width);//5
+            lcd_pixel_rawps(X_Center + XCurrent, Y_Center - YCurrent, Color, Line_width);//6
+            lcd_pixel_rawps(X_Center + YCurrent, Y_Center - XCurrent, Color, Line_width);//7
+            lcd_pixel_rawps(X_Center + YCurrent, Y_Center + XCurrent, Color, Line_width);//0
+
+            if (Esp < 0 )
+                Esp += 4 * XCurrent + 6;
+            else {
+                Esp += 10 + 4 * (XCurrent - YCurrent );
+                YCurrent --;
+            }
+            XCurrent ++;
+        }
+    }
+}

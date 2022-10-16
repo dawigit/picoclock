@@ -18,10 +18,10 @@
 #include "lib/Fonts/fonts.h"
 #include "img/Font34.h"
 #include "img/Font30.h"
-#include "img/earth.h"
 #include "img/bega.h"
 #include "img/sand.h"
 #include "img/irisa190.h"
+#include "img/earth190.h"
 
 //#include "img/maple.h"
 #include "img/usa32.h"
@@ -35,23 +35,24 @@
 
 #define TFONT Font20
 #define CNFONT Font30
-
+#define DEFAULT_THEME 0
 
 #define mcpy(d,s,sz) for(int i=0;i<sz;i++){d[i]=s[i];}
 #define THEMES 4
 
 #define EYE irisa190
-
 // Start on Friday 5th of June 2020 15:45:00
 datetime_t t = {
   .year  = 2022,
   .month = 10,
-  .day   = 13,
-  .dotw  = 4, // 0 is Sunday, so 5 is Friday
-  .hour  = 7,
-  .min   = 12,
+  .day   = 16,
+  .dotw  = 0, // 0 is Sunday, so 5 is Friday
+  .hour  = 9,
+  .min   = 4,
   .sec   = 0
 };
+
+#define LOOPWAIT 50
 
 #define DRAW_GFX_FIRST false //1 == text floating above clock
 #define to_rad(angleInDegrees) ((angleInDegrees) * M_PI / 180.0)
@@ -60,10 +61,12 @@ datetime_t t = {
 #define HOURGLASS 600  // rise/fall of acc_x border till switch (cw/ccw)
 #define BUTTONGLASSC 300
 #define BUTTONGLASS 1400
-#define SCRSAV 60
-
+#define SCRSAV 60*(100/LOOPWAIT)
+#define SCRSAV2 SCRSAV*2
 #define BRIGHTD 20
-#define FLAGS_DELAY 4
+#define SWITCH_THEME_DELAY 10
+#define THRS 12
+#define THRLY 120
 
 #define ACCX 60
 #define ACCY 40
@@ -80,10 +83,10 @@ datetime_t t = {
 
 
 // eye dimensions
-#define EYE_X 25
-#define EYE_Y 25
 #define EYE_SZ 190
 #define EYE_R EYE_SZ/2
+#define EYE_X 120-EYE_R
+#define EYE_Y 120-EYE_R
 #define EYE_MAX 50
 
 
@@ -133,20 +136,19 @@ typedef struct ColorTheme_t{
 
 CMode cmode = CM_None;
 
-uint8_t theme_pos = 0;
-const uint8_t* flags[] = {cn32,usa32,ger32,tr32};
-const uint8_t* stars[] = {cn16,usa16,ger16,tr16};
+uint8_t theme_pos = DEFAULT_THEME;
+const uint8_t* flags[THEMES] = {cn32,usa32,ger32,tr32};
+const uint8_t* stars[THEMES] = {cn16,usa16,ger16,tr16};
 uint16_t alpha[] = {BLACK,BLACK};
-const char* backgrounds[] = {earth,earth,bega,sand};
+const char* backgrounds[THEMES] = {earth190,irisa190,bega,sand};
+bool bg_dynamic[THEMES] = {true,true,false,false};
+uint8_t theme_bg_dynamic_mode = 0;
 
-
-
-ColorTheme_t colt1={BLACK,CN_Red,CN_Red,CN_Gold,CN_Red,CN_Gold,LGRAY,WHITE,WHITE};
+ColorTheme_t colt1={BLACK,CN_Red,CN_Red,CN_Gold,CN_Red,CN_Gold,WHITE,WHITE,WHITE};
 ColorTheme_t colt2={BLACK,USA_Old_Glory_Red,USA_Old_Glory_Blue,WHITE,USA_Old_Glory_Red,WHITE,WHITE,WHITE,WHITE};
 ColorTheme_t colt3={BLACK,GER_Red,0x0001,GER_Gold,GER_Red,GER_Gold,WHITE,WHITE,WHITE};
 ColorTheme_t colt4={BLACK,WHITE,TR_Red,WHITE,WHITE,TR_Red,WHITE,WHITE,WHITE};
 
-//ColorTheme_t* colt[2] = [&colt1,&colt2];
 ColorTheme_t* colt[THEMES];
 
 char timebuffer[16] = {0};
@@ -184,7 +186,7 @@ int hgy;
 int buttonglass=BUTTONGLASS;
 int screensaver=SCRSAV;
 
-int flagsdelay = FLAGS_DELAY;
+int flagsdelay = SWITCH_THEME_DELAY;
 int blink_counter = 0;
 bool bmode = false;
 
@@ -587,15 +589,26 @@ int main(void)
     acc[2]=0.0f;
 
     while(true){
-
-
-
       QMI8658_read_xyz(acc, gyro, &tim_count);
       //check if not moving
-      if((gyro[0]>-10.0f&&gyro[0]<10.0f)&&(gyro[1]>-10.0f&&gyro[1]<10.0f)&&(gyro[2]>-10.0f&&gyro[2]<10.0f)){
+      #define GYRMAX 500.0f
+      bool moveshake = false;
+      if(theme_bg_dynamic_mode==1){
+        if((gyro[0]>-GYRMAX&&gyro[0]<GYRMAX)&&(gyro[1]>-GYRMAX&&gyro[1]<GYRMAX)&&(gyro[2]>-GYRMAX&&gyro[2]<GYRMAX)){            moveshake =true;          }
+      }else{
+        if((acc[0]>-200.0f&&acc[0]<200.0f)&&(acc[1]>-200.0f&&acc[1]<200.0f)){            moveshake =true;          }
+
+      }
+      if(moveshake){
         if(!is_sleeping && cmode==CM_None && !usb_loading){
           screensaver--;
           if(screensaver<=0){
+            if(bg_dynamic[theme_pos]){
+              theme_bg_dynamic_mode++;
+              if(theme_bg_dynamic_mode==1){
+                screensaver=SCRSAV2;
+                continue;}
+            }
             is_sleeping=true;
             screensaver=SCRSAV;
             lcd_set_brightness(0);
@@ -608,6 +621,7 @@ int main(void)
           lcd_set_brightness(BRIGHTD);
           lcd_sleepoff();
         }
+        if(theme_bg_dynamic_mode){theme_bg_dynamic_mode--;}
       }
 
       if(is_sleeping){
@@ -615,17 +629,24 @@ int main(void)
         continue;
       }
 
-      if(theme_pos==1){
+      if(bg_dynamic[theme_pos]){ // dynamic background
         //lcd_clr(WHITE);
         for(int i=0;i<LCD_SZ;i++){b0[i]=0x00;}
-
+        if(acc[1]>1024){acc[1]=1024;}
+        if(acc[1]<-1024){acc[1]=-1024;}
+        if(acc[0]>1024){acc[0]=1024;}
+        if(acc[0]<-1024){acc[0]=-1024;}
         int8_t xa = (int8_t)(acc[1]/50.0f);
         int8_t ya = (int8_t)(acc[0]/50.0f);
+        xa>>=1;
+        ya>>=1;
+        xa<<=1;
+        ya<<=1;
         if(xa>EYE_MAX){xa=EYE_MAX;}
         if(xa<-EYE_MAX){xa=-EYE_MAX;}
         if(ya>EYE_MAX){ya=EYE_MAX;}
         if(ya<-EYE_MAX){ya=-EYE_MAX;}
-        lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,EYE);
+        lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,backgrounds[theme_pos]);
       }else{
         mcpy(b0,backgrounds[theme_pos],LCD_SZ);
       }
@@ -635,13 +656,6 @@ int main(void)
       result = adc_read();
       // (v>4.15)?true:false
       usb_loading = ((result * conversion_factor)>=4.15);
-      //Paint_DrawImage(gImage_1inch3_1, 0, 0, 240, 240);
-      //Paint_DrawImage(earth, 0, 0, 240, 240);
-      //Paint_DrawImage(backgrounds[theme_pos], 0, 0, 240, 240);
-      //lcd_blit(0,0,240,240,backgrounds[theme_pos]);
-      //for(int i=0;i<(240*240*2);i++){          BlackImage[i]=backgrounds[theme_pos][i];        }
-      //LCD_1IN28_Display(BlackImage);
-      //blit(0,0,240,240,br,BLACK);
 
       if(fire){
         hgx = acc[0];
@@ -679,8 +693,9 @@ int main(void)
         cx/=r;
         cy/=r;
         printf("cxy: %0.3f %0.3f\n",cx,cy);
-        //Paint_DrawLine(120,120, 120+cy*110, 120-cx*110, CYAN , 3, LINE_STYLE_DOTTED);
-        lcd_line(120,120, 120+cy*110, 120-cx*110, CYAN, 4);
+        lcd_line(120,120, 120+cy*110, 120-cx*110, CYAN, 1);
+        lcd_line(121,120, 121+cy*110, 120-cx*110, CYAN, 1);
+        lcd_line(120,121, 120+cy*110, 121-cx*110, CYAN, 1);
 
 
       }
@@ -755,21 +770,22 @@ int main(void)
       if(cmode==CM_Changetheme){
         blink_counter++;
         if(blink_counter==5){bmode=!bmode;blink_counter=0;}
-        //Paint_DrawCircle(120,120,20,bmode?RED:BLUE,2,0);
+        lcd_circle(120,120,20,bmode?RED:BLUE,3,0);
       }
 
 
-      if(draw_gfx_first){
-        draw_gfx();
-        draw_text();
-      }else{
-        draw_text();
-        draw_gfx();
+      if(!theme_bg_dynamic_mode){
+        if(draw_gfx_first){
+          draw_gfx();
+          draw_text();
+        }else{
+          draw_text();
+          draw_gfx();
+        }
       }
       lcd_display(b0);
 
-#define THRS 12
-#define THRLY 120
+
       int as = acc[1];  // y-axis
       as-=hgy;
 
@@ -778,7 +794,7 @@ int main(void)
         if(!flagsdelay){
           theme_pos++;
           if(theme_pos==THEMES){theme_pos=0;}
-          flagsdelay=FLAGS_DELAY;
+          flagsdelay=SWITCH_THEME_DELAY;
           set_dcolors();
           set_colors();
         }else{
@@ -790,7 +806,7 @@ int main(void)
         if(!flagsdelay){
           if(theme_pos==0){theme_pos=THEMES;}
           theme_pos--;
-          flagsdelay=FLAGS_DELAY;
+          flagsdelay=SWITCH_THEME_DELAY;
           set_dcolors();
           set_colors();
         }else{
@@ -799,11 +815,8 @@ int main(void)
       }
       if(gyro[1]>THRS){printf("up\n");} // shake up
       if(gyro[1]<-THRS){printf("down\n");} //shake down
-      //printf("%d\n",st/100000);
-      //printf("[%d] {as%d} fd=%d\n",theme_pos,as,flagsdelay);
 
       sleep_ms((analog_seconds)?1:50);
-
 
     }
     return 0;
