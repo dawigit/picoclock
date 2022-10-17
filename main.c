@@ -33,16 +33,16 @@
 #include "img/ger16.h"
 #include "img/tr16.h"
 
+#define DEFAULT_THEME 1
 #define TFONT Font20
 #define CNFONT Font30
-#define DEFAULT_THEME 0
 #define NO_POS_MODE 1
 
 #define mcpy(d,s,sz) for(int i=0;i<sz;i++){d[i]=s[i];}
 #define THEMES 4
 
 #define EYE irisa190
-// Start on Friday 5th of June 2020 15:45:00
+
 datetime_t t = {
   .year  = 2022,
   .month = 10,
@@ -77,7 +77,8 @@ datetime_t t = {
 
 #define POS_BAT_X 70
 #define POS_BAT_Y 30
-#define POS_BAT_YS 4
+#define POS_BAT_YS 10
+#define POS_BAT_PS 2
 
 
 #define POS_DATE_X 46
@@ -187,15 +188,6 @@ typedef struct ThemePos_t{
     }
   }
 
-
-  uint16_t col_h;
-  uint16_t col_m;
-  uint16_t col_s;
-  uint16_t col_cs;
-  uint16_t col_cs5;
-  uint16_t col_dotw;
-  uint16_t col_date;
-  uint16_t col_time;
 
 #define USA_Old_Glory_Red 0xB0C8 //0xB31942
 #define USA_Old_Glory_Blue 0x098C //0x0A3161
@@ -502,16 +494,16 @@ void draw_gfx(){
   uint8_t x0=120;
   uint8_t y0=120;
 
-  lcd_line(POS_BAT_X    ,POS_BAT_Y,   POS_BAT_X+102, POS_BAT_Y, BLUE,1);//top
-  lcd_line(POS_BAT_X    ,POS_BAT_Y+POS_BAT_YS, POS_BAT_X+102, POS_BAT_Y+POS_BAT_YS, BLUE,1);//bottom
-  lcd_line(POS_BAT_X    ,POS_BAT_Y,   POS_BAT_X,     POS_BAT_Y+POS_BAT_YS, BLUE,1);//left
-  lcd_line(POS_BAT_X+102,POS_BAT_Y,   POS_BAT_X+102, POS_BAT_Y+POS_BAT_YS, BLUE,1);//right
+  //lcd_line(POS_BAT_X    ,POS_BAT_Y,   POS_BAT_X+102, POS_BAT_Y, BLUE,1);//top
+  //lcd_line(POS_BAT_X    ,POS_BAT_Y+POS_BAT_YS, POS_BAT_X+102, POS_BAT_Y+POS_BAT_YS, BLUE,1);//bottom
+  //lcd_line(POS_BAT_X    ,POS_BAT_Y,   POS_BAT_X,     POS_BAT_Y+POS_BAT_YS, BLUE,1);//left
+  //lcd_line(POS_BAT_X+102,POS_BAT_Y,   POS_BAT_X+102, POS_BAT_Y+POS_BAT_YS, BLUE,1);//right
+
+  lcd_rect(POS_BAT_X    ,POS_BAT_Y,   POS_BAT_X+100+(POS_BAT_PS<<1), POS_BAT_Y+POS_BAT_YS, BLUE,POS_BAT_PS);
   uint16_t bat = (uint16_t)(((result * conversion_factor)/4.17)*100);
   //printf("bat :  %03d\n",bat);
   if(bat>100){bat=100;}
-  lcd_line(POS_BAT_X+1    ,POS_BAT_Y+1,   POS_BAT_X+bat-1, POS_BAT_Y+1, WHITE, 1);//top
-  lcd_line(POS_BAT_X+1    ,POS_BAT_Y+2,   POS_BAT_X+bat-1, POS_BAT_Y+2, WHITE, 1);//top
-  lcd_line(POS_BAT_X+3    ,POS_BAT_Y+3,   POS_BAT_X+bat-1, POS_BAT_Y+3, WHITE, 1);//top
+  lcd_xline(POS_BAT_X+POS_BAT_PS    ,POS_BAT_Y+POS_BAT_PS,   bat-1, WHITE, POS_BAT_YS-(POS_BAT_PS<<1));//top
   if(!usb_loading){
     sprintf(dbuf,"  %02d%%",bat);
   }else{
@@ -745,8 +737,8 @@ int main(void)
         if(acc[0]<-1024){acc[0]=-1024;}
         int8_t xa = (int8_t)(acc[1]/50.0f);
         int8_t ya = (int8_t)(acc[0]/50.0f);
-        xa&=0xfe;
-        ya&=0xfe;
+        xa&=0xff;
+        ya&=0xff;
         if(xa>EYE_MAX){xa=EYE_MAX;}
         if(xa<-EYE_MAX){xa=-EYE_MAX;}
         if(ya>EYE_MAX){ya=EYE_MAX;}

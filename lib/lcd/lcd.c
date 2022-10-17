@@ -425,29 +425,7 @@ void lcd_line(uint8_t xs, uint8_t ys, uint8_t xe, uint8_t ye, uint16_t color, ui
   color = __builtin_bswap16(color);
   while(true){
     img[py*LCD_W+px]=color;
-    if(ps>1){
-      if(ps>=2){
-        img[(1+py)*LCD_W+px]=color;
-        img[(py)*LCD_W+px+1]=color;
-        img[(1+py)*LCD_W+px+1]=color;
-      }
-      if(ps>=3){
-        img[(2+py)*LCD_W+px]=color;
-        img[(py)*LCD_W+px+2]=color;
-        img[(2+py)*LCD_W+px+2]=color;
-      }
-      if(ps>=4){
-        img[(3+py)*LCD_W+px]=color;
-        img[(py)*LCD_W+px+3]=color;
-        img[(3+py)*LCD_W+px+3]=color;
-      }
-      if(ps>=5){
-        img[(4+py)*LCD_W+px]=color;
-        img[(py)*LCD_W+px+4]=color;
-        img[(4+py)*LCD_W+px+4]=color;
-      }
-    }
-
+    lcd_pixel_rawps(px,py,color,ps);
     if(2*esp >= dy) {
       if (px == xe){break;}
       esp += dy;
