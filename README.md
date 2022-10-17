@@ -1,19 +1,13 @@
 # picoclock
 ### for use with WAVESHARE RP2040-LCD-1.28
 ### RP2040 LCD 1.28
-![pc_usa_cn](https://user-images.githubusercontent.com/26333559/195168002-3e70b9dc-ee9e-4af8-8cbc-15525633de07.jpg)
-
-
+![uscn1](https://user-images.githubusercontent.com/26333559/196231673-cdbe89fb-14fd-46a9-b566-e3241b16d3c8.png)
+![trde1](https://user-images.githubusercontent.com/26333559/196231689-c6d9e030-b088-4c9f-bef6-1a3cd4f5b1c6.png)
 
 #### The button is simply plugged into GND and GP22 (h2)
-(ky-040 test code is there)
-E.g. the left image shows a simple button plugged into the h2 header.
-
 #### With a button attached the rp2040-lcd is controlled with the gyroscope
 
-For now there are USA, China, Germany and Türkiye themes.
 The images/fonts are in the ./img folder.
-
 The file 'img2data.md' contains shell scripts for converting image data and fonts into header files.
 
 #### Problems, bugs:
@@ -25,7 +19,7 @@ The file 'img2data.md' contains shell scripts for converting image data and font
 
 `sudo picotool load ./build/main.uf2 -x --bus 1 --address XX`
 
-You can find out the '--address' with:
+Find the '--address' with:
 
 `picotool info`
 
