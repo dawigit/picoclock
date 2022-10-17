@@ -47,9 +47,9 @@ datetime_t t = {
   .year  = 2022,
   .month = 10,
   .day   = 17,
-  .dotw  = 0, // 0 is Sunday, so 5 is Friday
-  .hour  = 9,
-  .min   = 48,
+  .dotw  = 1, // 0 is Sunday, so 5 is Friday
+  .hour  = 14,
+  .min   = 45,
   .sec   = 0
 };
 
@@ -228,7 +228,7 @@ const char* backgrounds[THEMES] = {earth190,irisa190,bega,sand};
 bool bg_dynamic[THEMES] = {true,true,false,false};
 uint8_t theme_bg_dynamic_mode = 0;
 const uint16_t edit_colors[THEMES] = {ORANGE,YELLOW,ORANGE,ORANGE};
-const uint16_t change_colors[THEMES] = {LGRAY,YELLOW,LGRAY,LGRAY};
+const uint16_t change_colors[THEMES] = {YELLOW,YELLOW,YELLOW,YELLOW};
 
 ColorTheme_t colt1={BLACK,CN_Red,CN_Red,CN_Gold,CN_Red,CN_Gold,WHITE,WHITE,WHITE};
 ColorTheme_t colt2={BLACK,USA_Old_Glory_Red,USA_Old_Glory_Blue,WHITE,USA_Old_Glory_Red,WHITE,WHITE,WHITE,WHITE};
@@ -787,8 +787,12 @@ int main(void)
         }else if(cmode==CM_Changepos){
           puts("CM_Editpos");
           cmode=CM_Editpos;
-          colors[editpos]=change_colors[theme_pos];
-          //colors[editpos]=changecol;
+          hgx = (int)acc[0];
+          hgy = (int)acc[1];
+          tcw = false;
+          tccw = false;
+          //colors[editpos]=change_colors[theme_pos];
+          colors[editpos]=changecol;
         }else if(cmode==CM_Editpos){
           puts("CM_None");
           cmode=CM_None;

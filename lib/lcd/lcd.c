@@ -604,6 +604,7 @@ inline void lcd_yline(uint8_t x, uint8_t y, uint8_t l, uint16_t color, uint8_t p
 }
 
 void lcd_rect(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t color, uint8_t ps){
+    color=__builtin_bswap16(color);
     lcd_xline(x0,y0,x1-x0,color,ps);
     lcd_xline(x0,y1-ps,x1-x0,color,ps);
     lcd_yline(x0,y0,y1-y0,color,ps);
