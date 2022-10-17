@@ -21,3 +21,10 @@ pico_enable_stdio_uart(main 1)
 pico_add_extra_outputs(main)
 
 target_link_libraries(main lcd QMI8658 pico_stdlib hardware_spi hardware_i2c hardware_rtc hardware_timer hardware_pwm hardware_adc)
+
+add_custom_command(
+        TARGET main POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+                ${CMAKE_CURRENT_BINARY_DIR}/main.uf2
+                ${CMAKE_CURRENT_BINARY_DIR}/../uf2/main.uf2
+)
