@@ -11,17 +11,6 @@ E.g. the left image shows a simple button plugged into the h2 header.
 
 #### With a button attached the rp2040-lcd is controlled with the gyroscope
 
-##### Every button press changes the mode and it starts in 1st mode:
-###### modes:
-- 1st: [WHITE]  None  [default mode, startup]
-- 2nd: [CYAN]   Config (shows a cyan gyro-pointer, no use yet)
-- 3rd: [YELLOW] ChangePosition (to change position in date/time/day of the week)
-- 4rd: [ORANGE] EditPosition (to change value in that position: up/down)
-
-[5th mode has no graphical indicator atm]
-- 5th: [RED/BLUE] ChangeTheme (to change the theme: left/right)
-
-
 For now there are USA, China, Germany and Türkiye themes.
 The images/fonts are in the ./img folder.
 
@@ -31,8 +20,6 @@ The file 'img2data.md' contains shell scripts for converting image data and font
 
 - analog seconds (pointer) not working properly
 - battery display has to be adjusted depending on battery (still testing)
-- gyro-control has to be improved/adjusted.
-- gfx is slow
 
 ## To flash the image
 

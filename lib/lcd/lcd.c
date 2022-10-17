@@ -2,21 +2,17 @@
 
 uint16_t* img=NULL;
 uint8_t slice_num;
-uint8_t* b0=NULL;
-uint8_t* b1=NULL;
+//uint8_t* b0=NULL; //db
+//uint8_t* b1=NULL; //db
 uint16_t pbuf[64*64*2];
 char cbuf[32];
 void lcd_init(){
-
-  //b0 = (uint8_t*)malloc(LCD_SZ);
-
   lcd_module_init();
   printf("module init ok\n");
-
   lcd_reset();
+  sleep_ms(100);
   lcd_setatt(HORIZONTAL);
   lcd_init_reg();
-
 }
 
 void lcd_gpio_init(){
@@ -36,10 +32,7 @@ void lcd_gpio_init(){
 }
 
 void lcd_module_init(){
-
-  //stdio_init_all();
   lcd_gpio_init();
-
   // ADC
   adc_init();
   adc_gpio_init(BAT_ADC_PIN);
@@ -51,7 +44,6 @@ void lcd_module_init(){
   pwm_set_chan_level(slice_num, PWM_CHAN_B, 0);
   pwm_set_clkdiv(slice_num, 50);
   pwm_set_enabled(slice_num, true);
-
   // SPI Config
   spi_init(SPI_PORT, 40000 * 1000);
   gpio_set_function(LCD_CLK_PIN, GPIO_FUNC_SPI);
@@ -62,7 +54,6 @@ void lcd_module_init(){
   gpio_set_function(DEV_SCL_PIN, GPIO_FUNC_I2C);
   gpio_pull_up(DEV_SDA_PIN);
   gpio_pull_up(DEV_SCL_PIN);
-
   printf("DEV_Module_Init OK \r\n");
 }
 
@@ -364,7 +355,7 @@ void lcd_setwin(uint8_t xs, uint8_t ys, uint8_t xe, uint8_t ye){
 
 void lcd_clr(uint16_t color){
     int j;
-    uint16_t* p=(uint16_t*)b0;
+    uint16_t* p=(uint16_t*)img;
     __builtin_bswap16(color);
     for (j=0;j<LCD_W*LCD_H;j++){ p[j]=color; }
     lcd_setwin(0, 0, LCD_W, LCD_H);
@@ -536,16 +527,17 @@ inline void lcd_pixel_raw(uint16_t x, uint16_t y, uint16_t c){
   img[LCD_W*y+x] = c;
 }
 
+inline void lcd_xlineq(uint16_t x, uint16_t y, uint16_t l, uint16_t c){
+  uint16_t i=0;
+  while(i<l){ img[LCD_W*y+x+i] = c;++i; }
+}
+
 inline void lcd_pixel_rawps(uint16_t x, uint16_t y, uint16_t c, uint16_t ps){
+  uint16_t i=0;
   x-=(ps>>1);
   y-=(ps>>1);
-  img[LCD_W*y+x] = c;
-  while(ps){
-    img[LCD_W*(ps+y)+x] = c;
-    img[LCD_W*y +    x+ps] = c;
-    img[LCD_W*(ps+y)+x+ps] = c;
-    ps--;
-  }
+  while(i<ps){    lcd_xlineq(x,y+i,ps,c);++i;  }
+
 }
 
 void lcd_circle(uint16_t X_Center, uint16_t Y_Center, uint16_t Radius, uint16_t Color, uint16_t ps, bool fill)
@@ -569,8 +561,7 @@ void lcd_circle(uint16_t X_Center, uint16_t Y_Center, uint16_t Radius, uint16_t 
                 lcd_pixel_raw(X_Center + sCountY, Y_Center - XCurrent, Color);//7
                 lcd_pixel_raw(X_Center + sCountY, Y_Center + XCurrent, Color);
             }
-            if (Esp < 0 ){
-                Esp += 4 * XCurrent + 6;
+            if (Esp < 0 ){                Esp += 4 * XCurrent + 6;
             }else {
                 Esp += 10 + 4 * (XCurrent - YCurrent );
                 YCurrent --;
@@ -588,13 +579,33 @@ void lcd_circle(uint16_t X_Center, uint16_t Y_Center, uint16_t Radius, uint16_t 
             lcd_pixel_rawps(X_Center + YCurrent, Y_Center - XCurrent, Color, Line_width);//7
             lcd_pixel_rawps(X_Center + YCurrent, Y_Center + XCurrent, Color, Line_width);//0
 
-            if (Esp < 0 )
-                Esp += 4 * XCurrent + 6;
-            else {
+            if (Esp < 0 ){ Esp += 4 * XCurrent + 6;
+            }else {
                 Esp += 10 + 4 * (XCurrent - YCurrent );
                 YCurrent --;
             }
             XCurrent ++;
         }
     }
+}
+
+inline void lcd_xline(uint8_t x, uint8_t y, uint8_t l, uint16_t color, uint8_t ps){
+  while(l--){
+    uint8_t tps=ps;
+    while(tps--){      img[LCD_W*(y+tps)+x+l]=color;    }
+  }
+}
+
+inline void lcd_yline(uint8_t x, uint8_t y, uint8_t l, uint16_t color, uint8_t ps){
+  while(l--){
+    uint8_t tps=ps;
+    while(tps--){      img[LCD_W*(y+l)+x+tps]=color;    }
+  }
+}
+
+void lcd_rect(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t color, uint8_t ps){
+    lcd_xline(x0,y0,x1-x0,color,ps);
+    lcd_xline(x0,y1-ps,x1-x0,color,ps);
+    lcd_yline(x0,y0,y1-y0,color,ps);
+    lcd_yline(x1-ps,y0,y1-y0,color,ps);
 }

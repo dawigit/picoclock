@@ -36,6 +36,7 @@
 #define TFONT Font20
 #define CNFONT Font30
 #define DEFAULT_THEME 0
+#define NO_POS_MODE 1
 
 #define mcpy(d,s,sz) for(int i=0;i<sz;i++){d[i]=s[i];}
 #define THEMES 4
@@ -45,10 +46,10 @@
 datetime_t t = {
   .year  = 2022,
   .month = 10,
-  .day   = 16,
+  .day   = 17,
   .dotw  = 0, // 0 is Sunday, so 5 is Friday
   .hour  = 9,
-  .min   = 4,
+  .min   = 48,
   .sec   = 0
 };
 
@@ -58,7 +59,7 @@ datetime_t t = {
 #define to_rad(angleInDegrees) ((angleInDegrees) * M_PI / 180.0)
 #define to_deg(angleInRadians) ((angleInRadians) * 180.0 / M_PI)
 #define HOURGLASSBORDER 200 // minimum rise/fall of acc_x
-#define HOURGLASS 600  // rise/fall of acc_x border till switch (cw/ccw)
+#define HOURGLASS 600*(100/LOOPWAIT)  // rise/fall of acc_x border till switch (cw/ccw)
 #define BUTTONGLASSC 300
 #define BUTTONGLASS 1400
 #define SCRSAV 60*(100/LOOPWAIT)
@@ -68,19 +69,29 @@ datetime_t t = {
 #define THRS 12
 #define THRLY 120
 
-#define ACCX 60
-#define ACCY 40
+#define POS_CX 120
+#define POS_CY 120
 
-#define BATX 70
-#define BATY 30
-#define BATYS 4
+#define POS_ACC_X 60
+#define POS_ACC_Y 40
+
+#define POS_BAT_X 70
+#define POS_BAT_Y 30
+#define POS_BAT_YS 4
+
+
+#define POS_DATE_X 46
+#define POS_DATE_Y 86
+
+#define POS_DOW_X 20
+#define POS_DOW_Y 111
+#define POS_CNDOW_X 190
+#define POS_CNDOW_Y 72
+
+#define POS_TIME_X 64
+#define POS_TIME_Y 136
 
 #define TFW 14
-#define DATIX 2
-#define DATIY 86
-#define HXST 64
-#define HYST 136
-
 
 // eye dimensions
 #define EYE_SZ 190
@@ -113,6 +124,79 @@ typedef struct ColorTheme_t{
   uint16_t col_time;
 } ColorTheme_t;
 
+typedef struct PXY_t{
+  uint8_t x;
+  uint8_t y;
+} PXY_t;
+
+typedef struct ThemePos_t{
+  PXY_t pos_dow;
+  PXY_t pos_day;
+  PXY_t pos_month;
+  PXY_t pos_year;
+  PXY_t pos_h;
+  PXY_t pos_m;
+  PXY_t pos_s;
+} ThemePos_t;
+
+  //ThemePos_t tpos[1] = {POS_DOW_X,POS_DOW_Y,
+  //  POS_DATE_X,POS_DATE_Y,
+  //  POS_DATE_X+3*TFW,POS_DATE_Y,
+  //  POS_DATE_X+5*TFW,POS_DATE_Y,
+  //  POS_TIME_X,      POS_TIME_Y,
+  //  POS_TIME_X+3*TFW,POS_TIME_Y,
+  //  POS_TIME_X+5*TFW,POS_TIME_Y
+  //};
+
+  PXY_t tpos[8] =
+  { POS_DOW_X,POS_DOW_Y,
+    POS_DATE_X,POS_DATE_Y,
+    POS_DATE_X+3*TFW,POS_DATE_Y,
+    POS_DATE_X+8*TFW,POS_DATE_Y,
+    POS_TIME_X,      POS_TIME_Y,
+    POS_TIME_X+3*TFW,POS_TIME_Y,
+    POS_TIME_X+6*TFW,POS_TIME_Y,
+    POS_CX, POS_CY
+  };
+
+  uint8_t pos_matrix_x=1; // start in center
+  uint8_t pos_matrix_y=1; // start in center
+
+  int8_t pos_matrix_CN[9] =
+  {
+    1,2,3,
+    7,7,0,
+    4,5,6
+  };
+
+
+  int8_t pos_matrix_US[9] =
+  {
+    1,2,3,
+    0,7,7,
+    4,5,6
+  };
+
+  int8_t pos_matrix[9];
+  void copy_pos_matrix(uint8_t n){
+    if(n){
+      for(int8_t i=0;i<9;i++){pos_matrix[i]=pos_matrix_US[i];}
+    }else{
+      for(int8_t i=0;i<9;i++){pos_matrix[i]=pos_matrix_CN[i];}
+
+    }
+  }
+
+
+  uint16_t col_h;
+  uint16_t col_m;
+  uint16_t col_s;
+  uint16_t col_cs;
+  uint16_t col_cs5;
+  uint16_t col_dotw;
+  uint16_t col_date;
+  uint16_t col_time;
+
 #define USA_Old_Glory_Red 0xB0C8 //0xB31942
 #define USA_Old_Glory_Blue 0x098C //0x0A3161
 //#define USA_Old_Glory_Red  0xC8B0 //0xB31942
@@ -143,6 +227,8 @@ uint16_t alpha[] = {BLACK,BLACK};
 const char* backgrounds[THEMES] = {earth190,irisa190,bega,sand};
 bool bg_dynamic[THEMES] = {true,true,false,false};
 uint8_t theme_bg_dynamic_mode = 0;
+const uint16_t edit_colors[THEMES] = {ORANGE,YELLOW,ORANGE,ORANGE};
+const uint16_t change_colors[THEMES] = {LGRAY,YELLOW,LGRAY,LGRAY};
 
 ColorTheme_t colt1={BLACK,CN_Red,CN_Red,CN_Gold,CN_Red,CN_Gold,WHITE,WHITE,WHITE};
 ColorTheme_t colt2={BLACK,USA_Old_Glory_Red,USA_Old_Glory_Blue,WHITE,USA_Old_Glory_Red,WHITE,WHITE,WHITE,WHITE};
@@ -150,6 +236,30 @@ ColorTheme_t colt3={BLACK,GER_Red,0x0001,GER_Gold,GER_Red,GER_Gold,WHITE,WHITE,W
 ColorTheme_t colt4={BLACK,WHITE,TR_Red,WHITE,WHITE,TR_Red,WHITE,WHITE,WHITE};
 
 ColorTheme_t* colt[THEMES];
+
+uint16_t dcol = WHITE;
+uint16_t editcol = YELLOW;
+uint16_t changecol = YELLOW;
+uint16_t acol=WHITE;
+uint16_t colors[8]  = {WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE};
+uint16_t dcolors[8] = {WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE};
+
+uint16_t blinker[2] = {BLUE,RED};
+
+uint8_t ec_x[7] = {};
+uint8_t ec_y[7] = {};
+
+typedef enum Dir_t {
+  D_NONE = 0,
+  D_PLUS = 1,
+  D_MINUS = 2
+} Dir_t;
+
+
+Dir_t dir_x;
+Dir_t dir_y;
+uint8_t no_pos_x=0;
+uint8_t no_pos_y=0;
 
 char timebuffer[16] = {0};
 char* ptimebuffer=timebuffer;
@@ -179,10 +289,10 @@ char gch;
 char gbuf[2] = {'c','d'};
 uint32_t stime;
 uint8_t tseco;
-int hourglass=HOURGLASS;
-int hgb;
-int hgx;
-int hgy;
+int hourglass_x=HOURGLASS;
+int hourglass_y=HOURGLASS;
+int hgx=0;
+int hgy=0;
 int buttonglass=BUTTONGLASS;
 int screensaver=SCRSAV;
 
@@ -201,12 +311,6 @@ bool edittime=false;
 bool changetime=false;
 char dbuf[8];
 float temperature = -99.99f;
-uint16_t dcol = WHITE;
-uint16_t editcol = YELLOW;
-uint16_t changecol = ORANGE;
-uint16_t acol=WHITE;
-uint16_t colors[7] = {WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE};
-uint16_t dcolors[7];
 
 float mag[3];
 bool draw_gfx_first = DRAW_GFX_FIRST;
@@ -248,13 +352,13 @@ void to_rgb(uint16_t rgb, uint8_t* r, uint8_t* g, uint8_t* b){
   *b=(rgb&0x1f)<<3;
 }
 
-void set_colors(){
+void set_dcolors(){
   for(int i=0;i<7;i++){
     colors[i]=dcolors[i];
   }
 }
 
-void set_dcolors(){
+void set_colt_colors(){
   dcolors[0]=colt[theme_pos]->col_dotw;
   dcolors[1]=colt[theme_pos]->col_date;
   dcolors[2]=colt[theme_pos]->col_date;
@@ -262,6 +366,7 @@ void set_dcolors(){
   dcolors[4]=colt[theme_pos]->col_time;
   dcolors[5]=colt[theme_pos]->col_time;
   dcolors[6]=colt[theme_pos]->col_time;
+  dcolors[7]=colt[theme_pos]->col_time;
 }
 
 uint8_t find_cc(uint8_t a, uint8_t b, uint8_t c){
@@ -397,16 +502,16 @@ void draw_gfx(){
   uint8_t x0=120;
   uint8_t y0=120;
 
-  lcd_line(BATX    ,BATY,   BATX+102, BATY, BLUE,1);//top
-  lcd_line(BATX    ,BATY+BATYS, BATX+102, BATY+BATYS, BLUE,1);//bottom
-  lcd_line(BATX    ,BATY,   BATX,     BATY+BATYS, BLUE,1);//left
-  lcd_line(BATX+102,BATY,   BATX+102, BATY+BATYS, BLUE,1);//right
+  lcd_line(POS_BAT_X    ,POS_BAT_Y,   POS_BAT_X+102, POS_BAT_Y, BLUE,1);//top
+  lcd_line(POS_BAT_X    ,POS_BAT_Y+POS_BAT_YS, POS_BAT_X+102, POS_BAT_Y+POS_BAT_YS, BLUE,1);//bottom
+  lcd_line(POS_BAT_X    ,POS_BAT_Y,   POS_BAT_X,     POS_BAT_Y+POS_BAT_YS, BLUE,1);//left
+  lcd_line(POS_BAT_X+102,POS_BAT_Y,   POS_BAT_X+102, POS_BAT_Y+POS_BAT_YS, BLUE,1);//right
   uint16_t bat = (uint16_t)(((result * conversion_factor)/4.17)*100);
   //printf("bat :  %03d\n",bat);
   if(bat>100){bat=100;}
-  lcd_line(BATX+1    ,BATY+1,   BATX+bat-1, BATY+1, WHITE, 1);//top
-  lcd_line(BATX+1    ,BATY+2,   BATX+bat-1, BATY+2, WHITE, 1);//top
-  lcd_line(BATX+3    ,BATY+3,   BATX+bat-1, BATY+3, WHITE, 1);//top
+  lcd_line(POS_BAT_X+1    ,POS_BAT_Y+1,   POS_BAT_X+bat-1, POS_BAT_Y+1, WHITE, 1);//top
+  lcd_line(POS_BAT_X+1    ,POS_BAT_Y+2,   POS_BAT_X+bat-1, POS_BAT_Y+2, WHITE, 1);//top
+  lcd_line(POS_BAT_X+3    ,POS_BAT_Y+3,   POS_BAT_X+bat-1, POS_BAT_Y+3, WHITE, 1);//top
   if(!usb_loading){
     sprintf(dbuf,"  %02d%%",bat);
   }else{
@@ -489,18 +594,18 @@ void draw_gfx(){
 
 
 void draw_text(){
-  lcd_str(ACCX, ACCY    , "GYR_X = ", &Font12, WHITE,  CYAN);
-  lcd_str(ACCX, ACCY+16 , "GYR_Y = ", &Font12, WHITE,  CYAN);
-  lcd_str(ACCX, ACCY+32 , "GYR_Z = ", &Font12, WHITE, CYAN);
-  lcd_str(ACCX, ACCY+114 ,"ACC_X = ", &Font12, WHITE, CYAN);
-  lcd_str(ACCX, ACCY+128, "ACC_Y = ", &Font12, WHITE, CYAN);
-  lcd_str(ACCX, ACCY+142, "ACC_Z = ", &Font12, WHITE, CYAN);
-  lcd_float(130, ACCY    , acc[0], &Font12,  YELLOW,   WHITE);
-  lcd_float(130, ACCY+16 , acc[1], &Font12,  YELLOW,   WHITE);
-  lcd_float(130, ACCY+32 , acc[2], &Font12,  YELLOW,  WHITE);
-  lcd_float(130, ACCY+114 , gyro[0], &Font12,YELLOW, WHITE);
-  lcd_float(130, ACCY+128, gyro[1], &Font12, YELLOW, WHITE);
-  lcd_float(130, ACCY+142, gyro[2], &Font12, YELLOW, WHITE);
+  lcd_str(POS_ACC_X, POS_ACC_Y    , "GYR_X = ", &Font12, WHITE,  CYAN);
+  lcd_str(POS_ACC_X, POS_ACC_Y+16 , "GYR_Y = ", &Font12, WHITE,  CYAN);
+  lcd_str(POS_ACC_X, POS_ACC_Y+32 , "GYR_Z = ", &Font12, WHITE, CYAN);
+  lcd_str(POS_ACC_X, POS_ACC_Y+114 ,"ACC_X = ", &Font12, WHITE, CYAN);
+  lcd_str(POS_ACC_X, POS_ACC_Y+128, "ACC_Y = ", &Font12, WHITE, CYAN);
+  lcd_str(POS_ACC_X, POS_ACC_Y+142, "ACC_Z = ", &Font12, WHITE, CYAN);
+  lcd_float(POS_ACC_Y+70, POS_ACC_Y, acc[0], &Font12,  YELLOW,   WHITE);
+  lcd_float(POS_ACC_Y+70, POS_ACC_Y+16 , acc[1], &Font12,  YELLOW,   WHITE);
+  lcd_float(POS_ACC_Y+70, POS_ACC_Y+32 , acc[2], &Font12,  YELLOW,  WHITE);
+  lcd_float(POS_ACC_Y+70, POS_ACC_Y+114 , gyro[0], &Font12,YELLOW, WHITE);
+  lcd_float(POS_ACC_Y+70, POS_ACC_Y+128, gyro[1], &Font12, YELLOW, WHITE);
+  lcd_float(POS_ACC_Y+70, POS_ACC_Y+142, gyro[2], &Font12, YELLOW, WHITE);
   lcd_str(70, 194, "TEMP = ", &Font12, WHITE, CYAN);
   lcd_float(120, 194, temperature, &Font12,  YELLOW, WHITE);
   lcd_str(50, 208, "BAT(V)=", &Font16, WHITE, ORANGE);
@@ -508,29 +613,29 @@ void draw_text(){
 
   if(!theme_pos){
     convert_cs(week[theme_pos][t.dotw],cn_buffer);
-    lcd_strc(190, 72, cn_buffer, &CNFONT, colors[0], BLACK);
+    lcd_strc(POS_CNDOW_X, POS_CNDOW_Y, cn_buffer, &CNFONT, colors[0], BLACK);
     //printf("cn_buffer: %s\n",cn_buffer);
   }else{
-    lcd_str(20, 111, week[theme_pos][t.dotw], &TFONT, colors[0], BLACK);
+    lcd_str(POS_DOW_X, POS_DOW_Y, week[theme_pos][t.dotw], &TFONT, colors[0], BLACK);
   }
 
   sprintf(dbuf,"%02d",t.day);
-  lcd_str(DATIX+3*TFW, DATIY, dbuf, &TFONT, colors[1], BLACK);
-  lcd_str(DATIX+5*TFW, DATIY, ".", &TFONT, WHITE, BLACK);
+  lcd_str(POS_DATE_X+0*TFW, POS_DATE_Y, dbuf, &TFONT, colors[1], BLACK);
+  lcd_str(POS_DATE_X+2*TFW, POS_DATE_Y, ".", &TFONT, WHITE, BLACK);
   sprintf(dbuf,"%02d",t.month);
-  lcd_str(DATIX+6*TFW, DATIY, dbuf, &TFONT, colors[2], BLACK);
-  lcd_str(DATIX+8*TFW, DATIY, ".", &TFONT, WHITE, BLACK);
+  lcd_str(POS_DATE_X+3*TFW, POS_DATE_Y, dbuf, &TFONT, colors[2], BLACK);
+  lcd_str(POS_DATE_X+5*TFW, POS_DATE_Y, ".", &TFONT, WHITE, BLACK);
   sprintf(dbuf,"%04d",t.year);
-  lcd_str(DATIX+9*TFW, DATIY, dbuf, &TFONT, colors[3], BLACK);
+  lcd_str(POS_DATE_X+6*TFW, POS_DATE_Y, dbuf, &TFONT, colors[3], BLACK);
 
   sprintf(dbuf,"%02d",t.hour);
-  lcd_str(HXST, HYST, dbuf, &TFONT, colors[4], BLACK);
-  lcd_str(HXST+2*TFW, HYST, ":", &TFONT, WHITE, BLACK);
+  lcd_str(POS_TIME_X, POS_TIME_Y, dbuf, &TFONT, colors[4], BLACK);
+  lcd_str(POS_TIME_X+2*TFW, POS_TIME_Y, ":", &TFONT, WHITE, BLACK);
   sprintf(dbuf,"%02d",t.min);
-  lcd_str(HXST+3*TFW, HYST, dbuf, &TFONT, colors[5], BLACK);
-  lcd_str(HXST+5*TFW, HYST, ":", &TFONT, WHITE, BLACK);
+  lcd_str(POS_TIME_X+3*TFW, POS_TIME_Y, dbuf, &TFONT, colors[5], BLACK);
+  lcd_str(POS_TIME_X+5*TFW, POS_TIME_Y, ":", &TFONT, WHITE, BLACK);
   sprintf(dbuf,"%02d",t.sec);
-  lcd_str(HXST+6*TFW, HYST, dbuf, &TFONT, colors[6], BLACK);
+  lcd_str(POS_TIME_X+6*TFW, POS_TIME_Y, dbuf, &TFONT, colors[6], BLACK);
 }
 
 
@@ -569,8 +674,10 @@ int main(void)
     rtc_set_datetime(&t);
     if(!(t.year%4)){last[2]=29;}else{last[2]=28;}
 
-    set_dcolors();
-    set_colors(); // are set from dcolors so set em first
+    //set_colt_colors();
+    set_dcolors(); // are set from dcolors so set em first
+    copy_pos_matrix(theme_pos);
+
     QMI8658_init();
     printf("QMI8658_init\r\n");
 
@@ -591,12 +698,13 @@ int main(void)
     while(true){
       QMI8658_read_xyz(acc, gyro, &tim_count);
       //check if not moving
-      #define GYRMAX 500.0f
+      #define GYRMAX 300.0f
+      #define ACCMAX 500.0f
       bool moveshake = false;
       if(theme_bg_dynamic_mode==1){
-        if((gyro[0]>-GYRMAX&&gyro[0]<GYRMAX)&&(gyro[1]>-GYRMAX&&gyro[1]<GYRMAX)&&(gyro[2]>-GYRMAX&&gyro[2]<GYRMAX)){            moveshake =true;          }
+        if((gyro[0]>-ACCMAX&&gyro[0]<ACCMAX)&&(gyro[1]>-ACCMAX&&gyro[1]<ACCMAX)&&(gyro[2]>-ACCMAX&&gyro[2]<ACCMAX)){            moveshake =true;          }
       }else{
-        if((acc[0]>-200.0f&&acc[0]<200.0f)&&(acc[1]>-200.0f&&acc[1]<200.0f)){            moveshake =true;          }
+        if((acc[0]>-GYRMAX&&acc[0]<GYRMAX)&&(acc[1]>-GYRMAX&&acc[1]<GYRMAX)){            moveshake =true;          }
 
       }
       if(moveshake){
@@ -630,7 +738,6 @@ int main(void)
       }
 
       if(bg_dynamic[theme_pos]){ // dynamic background
-        //lcd_clr(WHITE);
         for(int i=0;i<LCD_SZ;i++){b0[i]=0x00;}
         if(acc[1]>1024){acc[1]=1024;}
         if(acc[1]<-1024){acc[1]=-1024;}
@@ -638,47 +745,63 @@ int main(void)
         if(acc[0]<-1024){acc[0]=-1024;}
         int8_t xa = (int8_t)(acc[1]/50.0f);
         int8_t ya = (int8_t)(acc[0]/50.0f);
-        xa>>=1;
-        ya>>=1;
-        xa<<=1;
-        ya<<=1;
+        xa&=0xfe;
+        ya&=0xfe;
         if(xa>EYE_MAX){xa=EYE_MAX;}
         if(xa<-EYE_MAX){xa=-EYE_MAX;}
         if(ya>EYE_MAX){ya=EYE_MAX;}
         if(ya<-EYE_MAX){ya=-EYE_MAX;}
         lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,backgrounds[theme_pos]);
       }else{
-        mcpy(b0,backgrounds[theme_pos],LCD_SZ);
+          mcpy(b0,backgrounds[theme_pos],LCD_SZ);
       }
-
-
-      rtc_get_datetime(&t);
+      uint8_t save_sec = t.sec;
+      uint8_t save_min = t.min;
+      if(cmode!=CM_Editpos){
+        rtc_get_datetime(&t);
+      }
+      //if(!fire && cmode==CM_Editpos && (editpos==6||editpos==5)){
+      //  t.sec = save_sec;
+      //  t.min = save_min;
+      //}
       result = adc_read();
-      // (v>4.15)?true:false
       usb_loading = ((result * conversion_factor)>=4.15);
 
       if(fire){
-        hgx = acc[0];
-        hgy = acc[1];
+        theme_bg_dynamic_mode=0;
+        dir_x = D_NONE;
+        dir_y = D_NONE;
+
         if(cmode==CM_None){
           puts("CM_Config");
           cmode=CM_Config;
-        }else if(cmode==CM_Config){
+          hgx = (int)acc[0];
+          hgy = (int)acc[1];
           puts("CM_Changepos");
           cmode=CM_Changepos;
-          colors[editpos]=editcol;
+          colors[editpos]=edit_colors[theme_pos];
+        }else if(cmode==CM_Config){
+          //puts("CM_Changepos");
+          //cmode=CM_Changepos;
+          //colors[editpos]=edit_colors[theme_pos];
         }else if(cmode==CM_Changepos){
           puts("CM_Editpos");
           cmode=CM_Editpos;
-          colors[editpos]=changecol;
+          colors[editpos]=change_colors[theme_pos];
+          //colors[editpos]=changecol;
         }else if(cmode==CM_Editpos){
-          puts("CM_Changetheme");
-          cmode=CM_Changetheme;
-          colors[editpos]=dcolors[editpos];
-        }else if(cmode==CM_Changetheme){
           puts("CM_None");
           cmode=CM_None;
+          colors[editpos]=dcolors[editpos];
+          rtc_set_datetime(&t);
+          if(!(t.year%4)){last[2]=29;}else{last[2]=28;}
+          //puts("CM_Changetheme");
+          //cmode=CM_Changetheme;
         }
+        //else if(cmode==CM_Changetheme){
+        //  puts("CM_None");
+        //  cmode=CM_None;
+        //}
 
         fire=false;
       }
@@ -701,39 +824,85 @@ int main(void)
       }
       if(cmode==CM_Changepos || cmode==CM_Editpos){
         // wrist-control (arm==x-axis)
-        int as = acc[0];
-        as-=hgb;
-        //printf("hgb: %d as: %d\n",hgb,as);
-        if( as > HOURGLASSBORDER || as < -HOURGLASSBORDER ){
-          int a = as;
-          if(a<0){a*=-1;}
-          hourglass -= a;
-          //printf("hg: %d\n",hourglass);
-          if( hourglass <=0 ){
-            hourglass=HOURGLASS;
-            if(as>0){tcw=true;}else{tccw=true;}
+        int asx = (int)acc[0];
+        asx-=hgx;
+        if( asx > HOURGLASSBORDER || asx < -HOURGLASSBORDER ){
+          int a = asx;
+          if(a<0){a=-a;}
+          hourglass_x -= a;
+          a>>=2;
+          //printf("hgx a: %d\n",a);
+          if( hourglass_x <=0 ){
+            hourglass_x=HOURGLASS;
+            //if(asx>0){tcw=true;}else{tccw=true;}
+            if(asx>0){ dir_y=D_MINUS;tcw=true;}
+            if(a==0){dir_y=D_NONE;}
+            if(asx<0){ dir_y=D_PLUS;tccw=true;}
+          }
+        }
+        int asy = (int)acc[1];
+        asy-=hgy;
+        if( asy > HOURGLASSBORDER || asy < -HOURGLASSBORDER ){
+          int a = asy;
+          if(a<0){a=-a;}
+          hourglass_y -= a;
+          a>>=2;
+          //printf("hgy a: %d\n",a);
+          if( hourglass_y <=0 ){
+            hourglass_y=HOURGLASS;
+            //if(asy>0){tcw=true;}else{tccw=true;}
+            if(asy>0){ dir_x=D_PLUS;tcw=true;}
+            if(a==0){dir_x=D_NONE;}
+            if(asy<0){ dir_x=D_MINUS;tccw=true;}
           }
         }
       }
 
       if(cmode==CM_Changepos){
-        if(tcw){
-          colors[editpos]=dcol;
-          if(editpos==6){editpos=0;}else{++editpos;}
-          colors[editpos]=editcol;
-          tcw=false;
-        }else if(tccw){
-          colors[editpos]=dcol;
-          if(editpos==0){editpos=6;}else{--editpos;}
-          colors[editpos]=editcol;
-          tccw=false;
+        if(NO_POS_MODE){
+          if(dir_x==D_PLUS){
+            puts("Dright");
+            if(pos_matrix_x<2)++pos_matrix_x;
+          }
+          if(dir_x==D_MINUS){
+            puts("Dleft");
+            if(pos_matrix_x>0)--pos_matrix_x;
+          }
+
+          if(dir_y==D_PLUS){
+            if(pos_matrix_y<2)++pos_matrix_y;
+            puts("Ddown");
+          }
+          if(dir_y==D_MINUS){
+            puts("Dup");
+            if(pos_matrix_y>0)--pos_matrix_y;
+          }
+          colors[editpos]=dcolors[editpos];
+          editpos=pos_matrix[pos_matrix_y*3+pos_matrix_x];
+          //printf("posM: %d %d [%d]\n",pos_matrix_x, pos_matrix_y, pos_matrix[pos_matrix_y*3+pos_matrix_x]);
+          dir_x = D_NONE;
+          dir_y = D_NONE;
+
+        }else{
+          if(tcw){
+            colors[editpos]=dcol;
+            if(editpos==7){editpos=0;}else{++editpos;}
+            colors[editpos]=editcol;
+            tcw=false;
+          }else if(tccw){
+            colors[editpos]=dcol;
+            if(editpos==0){editpos=7;}else{--editpos;}
+            colors[editpos]=editcol;
+            tccw=false;
+          }
         }
       }
 
       if(cmode==CM_Editpos){
         bool set=false;
         if(tcw){
-          colors[editpos]=dcolors[editpos];
+          //colors[editpos]=dcolors[editpos];
+          colors[editpos]=changecol;
           switch(editpos){
             case 0: (t.dotw==6)?t.dotw=0:++t.dotw;break;
             case 1: (t.day==last[t.month])?t.day=1:++t.day;break;
@@ -742,13 +911,19 @@ int main(void)
             case 4: (t.hour==23)?t.hour=0:++t.hour;break;
             case 5: (t.min==59)?t.min=0:++t.min;break;
             case 6: (t.sec==59)?t.sec=0:++t.sec;break;
+            case 7: {
+              (theme_pos==THEMES-1)?theme_pos=0:++theme_pos;
+              copy_pos_matrix(theme_pos);
+              set_dcolors();
+              break;
+            }
           }
-          colors[editpos]=changecol;
           tcw=false;
-          set=true;
+          //set=true;
         }
         if(tccw){
-          colors[editpos]=dcolors[editpos];
+          //colors[editpos]=dcolors[editpos];
+          colors[editpos]=changecol;
           switch(editpos){
             case 0: (t.dotw==0)?t.dotw=6:--t.dotw;break;
             case 1: (t.day==1)?t.day=last[t.month]:--t.day;break;
@@ -757,25 +932,45 @@ int main(void)
             case 4: (t.hour==0)?t.hour=23:--t.hour;break;
             case 5: (t.min==0)?t.min=59:--t.min;break;
             case 6: (t.sec==0)?t.sec=59:--t.sec;break;
+            case 7: {
+              (theme_pos==0)?theme_pos=THEMES-1:--theme_pos;
+              copy_pos_matrix(theme_pos);
+              set_dcolors();
+              break;
+            }
           }
-          colors[editpos]=changecol;
           tccw=false;
-          set=true;
+          //set=true;
         }
         if(set){
           rtc_set_datetime(&t);
           if(!(t.year%4)){last[2]=29;}else{last[2]=28;}
         }
       }
-      if(cmode==CM_Changetheme){
-        blink_counter++;
-        if(blink_counter==5){bmode=!bmode;blink_counter=0;}
-        lcd_circle(120,120,20,bmode?RED:BLUE,3,0);
+      if(cmode==CM_Editpos || cmode==CM_Changepos){
+        uint16_t cmode_color = GREEN;
+        if(cmode==CM_Changepos){
+          blink_counter++;
+          if(blink_counter==5){ bmode=!bmode;blink_counter=0; }
+          cmode_color = blinker[bmode];
+        }
+        if(editpos==0){
+          if(theme_pos==0){
+            lcd_rect(POS_CNDOW_X-6,POS_CNDOW_Y,POS_CNDOW_X+CNFONT.w+3,POS_CNDOW_Y+CNFONT.h*3+1,cmode_color,3);
+          }else{
+            lcd_circle(tpos[editpos].x+18,tpos[editpos].y+8,25,cmode_color,3,0);
+          }
+        }else if(editpos==3){
+          lcd_circle(tpos[editpos].x+12,tpos[editpos].y+5,30,cmode_color,3,0);
+        }else if(editpos==7){
+          lcd_circle(tpos[editpos].x,tpos[editpos].y,19,cmode_color,3,0);
+        }else{
+          lcd_circle(tpos[editpos].x+12,tpos[editpos].y+5,20,cmode_color,3,0);
+        }
       }
 
-
       if(!theme_bg_dynamic_mode){
-        if(draw_gfx_first){
+        if(draw_gfx_first||cmode==CM_Editpos){
           draw_gfx();
           draw_text();
         }else{
@@ -784,38 +979,6 @@ int main(void)
         }
       }
       lcd_display(b0);
-
-
-      int as = acc[1];  // y-axis
-      as-=hgy;
-
-      if((as>THRLY) && cmode==CM_Changetheme){
-        printf("right\n");
-        if(!flagsdelay){
-          theme_pos++;
-          if(theme_pos==THEMES){theme_pos=0;}
-          flagsdelay=SWITCH_THEME_DELAY;
-          set_dcolors();
-          set_colors();
-        }else{
-          --flagsdelay;
-        }
-      }
-      if((as<-THRLY) && cmode==CM_Changetheme){
-        printf("left\n");
-        if(!flagsdelay){
-          if(theme_pos==0){theme_pos=THEMES;}
-          theme_pos--;
-          flagsdelay=SWITCH_THEME_DELAY;
-          set_dcolors();
-          set_colors();
-        }else{
-          --flagsdelay;
-        }
-      }
-      if(gyro[1]>THRS){printf("up\n");} // shake up
-      if(gyro[1]<-THRS){printf("down\n");} //shake down
-
       sleep_ms((analog_seconds)?1:50);
 
     }

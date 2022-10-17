@@ -7,6 +7,7 @@
 #include "hardware/spi.h"
 #include "hardware/i2c.h"
 #include "hardware/pwm.h"
+#include<math.h>
 
 #define SPI_PORT spi1
 #define I2C_PORT i2c1
@@ -97,6 +98,10 @@ void lcd_sleepoff();
 void lcd_pixel_raw(uint16_t x, uint16_t y, uint16_t c); // no bswap color
 void lcd_pixel_rawps(uint16_t x, uint16_t y, uint16_t c, uint16_t ps); //no swap with pointstrength
 void lcd_circle(uint16_t X_Center, uint16_t Y_Center, uint16_t Radius, uint16_t Color, uint16_t ps, bool fill);
+void lcd_rect(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t color, uint8_t ps);
+void lcd_xline(uint8_t x, uint8_t y, uint8_t l, uint16_t color, uint8_t ps);
+void lcd_yline(uint8_t x, uint8_t y, uint8_t l, uint16_t color, uint8_t ps);
+void lcd_xlineq(uint16_t x, uint16_t y, uint16_t l, uint16_t c);
 
 uint8_t slice_num;
 
