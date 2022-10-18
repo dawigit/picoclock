@@ -28,8 +28,3 @@ Find the '--address' with:
 
 `cd picoclock;mkdir build;cd build;cmake ..;make`
 
-
-<a href="https://www.paypal.com/donate/?hosted_button_id=36NF9BWKBB4KS">
-<img src="./blue.svg" alt="Donate with PayPal" /></a>
-
-
