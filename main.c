@@ -1,13 +1,15 @@
 //﻿#include "LCD_Test.h"   //Examples
+static __attribute__((section (".noinit")))char losabuf[1024];
+
 #include "stdio.h"
 #include "pico/stdlib.h"
 #include "stdlib.h"
 #include "pico/time.h"
+#include <math.h>
 #include "pico/util/datetime.h"
 #include "hardware/adc.h"
 #include "hardware/rtc.h"
 #include "hardware/gpio.h"
-#include <math.h>
 #include <float.h>
 #include "pico/types.h"
 #include "pico/bootrom/sf_table.h"
@@ -33,29 +35,55 @@
 #include "img/ger16.h"
 #include "img/tr16.h"
 
-#define DEFAULT_THEME 1
+
+typedef struct {
+  char mode[8];
+  datetime_t dt;
+  uint8_t theme_pos;
+} losa;
+
+static losa* plosa=(losa*)losabuf;
+
+
+datetime_t default_time = {
+  .year  = 2022,
+  .month = 10,
+  .day   = 18,
+  .dotw  = 2, // 0 is Sunday, so 5 is Friday
+  .hour  = 11,
+  .min   = 10,
+  .sec   = 0
+};
+
+#define DEFAULT_THEME 0
+// NO_POS_MODE 1 : gyroscope+button control
+#define NO_POS_MODE 1
+// NO_SENSORS 1 : don't show sensor values [gyro,acc,bat]
+#define NO_SENSORS 1
+// SLEEP_DEEPER : increases sleep_frame by SLEEP_FRAME_ADD till SLEEP_FRAME_END
+// so at max, pico is only able to awake every 10th second
+
+#define SLEEP_DEEPER 0
+#define SLEEP_FRAME_START 1000
+#define SLEEP_FRAME_END   10000
+#define SLEEP_FRAME_ADD   100
+
+
 #define TFONT Font20
 #define CNFONT Font30
-#define NO_POS_MODE 1
+
+
 
 #define mcpy(d,s,sz) for(int i=0;i<sz;i++){d[i]=s[i];}
 #define THEMES 4
 
 #define EYE irisa190
 
-datetime_t t = {
-  .year  = 2022,
-  .month = 10,
-  .day   = 17,
-  .dotw  = 1, // 0 is Sunday, so 5 is Friday
-  .hour  = 14,
-  .min   = 45,
-  .sec   = 0
-};
 
+#define FRAME_DELAY 100
 #define LOOPWAIT 50
 
-#define DRAW_GFX_FIRST false //1 == text floating above clock
+#define DRAW_GFX_FIRST true //1 == text floating above clock
 #define to_rad(angleInDegrees) ((angleInDegrees) * M_PI / 180.0)
 #define to_deg(angleInRadians) ((angleInRadians) * 180.0 / M_PI)
 #define HOURGLASSBORDER 200 // minimum rise/fall of acc_x
@@ -82,7 +110,7 @@ datetime_t t = {
 
 
 #define POS_DATE_X 46
-#define POS_DATE_Y 86
+#define POS_DATE_Y 66
 
 #define POS_DOW_X 20
 #define POS_DOW_Y 111
@@ -90,7 +118,7 @@ datetime_t t = {
 #define POS_CNDOW_Y 72
 
 #define POS_TIME_X 64
-#define POS_TIME_Y 136
+#define POS_TIME_Y 156
 
 #define TFW 14
 
@@ -140,15 +168,6 @@ typedef struct ThemePos_t{
   PXY_t pos_s;
 } ThemePos_t;
 
-  //ThemePos_t tpos[1] = {POS_DOW_X,POS_DOW_Y,
-  //  POS_DATE_X,POS_DATE_Y,
-  //  POS_DATE_X+3*TFW,POS_DATE_Y,
-  //  POS_DATE_X+5*TFW,POS_DATE_Y,
-  //  POS_TIME_X,      POS_TIME_Y,
-  //  POS_TIME_X+3*TFW,POS_TIME_Y,
-  //  POS_TIME_X+5*TFW,POS_TIME_Y
-  //};
-
   PXY_t tpos[8] =
   { POS_DOW_X,POS_DOW_Y,
     POS_DATE_X,POS_DATE_Y,
@@ -163,30 +182,51 @@ typedef struct ThemePos_t{
   uint8_t pos_matrix_x=1; // start in center
   uint8_t pos_matrix_y=1; // start in center
 
-  int8_t pos_matrix_CN[9] =
+/* Position Matrices
+it's like a gear shifter
+[ | / \] : up/down movement ways
+[ -    ] : left/right movement ways
+
+example us [3*3]:
+DAY-MON-YEAR
+ |   |  /
+DOW-FLAG
+ |   |  \
+H  - M - S
+
+example cn [4*3]:
+DAY-MON-YEAR-DOW
+  \  |  /     |
+   FLAG    - DOW
+  /  |  \     |
+H  - M - S - DOW
+
+*/
+
+// pos points to position matrix, containing possible 'editpos' (positions)
+  typedef struct PosMat_t{
+    uint8_t dim_x;
+    uint8_t dim_y;
+    uint8_t* pos;
+  } PosMat_t;
+
+  int8_t pos_matrix_CN[] =
   {
-    1,2,3,
-    7,7,0,
-    4,5,6
+    1,2,3,0,
+    7,7,7,0,
+    4,5,6,0
   };
 
 
-  int8_t pos_matrix_US[9] =
+  int8_t pos_matrix_US[] =
   {
     1,2,3,
     0,7,7,
     4,5,6
   };
 
-  int8_t pos_matrix[9];
-  void copy_pos_matrix(uint8_t n){
-    if(n){
-      for(int8_t i=0;i<9;i++){pos_matrix[i]=pos_matrix_US[i];}
-    }else{
-      for(int8_t i=0;i<9;i++){pos_matrix[i]=pos_matrix_CN[i];}
-
-    }
-  }
+  PosMat_t p_us = {3,3,pos_matrix_US};
+  PosMat_t p_cn = {4,3,pos_matrix_CN};
 
 
 #define USA_Old_Glory_Red 0xB0C8 //0xB31942
@@ -212,10 +252,10 @@ typedef struct ThemePos_t{
 
 CMode cmode = CM_None;
 
-uint8_t theme_pos = DEFAULT_THEME;
+//uint8_t theme_pos = DEFAULT_THEME;
+const PosMat_t* positions[THEMES] = {&p_cn,&p_us,&p_us,&p_us};
 const uint8_t* flags[THEMES] = {cn32,usa32,ger32,tr32};
 const uint8_t* stars[THEMES] = {cn16,usa16,ger16,tr16};
-uint16_t alpha[] = {BLACK,BLACK};
 const char* backgrounds[THEMES] = {earth190,irisa190,bega,sand};
 bool bg_dynamic[THEMES] = {true,true,false,false};
 uint8_t theme_bg_dynamic_mode = 0;
@@ -229,6 +269,17 @@ ColorTheme_t colt4={BLACK,WHITE,TR_Red,WHITE,WHITE,TR_Red,WHITE,WHITE,WHITE};
 
 ColorTheme_t* colt[THEMES];
 
+void update_pos_matrix(){
+  if(pos_matrix_x>=positions[plosa->theme_pos]->dim_x){
+    pos_matrix_x=positions[plosa->theme_pos]->dim_x-1;
+  }
+  if(pos_matrix_y>=positions[plosa->theme_pos]->dim_y){
+    pos_matrix_y=positions[plosa->theme_pos]->dim_y-1;
+  }
+}
+
+
+
 uint16_t dcol = WHITE;
 uint16_t editcol = YELLOW;
 uint16_t changecol = YELLOW;
@@ -237,7 +288,9 @@ uint16_t colors[8]  = {WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE};
 uint16_t dcolors[8] = {WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE};
 
 uint16_t blinker[2] = {BLUE,RED};
-
+#define CTM0 360
+uint16_t ct0=0;
+uint16_t ct1=0;
 uint8_t ec_x[7] = {};
 uint8_t ec_y[7] = {};
 
@@ -252,6 +305,8 @@ Dir_t dir_x;
 Dir_t dir_y;
 uint8_t no_pos_x=0;
 uint8_t no_pos_y=0;
+
+uint32_t sleep_frame = SLEEP_FRAME_START;
 
 char timebuffer[16] = {0};
 char* ptimebuffer=timebuffer;
@@ -276,15 +331,19 @@ bool ceasefire=false;
 bool tcw=false;
 bool tccw=false;
 bool clk,dt,sw,oclk,odt,osw;
+bool temp_read=false;
 int gc=0;
 char gch;
 char gbuf[2] = {'c','d'};
+uint32_t last_wait;
 uint32_t stime;
 uint8_t tseco;
 int hourglass_x=HOURGLASS;
 int hourglass_y=HOURGLASS;
+
 int hgx=0;
 int hgy=0;
+
 int buttonglass=BUTTONGLASS;
 int screensaver=SCRSAV;
 
@@ -313,6 +372,7 @@ const float conversion_factor = 3.3f / (1 << 12) * 2;
 
 float acc[3], gyro[3];
 unsigned int tim_count = 0;
+float last_z = 0.0f;
 
 uint16_t cn_chars=0;
 char ftst[128*4] = {0};
@@ -351,14 +411,14 @@ void set_dcolors(){
 }
 
 void set_colt_colors(){
-  dcolors[0]=colt[theme_pos]->col_dotw;
-  dcolors[1]=colt[theme_pos]->col_date;
-  dcolors[2]=colt[theme_pos]->col_date;
-  dcolors[3]=colt[theme_pos]->col_date;
-  dcolors[4]=colt[theme_pos]->col_time;
-  dcolors[5]=colt[theme_pos]->col_time;
-  dcolors[6]=colt[theme_pos]->col_time;
-  dcolors[7]=colt[theme_pos]->col_time;
+  dcolors[0]=colt[plosa->theme_pos]->col_dotw;
+  dcolors[1]=colt[plosa->theme_pos]->col_date;
+  dcolors[2]=colt[plosa->theme_pos]->col_date;
+  dcolors[3]=colt[plosa->theme_pos]->col_date;
+  dcolors[4]=colt[plosa->theme_pos]->col_time;
+  dcolors[5]=colt[plosa->theme_pos]->col_time;
+  dcolors[6]=colt[plosa->theme_pos]->col_time;
+  dcolors[7]=colt[plosa->theme_pos]->col_time;
 }
 
 uint8_t find_cc(uint8_t a, uint8_t b, uint8_t c){
@@ -494,16 +554,11 @@ void draw_gfx(){
   uint8_t x0=120;
   uint8_t y0=120;
 
-  //lcd_line(POS_BAT_X    ,POS_BAT_Y,   POS_BAT_X+102, POS_BAT_Y, BLUE,1);//top
-  //lcd_line(POS_BAT_X    ,POS_BAT_Y+POS_BAT_YS, POS_BAT_X+102, POS_BAT_Y+POS_BAT_YS, BLUE,1);//bottom
-  //lcd_line(POS_BAT_X    ,POS_BAT_Y,   POS_BAT_X,     POS_BAT_Y+POS_BAT_YS, BLUE,1);//left
-  //lcd_line(POS_BAT_X+102,POS_BAT_Y,   POS_BAT_X+102, POS_BAT_Y+POS_BAT_YS, BLUE,1);//right
-
-  lcd_rect(POS_BAT_X    ,POS_BAT_Y,   POS_BAT_X+100+(POS_BAT_PS<<1), POS_BAT_Y+POS_BAT_YS, BLUE,POS_BAT_PS);
+  lcd_rect(POS_BAT_X    ,POS_BAT_Y,   POS_BAT_X+100+(POS_BAT_PS<<1), POS_BAT_Y+POS_BAT_YS, BLUE, POS_BAT_PS); // frame
   uint16_t bat = (uint16_t)(((result * conversion_factor)/4.17)*100);
   //printf("bat :  %03d\n",bat);
   if(bat>100){bat=100;}
-  lcd_xline(POS_BAT_X+POS_BAT_PS    ,POS_BAT_Y+POS_BAT_PS,   bat-1, WHITE, POS_BAT_YS-(POS_BAT_PS<<1));//top
+  lcd_xline(POS_BAT_X+POS_BAT_PS    ,POS_BAT_Y+POS_BAT_PS,   bat-1, WHITE, POS_BAT_YS-(POS_BAT_PS<<1)); // battery level
   if(!usb_loading){
     sprintf(dbuf,"  %02d%%",bat);
   }else{
@@ -511,9 +566,13 @@ void draw_gfx(){
   }
   lcd_str(94, 12, dbuf, &Font12, WHITE, RED);
   //lcd_str(94, 12, dbuf, &Font34);
-
-  if(t.sec==0||t.sec==30){
-    temperature = QMI8658_readTemp();
+  if(!NO_SENSORS){
+    if((plosa->dt.sec==0||plosa->dt.sec==30)&&(!temp_read)){
+      temperature = QMI8658_readTemp();
+      temp_read=true;
+    }else{
+      temp_read=false;
+    }
   }
   //QMI8658_read_mag(mag);
   //printf("mag: %0.2f %0.2f %0.2f\n",mag[0],mag[1],mag[2]);
@@ -529,63 +588,61 @@ void draw_gfx(){
     if(!(i%5)){
       xi = (int)(tcos[i*6]*110);
       yi = (int)(tsin[i*6]*110);
-      lcd_line((uint8_t)x0+xi,(uint8_t)y0+yi, x1, y1, colt[theme_pos]->col_cs5, 1);
+      lcd_line((uint8_t)x0+xi,(uint8_t)y0+yi, x1, y1, colt[plosa->theme_pos]->col_cs5, 1);
     }else{
       xi = (int)(tcos[i*6]*115);
       yi = (int)(tsin[i*6]*115);
-      lcd_line((uint8_t)x0+xi,(uint8_t)y0+yi, x1, y1, colt[theme_pos]->col_cs, 1);
+      lcd_line((uint8_t)x0+xi,(uint8_t)y0+yi, x1, y1, colt[plosa->theme_pos]->col_cs, 1);
     }
   }
-  xi = (int)(tcos[t.min*6]*105);
-  yi = (int)(tsin[t.min*6]*105);
+  xi = (int)(tcos[plosa->dt.min*6]*105);
+  yi = (int)(tsin[plosa->dt.min*6]*105);
   x1 = (uint8_t)x0+xi;
   y1 = (uint8_t)y0+yi;
-  lcd_line(x0,y0, x1, y1, colt[theme_pos]->col_m, 3);
+  lcd_line(x0,y0, x1, y1, colt[plosa->theme_pos]->col_m, 3);
 
-  int th=(int)t.hour;
+  int th=(int)plosa->dt.hour;
   if(th>=12){th-=12;}
   th*=30;
-  th+=(int)(t.min>>1);
+  th+=(int)(plosa->dt.min>>1);
   xi = (int)(tcos[th]*64);
   yi = (int)(tsin[th]*64);
   x1 = (uint8_t)x0+xi;
   y1 = (uint8_t)y0+yi;
-  lcd_line(x0,y0, x1, y1, colt[theme_pos]->col_h, 5);
+  lcd_line(x0,y0, x1, y1, colt[plosa->theme_pos]->col_h, 5);
 
-  if(tseco!=t.sec){
-    tseco=t.sec;
+  if(tseco!=plosa->dt.sec){
+    tseco=plosa->dt.sec;
     stime = time_us_32();
   }
 
-  uint32_t st = time_us_32();
-  st-=stime;
-  st=st/100000;
-  //printf("%d\n",st);
+  //printf("st: %d\n",st);
   if(!analog_seconds){
     // 'jump' seconds
-    xi = (int)(tcos[t.sec*6]*114);
-    yi = (int)(tsin[t.sec*6]*114);
+    xi = (int)(tcos[plosa->dt.sec*6]*114);
+    yi = (int)(tsin[plosa->dt.sec*6]*114);
     x1 = (uint8_t)x0+xi;
     y1 = (uint8_t)y0+yi;
-    lcd_line(x0,y0, x1, y1, colt[theme_pos]->col_s, 1);
-    lcd_blit((int)(x0-8+tcos[t.sec*6]*102),(int)(y0-8+tsin[t.sec*6]*102),16,16,colt[theme_pos]->alpha,stars[theme_pos]);
+    lcd_line(x0,y0, x1, y1, colt[plosa->theme_pos]->col_s, 1);
+    lcd_blit((int)(x0-8+tcos[plosa->dt.sec*6]*102),(int)(y0-8+tsin[plosa->dt.sec*6]*102),16,16,colt[plosa->theme_pos]->alpha,stars[plosa->theme_pos]);
   }else{
+    uint32_t st = time_us_32();
+    st-=stime;
+    st=st/100000;
     // 'analog' seconds
-    xi = (int)(tfcos[t.sec*10+st]*114);
-    yi = (int)(tfsin[t.sec*10+st]*114);
+    xi = (int)(tfcos[plosa->dt.sec*10+st]*114);
+    yi = (int)(tfsin[plosa->dt.sec*10+st]*114);
     x1 = (uint8_t)x0+xi;
     y1 = (uint8_t)y0+yi;
-    lcd_line(x0,y0, x1, y1, colt[theme_pos]->col_s, 1);
-    lcd_blit((int)(x0-8+tfcos[t.sec*10+st]*102),(int)(y0-8+tfsin[t.sec*10+st]*102),16,16,colt[theme_pos]->alpha,stars[theme_pos]);
-
+    lcd_line(x0,y0, x1, y1, colt[plosa->theme_pos]->col_s, 1);
+    lcd_blit((int)(x0-8+tfcos[plosa->dt.sec*10+st]*102),(int)(y0-8+tfsin[plosa->dt.sec*10+st]*102),16,16,colt[plosa->theme_pos]->alpha,stars[plosa->theme_pos]);
   }
-
-  lcd_blit(120-16,120-16,32,32,colt[theme_pos]->alpha, flags[theme_pos]); // center
-
+  lcd_blit(120-16,120-16,32,32,colt[plosa->theme_pos]->alpha, flags[plosa->theme_pos]); // center
 }
 
 
 void draw_text(){
+  if(!NO_SENSORS){
   lcd_str(POS_ACC_X, POS_ACC_Y    , "GYR_X = ", &Font12, WHITE,  CYAN);
   lcd_str(POS_ACC_X, POS_ACC_Y+16 , "GYR_Y = ", &Font12, WHITE,  CYAN);
   lcd_str(POS_ACC_X, POS_ACC_Y+32 , "GYR_Z = ", &Font12, WHITE, CYAN);
@@ -602,31 +659,32 @@ void draw_text(){
   lcd_float(120, 194, temperature, &Font12,  YELLOW, WHITE);
   lcd_str(50, 208, "BAT(V)=", &Font16, WHITE, ORANGE);
   lcd_float(130, 208, result * conversion_factor, &Font16, ORANGE, WHITE);
+  }
 
-  if(!theme_pos){
-    convert_cs(week[theme_pos][t.dotw],cn_buffer);
+  if(!plosa->theme_pos){
+    convert_cs(week[plosa->theme_pos][plosa->dt.dotw],cn_buffer);
     lcd_strc(POS_CNDOW_X, POS_CNDOW_Y, cn_buffer, &CNFONT, colors[0], BLACK);
     //printf("cn_buffer: %s\n",cn_buffer);
   }else{
-    lcd_str(POS_DOW_X, POS_DOW_Y, week[theme_pos][t.dotw], &TFONT, colors[0], BLACK);
+    lcd_str(POS_DOW_X, POS_DOW_Y, week[plosa->theme_pos][plosa->dt.dotw], &TFONT, colors[0], BLACK);
   }
 
-  sprintf(dbuf,"%02d",t.day);
+  sprintf(dbuf,"%02d",plosa->dt.day);
   lcd_str(POS_DATE_X+0*TFW, POS_DATE_Y, dbuf, &TFONT, colors[1], BLACK);
   lcd_str(POS_DATE_X+2*TFW, POS_DATE_Y, ".", &TFONT, WHITE, BLACK);
-  sprintf(dbuf,"%02d",t.month);
+  sprintf(dbuf,"%02d",plosa->dt.month);
   lcd_str(POS_DATE_X+3*TFW, POS_DATE_Y, dbuf, &TFONT, colors[2], BLACK);
   lcd_str(POS_DATE_X+5*TFW, POS_DATE_Y, ".", &TFONT, WHITE, BLACK);
-  sprintf(dbuf,"%04d",t.year);
+  sprintf(dbuf,"%04d",plosa->dt.year);
   lcd_str(POS_DATE_X+6*TFW, POS_DATE_Y, dbuf, &TFONT, colors[3], BLACK);
 
-  sprintf(dbuf,"%02d",t.hour);
+  sprintf(dbuf,"%02d",plosa->dt.hour);
   lcd_str(POS_TIME_X, POS_TIME_Y, dbuf, &TFONT, colors[4], BLACK);
   lcd_str(POS_TIME_X+2*TFW, POS_TIME_Y, ":", &TFONT, WHITE, BLACK);
-  sprintf(dbuf,"%02d",t.min);
+  sprintf(dbuf,"%02d",plosa->dt.min);
   lcd_str(POS_TIME_X+3*TFW, POS_TIME_Y, dbuf, &TFONT, colors[5], BLACK);
   lcd_str(POS_TIME_X+5*TFW, POS_TIME_Y, ":", &TFONT, WHITE, BLACK);
-  sprintf(dbuf,"%02d",t.sec);
+  sprintf(dbuf,"%02d",plosa->dt.sec);
   lcd_str(POS_TIME_X+6*TFW, POS_TIME_Y, dbuf, &TFONT, colors[6], BLACK);
 }
 
@@ -635,14 +693,41 @@ void draw_text(){
 
 int main(void)
 {
+    bool init=false;
+    bool fixed=false;
     stdio_init_all();
     puts("stdio init");
+    printf("mode='%s'\n",plosa->mode);
+    if(!(plosa->mode[0]=='G'&&plosa->mode[1]=='O'&&plosa->mode[2]=='O'&&plosa->mode[3]=='D')){
+      plosa->dt.year  = default_time.year ;
+      plosa->dt.month = default_time.month;
+      plosa->dt.day   = default_time.day  ;
+      plosa->dt.dotw  = default_time.dotw ;
+      plosa->dt.hour  = default_time.hour ;
+      plosa->dt.min   = default_time.min  ;
+      plosa->dt.sec   = default_time.sec  ;
+      plosa->theme_pos = DEFAULT_THEME;
+      sprintf(plosa->mode,"GOOD\0");
+      init = true;
+    }else{ // do a few sanity checks
+      plosa->dt.sec+=1;
+      if(plosa->dt.month > 12 ){plosa->dt.month = default_time.month;fixed=true;}
+      if(plosa->dt.day   > 31) {plosa->dt.day   = default_time.day  ;fixed=true;}
+      if(plosa->dt.dotw  > 6)  {plosa->dt.dotw  = default_time.dotw ;fixed=true;}
+      if(plosa->dt.hour  > 23) {plosa->dt.hour  = default_time.hour ;fixed=true;}
+      if(plosa->dt.min   > 59) {plosa->dt.min   = default_time.min  ;fixed=true;}
+      if(plosa->dt.sec   > 59) {plosa->dt.sec   = default_time.sec  ;fixed=true;}
+      if(plosa->theme_pos>=THEMES){plosa->theme_pos=0;fixed=true;}
+      sleep_ms(400);  // reboot takes about 1.6 sec. -> increase time by 2sec, wait 0.4sec
+      rtc_set_datetime(&plosa->dt);
+    }
     lcd_init();
     lcd_set_brightness(30);
     puts("lcd init");
     uint8_t* b0 = malloc(LCD_SZ);
     uint32_t o = 0;
     lcd_setimg((uint16_t*)b0);
+    //printf("INIT: %b FIXED: %b [%08x] mode='%s'\n",init,fixed,plosa,plosa->mode);
 
     colt[0]=&colt1;
     colt[1]=&colt2;
@@ -653,7 +738,6 @@ int main(void)
     bool o_dt;
     bool o_sw;
 
-
     //uint32_t bm = 0b00000000000010110000000000000000;
     gpio_set_irq_enabled_with_callback(CCLK, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
     gpio_set_irq_enabled(CDT, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
@@ -663,12 +747,12 @@ int main(void)
     gpio_set_irq_enabled(CBUT, GPIO_IRQ_LEVEL_LOW, true);
     //gpio_pull_up(CBUT);
     rtc_init();
-    rtc_set_datetime(&t);
-    if(!(t.year%4)){last[2]=29;}else{last[2]=28;}
+    rtc_set_datetime(&plosa->dt);
+    if(!(plosa->dt.year%4)){last[2]=29;}else{last[2]=28;}
 
     //set_colt_colors();
     set_dcolors(); // are set from dcolors so set em first
-    copy_pos_matrix(theme_pos);
+    //copy_pos_matrix(theme_pos);
 
     QMI8658_init();
     printf("QMI8658_init\r\n");
@@ -692,18 +776,19 @@ int main(void)
       //check if not moving
       #define GYRMAX 300.0f
       #define ACCMAX 500.0f
-      bool moveshake = false;
+      bool no_moveshake = false;
       if(theme_bg_dynamic_mode==1){
-        if((gyro[0]>-ACCMAX&&gyro[0]<ACCMAX)&&(gyro[1]>-ACCMAX&&gyro[1]<ACCMAX)&&(gyro[2]>-ACCMAX&&gyro[2]<ACCMAX)){            moveshake =true;          }
+        if((gyro[0]>-ACCMAX&&gyro[0]<ACCMAX)&&(gyro[1]>-ACCMAX&&gyro[1]<ACCMAX)&&(gyro[2]>-ACCMAX&&gyro[2]<ACCMAX)){            no_moveshake = true;          }
       }else{
-        if((acc[0]>-GYRMAX&&acc[0]<GYRMAX)&&(acc[1]>-GYRMAX&&acc[1]<GYRMAX)){            moveshake =true;          }
-
+        if((acc[0]>-GYRMAX&&acc[0]<GYRMAX)&&(acc[1]>-GYRMAX&&acc[1]<GYRMAX)){            no_moveshake = true;          }
       }
-      if(moveshake){
+      if((acc[2]>0&&last_z<0)||(acc[2]<0&&last_z>0)){no_moveshake=true;}  // coin-flipped
+      last_z=acc[2];
+      if(no_moveshake){
         if(!is_sleeping && cmode==CM_None && !usb_loading){
           screensaver--;
           if(screensaver<=0){
-            if(bg_dynamic[theme_pos]){
+            if(bg_dynamic[plosa->theme_pos]){
               theme_bg_dynamic_mode++;
               if(theme_bg_dynamic_mode==1){
                 screensaver=SCRSAV2;
@@ -725,11 +810,14 @@ int main(void)
       }
 
       if(is_sleeping){
-        sleep_ms(1000);
+        sleep_ms(sleep_frame);
+        if(SLEEP_DEEPER){
+          if(sleep_frame<SLEEP_FRAME_END){sleep_frame+=SLEEP_FRAME_ADD;}
+        }
         continue;
       }
 
-      if(bg_dynamic[theme_pos]){ // dynamic background
+      if(bg_dynamic[plosa->theme_pos]){ // dynamic background
         for(int i=0;i<LCD_SZ;i++){b0[i]=0x00;}
         if(acc[1]>1024){acc[1]=1024;}
         if(acc[1]<-1024){acc[1]=-1024;}
@@ -737,29 +825,31 @@ int main(void)
         if(acc[0]<-1024){acc[0]=-1024;}
         int8_t xa = (int8_t)(acc[1]/50.0f);
         int8_t ya = (int8_t)(acc[0]/50.0f);
-        xa&=0xff;
-        ya&=0xff;
+        xa&=0xfe;
+        ya&=0xfe;
         if(xa>EYE_MAX){xa=EYE_MAX;}
         if(xa<-EYE_MAX){xa=-EYE_MAX;}
         if(ya>EYE_MAX){ya=EYE_MAX;}
         if(ya<-EYE_MAX){ya=-EYE_MAX;}
-        lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,backgrounds[theme_pos]);
+        lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,backgrounds[plosa->theme_pos]);
       }else{
-          mcpy(b0,backgrounds[theme_pos],LCD_SZ);
+          mcpy(b0,backgrounds[plosa->theme_pos],LCD_SZ);
       }
-      uint8_t save_sec = t.sec;
-      uint8_t save_min = t.min;
-      if(cmode!=CM_Editpos){
-        rtc_get_datetime(&t);
+      uint8_t save_sec = plosa->dt.sec;
+      uint8_t save_min = plosa->dt.min;
+      if(cmode!=CM_Editpos || editpos==7 ){
+        rtc_get_datetime(&plosa->dt);
       }
       //if(!fire && cmode==CM_Editpos && (editpos==6||editpos==5)){
-      //  t.sec = save_sec;
-      //  t.min = save_min;
+      //  plosa->dt.sec = save_sec;
+      //  plosa->dt.min = save_min;
       //}
       result = adc_read();
       usb_loading = ((result * conversion_factor)>=4.15);
 
       if(fire){
+        sleep_frame = SLEEP_FRAME_START;
+        is_sleeping = false;
         theme_bg_dynamic_mode=0;
         dir_x = D_NONE;
         dir_y = D_NONE;
@@ -771,11 +861,11 @@ int main(void)
           hgy = (int)acc[1];
           puts("CM_Changepos");
           cmode=CM_Changepos;
-          colors[editpos]=edit_colors[theme_pos];
+          colors[editpos]=edit_colors[plosa->theme_pos];
         }else if(cmode==CM_Config){
           //puts("CM_Changepos");
           //cmode=CM_Changepos;
-          //colors[editpos]=edit_colors[theme_pos];
+          //colors[editpos]=edit_colors[plosa->theme_pos];
         }else if(cmode==CM_Changepos){
           puts("CM_Editpos");
           cmode=CM_Editpos;
@@ -783,14 +873,14 @@ int main(void)
           hgy = (int)acc[1];
           tcw = false;
           tccw = false;
-          //colors[editpos]=change_colors[theme_pos];
+          //colors[editpos]=change_colors[plosa->theme_pos];
           colors[editpos]=changecol;
         }else if(cmode==CM_Editpos){
           puts("CM_None");
           cmode=CM_None;
           colors[editpos]=dcolors[editpos];
-          rtc_set_datetime(&t);
-          if(!(t.year%4)){last[2]=29;}else{last[2]=28;}
+          rtc_set_datetime(&plosa->dt);
+          if(!(plosa->dt.year%4)){last[2]=29;}else{last[2]=28;}
           //puts("CM_Changetheme");
           //cmode=CM_Changetheme;
         }
@@ -812,11 +902,7 @@ int main(void)
         cx/=r;
         cy/=r;
         printf("cxy: %0.3f %0.3f\n",cx,cy);
-        lcd_line(120,120, 120+cy*110, 120-cx*110, CYAN, 1);
-        lcd_line(121,120, 121+cy*110, 120-cx*110, CYAN, 1);
-        lcd_line(120,121, 120+cy*110, 121-cx*110, CYAN, 1);
-
-
+        lcd_line(120,120, 120+cy*110, 120-cx*110, CYAN, 3);
       }
       if(cmode==CM_Changepos || cmode==CM_Editpos){
         // wrist-control (arm==x-axis)
@@ -858,7 +944,8 @@ int main(void)
         if(NO_POS_MODE){
           if(dir_x==D_PLUS){
             puts("Dright");
-            if(pos_matrix_x<2)++pos_matrix_x;
+            if(pos_matrix_x<positions[plosa->theme_pos]->dim_x-1)++pos_matrix_x;
+//            if(pos_matrix_x<2)++pos_matrix_x;
           }
           if(dir_x==D_MINUS){
             puts("Dleft");
@@ -866,7 +953,8 @@ int main(void)
           }
 
           if(dir_y==D_PLUS){
-            if(pos_matrix_y<2)++pos_matrix_y;
+            //if(pos_matrix_y<2)++pos_matrix_y;
+            if(pos_matrix_y<positions[plosa->theme_pos]->dim_y-1)++pos_matrix_y;
             puts("Ddown");
           }
           if(dir_y==D_MINUS){
@@ -874,7 +962,7 @@ int main(void)
             if(pos_matrix_y>0)--pos_matrix_y;
           }
           colors[editpos]=dcolors[editpos];
-          editpos=pos_matrix[pos_matrix_y*3+pos_matrix_x];
+          editpos=positions[plosa->theme_pos]->pos[pos_matrix_y*(positions[plosa->theme_pos]->dim_x)+pos_matrix_x];
           //printf("posM: %d %d [%d]\n",pos_matrix_x, pos_matrix_y, pos_matrix[pos_matrix_y*3+pos_matrix_x]);
           dir_x = D_NONE;
           dir_y = D_NONE;
@@ -900,16 +988,18 @@ int main(void)
           //colors[editpos]=dcolors[editpos];
           colors[editpos]=changecol;
           switch(editpos){
-            case 0: (t.dotw==6)?t.dotw=0:++t.dotw;break;
-            case 1: (t.day==last[t.month])?t.day=1:++t.day;break;
-            case 2: (t.month==12)?t.month=1:++t.month;break;
-            case 3: (t.year==2099)?t.year=2022:++t.year;break;
-            case 4: (t.hour==23)?t.hour=0:++t.hour;break;
-            case 5: (t.min==59)?t.min=0:++t.min;break;
-            case 6: (t.sec==59)?t.sec=0:++t.sec;break;
+            case 0: (plosa->dt.dotw==6)?plosa->dt.dotw=0:plosa->dt.dotw++;break;
+            case 1: (plosa->dt.day==last[plosa->dt.month])?plosa->dt.day=1:plosa->dt.day++;break;
+            case 2: (plosa->dt.month==12)?plosa->dt.month=1:plosa->dt.month++;break;
+            case 3: (plosa->dt.year==2099)?plosa->dt.year=2022:plosa->dt.year++;break;
+            case 4: (plosa->dt.hour==23)?plosa->dt.hour=0:plosa->dt.hour++;break;
+            case 5: (plosa->dt.min==59)?plosa->dt.min=0:plosa->dt.min++;break;
+            case 6: (plosa->dt.sec==59)?plosa->dt.sec=0:plosa->dt.sec++;break;
             case 7: {
-              (theme_pos==THEMES-1)?theme_pos=0:++theme_pos;
-              copy_pos_matrix(theme_pos);
+              (plosa->theme_pos==THEMES-1)?plosa->theme_pos=0:plosa->theme_pos++;
+              //copy_pos_matrix(plosa->theme_pos);
+              update_pos_matrix();
+
               set_dcolors();
               break;
             }
@@ -921,16 +1011,17 @@ int main(void)
           //colors[editpos]=dcolors[editpos];
           colors[editpos]=changecol;
           switch(editpos){
-            case 0: (t.dotw==0)?t.dotw=6:--t.dotw;break;
-            case 1: (t.day==1)?t.day=last[t.month]:--t.day;break;
-            case 2: (t.month==1)?t.month=12:--t.month;break;
-            case 3: (t.year==2099)?t.year=2022:--t.year;break;
-            case 4: (t.hour==0)?t.hour=23:--t.hour;break;
-            case 5: (t.min==0)?t.min=59:--t.min;break;
-            case 6: (t.sec==0)?t.sec=59:--t.sec;break;
+            case 0: (plosa->dt.dotw==0)?plosa->dt.dotw=6:plosa->dt.dotw--;break;
+            case 1: (plosa->dt.day==1)?plosa->dt.day=last[plosa->dt.month]:plosa->dt.day--;break;
+            case 2: (plosa->dt.month==1)?plosa->dt.month=12:plosa->dt.month--;break;
+            case 3: (plosa->dt.year==2099)?plosa->dt.year=2022:plosa->dt.year--;break;
+            case 4: (plosa->dt.hour==0)?plosa->dt.hour=23:plosa->dt.hour--;break;
+            case 5: (plosa->dt.min==0)?plosa->dt.min=59:plosa->dt.min--;break;
+            case 6: (plosa->dt.sec==0)?plosa->dt.sec=59:plosa->dt.sec--;break;
             case 7: {
-              (theme_pos==0)?theme_pos=THEMES-1:--theme_pos;
-              copy_pos_matrix(theme_pos);
+              (plosa->theme_pos==0)?plosa->theme_pos=THEMES-1:plosa->theme_pos--;
+              //copy_pos_matrix(plosa->theme_pos);
+              update_pos_matrix();
               set_dcolors();
               break;
             }
@@ -939,8 +1030,8 @@ int main(void)
           //set=true;
         }
         if(set){
-          rtc_set_datetime(&t);
-          if(!(t.year%4)){last[2]=29;}else{last[2]=28;}
+          rtc_set_datetime(&plosa->dt);
+          if(!(plosa->dt.year%4)){last[2]=29;}else{last[2]=28;}
         }
       }
       if(cmode==CM_Editpos || cmode==CM_Changepos){
@@ -951,7 +1042,7 @@ int main(void)
           cmode_color = blinker[bmode];
         }
         if(editpos==0){
-          if(theme_pos==0){
+          if(plosa->theme_pos==0){
             lcd_rect(POS_CNDOW_X-6,POS_CNDOW_Y,POS_CNDOW_X+CNFONT.w+3,POS_CNDOW_Y+CNFONT.h*3+1,cmode_color,3);
           }else{
             lcd_circle(tpos[editpos].x+18,tpos[editpos].y+8,25,cmode_color,3,0);
@@ -975,8 +1066,12 @@ int main(void)
         }
       }
       lcd_display(b0);
-      sleep_ms((analog_seconds)?1:50);
-
+      uint32_t atime = time_us_32();
+      uint32_t wtime = ((atime-last_wait)/100000);
+      last_wait = atime;
+      //printf("wt= %d [%d]\n",wtime,FRAME_DELAY-wtime);
+      if(wtime>=FRAME_DELAY){wtime=99;}
+      sleep_ms(FRAME_DELAY-wtime);
     }
     return 0;
 }

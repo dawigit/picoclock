@@ -102,6 +102,7 @@ void lcd_rect(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t color, ui
 void lcd_xline(uint8_t x, uint8_t y, uint8_t l, uint16_t color, uint8_t ps);
 void lcd_yline(uint8_t x, uint8_t y, uint8_t l, uint16_t color, uint8_t ps);
 void lcd_xlineq(uint16_t x, uint16_t y, uint16_t l, uint16_t c);
+uint16_t lcd_colrgb(uint8_t r, uint8_t g, uint8_t b);
 
 uint8_t slice_num;
 
