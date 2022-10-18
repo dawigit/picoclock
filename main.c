@@ -60,9 +60,10 @@ datetime_t default_time = {
 #define NO_POS_MODE 1
 // NO_SENSORS 1 : don't show sensor values [gyro,acc,bat]
 #define NO_SENSORS 1
+#define NO_GYROCROSS 0
+
 // SLEEP_DEEPER : increases sleep_frame by SLEEP_FRAME_ADD till SLEEP_FRAME_END
 // so at max, pico is only able to awake every 10th second
-
 #define SLEEP_DEEPER 0
 #define SLEEP_FRAME_START 1000
 #define SLEEP_FRAME_END   10000
@@ -231,24 +232,16 @@ H  - M - S - DOW
 
 #define USA_Old_Glory_Red 0xB0C8 //0xB31942
 #define USA_Old_Glory_Blue 0x098C //0x0A3161
-//#define USA_Old_Glory_Red  0xC8B0 //0xB31942
-//#define USA_Old_Glory_Blue 0x8C09 //0x0A3161
 
 #define CN_Red 0xE8E4 //0xee1c25
 #define CN_Gold 0xFFE0 //0xffff00
-//#define CN_Red 0xE4E8 //0xee1c25
-//#define CN_Gold 0xE0FF //0xffff00
 
-//#define GER_Gold 0x60FE
-//#define GER_Red 0x00F8
 #define GER_Gold 0xFE60
 #define GER_Red 0xF800
 
-//#define TR_Red 0x00F8
 #define TR_Red 0xF800
 
 #define THEMES 4
-//#define FLAGS_MAX 4
 
 CMode cmode = CM_None;
 
@@ -257,10 +250,11 @@ const PosMat_t* positions[THEMES] = {&p_cn,&p_us,&p_us,&p_us};
 const uint8_t* flags[THEMES] = {cn32,usa32,ger32,tr32};
 const uint8_t* stars[THEMES] = {cn16,usa16,ger16,tr16};
 const char* backgrounds[THEMES] = {earth190,irisa190,bega,sand};
-bool bg_dynamic[THEMES] = {true,true,false,false};
-uint8_t theme_bg_dynamic_mode = 0;
+const bool bg_dynamic[THEMES] = {true,true,false,false};
 const uint16_t edit_colors[THEMES] = {ORANGE,YELLOW,ORANGE,ORANGE};
 const uint16_t change_colors[THEMES] = {YELLOW,YELLOW,YELLOW,YELLOW};
+
+uint8_t theme_bg_dynamic_mode = 0;
 
 ColorTheme_t colt1={BLACK,CN_Red,CN_Red,CN_Gold,CN_Red,CN_Gold,WHITE,WHITE,WHITE};
 ColorTheme_t colt2={BLACK,USA_Old_Glory_Red,USA_Old_Glory_Blue,WHITE,USA_Old_Glory_Red,WHITE,WHITE,WHITE,WHITE};
@@ -638,6 +632,32 @@ void draw_gfx(){
     lcd_blit((int)(x0-8+tfcos[plosa->dt.sec*10+st]*102),(int)(y0-8+tfsin[plosa->dt.sec*10+st]*102),16,16,colt[plosa->theme_pos]->alpha,stars[plosa->theme_pos]);
   }
   lcd_blit(120-16,120-16,32,32,colt[plosa->theme_pos]->alpha, flags[plosa->theme_pos]); // center
+  // graphical view of x/y gyroscope
+  if(!NO_GYROCROSS){
+    #define GSPX 120
+    #define GSPY 200
+    #define GSPS 4
+    #define GSPSZ 20
+
+    lcd_rect(GSPX-GSPS , GSPY-GSPSZ, GSPX+GSPS, GSPY+GSPSZ,WHITE,1); //vert |
+    lcd_rect(GSPX-GSPSZ, GSPY-GSPS, GSPX+GSPSZ,GSPY+GSPS, WHITE,1); //horz –
+    float fx = (acc[1]/25.0f); // -20 – 20
+    float fy = (acc[0]/25.0f);
+    //printf("gxy: %f %f\n",fx,fy);
+    int8_t gx = (int8_t)fx;
+    int8_t gy = (int8_t)fy;
+    if(gx>  (GSPSZ-GSPS)){ gx= (GSPSZ-GSPS); }
+    if(gx< -(GSPSZ-GSPS)){ gx=-(GSPSZ-GSPS); }
+    if(gy>  (GSPSZ-GSPS)){ gy= (GSPSZ-GSPS); }
+    if(gy< -(GSPSZ-GSPS)){ gy=-(GSPSZ-GSPS); }
+    //printf("gxy: %d %d\n",gx,gy);
+    uint16_t gdx = (uint16_t)GSPX+gx;
+    uint16_t gdy = (uint16_t)GSPY-gy;
+    uint16_t gcoly = __builtin_bswap16(WHITE);
+    uint16_t gcolx = __builtin_bswap16(YELLOW);
+    lcd_pixel_rawps(GSPX,gdy,gcoly,GSPS);
+    lcd_pixel_rawps(gdx,GSPY,gcolx,GSPS);
+  }
 }
 
 
