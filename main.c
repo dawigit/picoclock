@@ -81,7 +81,7 @@ datetime_t default_time = {
 #define EYE irisa190
 
 
-#define FRAME_DELAY 100
+#define FRAME_DELAY 50
 #define LOOPWAIT 50
 
 #define DRAW_GFX_FIRST true //1 == text floating above clock
@@ -311,13 +311,17 @@ char *datetime_str = &datetime_buf[0];
 char* dt_date;
 char* dt_time;
 
+uint32_t dps=0;
+uint32_t dpsc=0;
+
 //ky-040
 #define CCLK 16
 #define CDT 17
 #define CSW 19
 
 //one button /
-#define CBUT 22
+#define CBUT0 22
+#define CBUT1 5
 
 bool analog_seconds=false;
 bool fire=false;
@@ -528,13 +532,22 @@ void gpio_callback(uint gpio, uint32_t events) {
       gbuf[0]=gbuf[1];
       gbuf[1]=gch;
     }
-    if(events&GPIO_IRQ_LEVEL_LOW && gpio==CBUT){
+    if(events&GPIO_IRQ_LEVEL_LOW && gpio==CBUT0){
       buttonglass-=BUTTONGLASSC;
       if(buttonglass<=0){
         fire=true;
         buttonglass=BUTTONGLASS;
       }
     }
+
+    if(events&GPIO_IRQ_LEVEL_LOW && gpio==CBUT1){
+      buttonglass-=BUTTONGLASSC;
+      if(buttonglass<=0){
+        fire=true;
+        buttonglass=BUTTONGLASS;
+      }
+    }
+
     if(gbuf[0]=='C'&&gbuf[1]=='D'){tcw=true;}
     if(gbuf[0]=='D'&&gbuf[1]=='C'){tccw=true;}
     if(sw){sw=false;fire=true;}
@@ -608,6 +621,8 @@ void draw_gfx(){
   if(tseco!=plosa->dt.sec){
     tseco=plosa->dt.sec;
     stime = time_us_32();
+    //dpsc = dps;
+    //dps = 0;
   }
 
   //printf("st: %d\n",st);
@@ -680,7 +695,8 @@ void draw_text(){
   lcd_str(50, 208, "BAT(V)=", &Font16, WHITE, ORANGE);
   lcd_float(130, 208, result * conversion_factor, &Font16, ORANGE, WHITE);
   }
-
+  //sprintf(dbuf, "DPS: %02d",dpsc);
+  //lcd_str(120, 220    , dbuf , &Font12, YELLOW,  CYAN);
   if(!plosa->theme_pos){
     convert_cs(week[plosa->theme_pos][plosa->dt.dotw],cn_buffer);
     lcd_strc(POS_CNDOW_X, POS_CNDOW_Y, cn_buffer, &CNFONT, colors[0], BLACK);
@@ -762,9 +778,12 @@ int main(void)
     gpio_set_irq_enabled_with_callback(CCLK, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
     gpio_set_irq_enabled(CDT, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     gpio_set_irq_enabled(CSW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
-    gpio_set_dir(CBUT,GPIO_IN);
-    gpio_pull_up(CBUT);
-    gpio_set_irq_enabled(CBUT, GPIO_IRQ_LEVEL_LOW, true);
+    gpio_set_dir(CBUT0,GPIO_IN);
+    gpio_pull_up(CBUT0);
+    gpio_set_irq_enabled(CBUT0, GPIO_IRQ_LEVEL_LOW, true);
+    gpio_set_dir(CBUT1,GPIO_IN);
+    gpio_pull_up(CBUT1);
+    gpio_set_irq_enabled(CBUT1, GPIO_IRQ_LEVEL_LOW, true);
     //gpio_pull_up(CBUT);
     rtc_init();
     rtc_set_datetime(&plosa->dt);
@@ -845,8 +864,8 @@ int main(void)
         if(acc[0]<-1024){acc[0]=-1024;}
         int8_t xa = (int8_t)(acc[1]/50.0f);
         int8_t ya = (int8_t)(acc[0]/50.0f);
-        xa&=0xfe;
-        ya&=0xfe;
+        xa>>1;xa<<1;
+        ya>>1;ya<<1;
         if(xa>EYE_MAX){xa=EYE_MAX;}
         if(xa<-EYE_MAX){xa=-EYE_MAX;}
         if(ya>EYE_MAX){ya=EYE_MAX;}
@@ -855,6 +874,7 @@ int main(void)
       }else{
           mcpy(b0,backgrounds[plosa->theme_pos],LCD_SZ);
       }
+      dps++;
       uint8_t save_sec = plosa->dt.sec;
       uint8_t save_min = plosa->dt.min;
       if(cmode!=CM_Editpos || editpos==7 ){
@@ -928,6 +948,7 @@ int main(void)
         // wrist-control (arm==x-axis)
         int asx = (int)acc[0];
         asx-=hgx;
+        asx>>1;asx<<1;
         if( asx > HOURGLASSBORDER || asx < -HOURGLASSBORDER ){
           int a = asx;
           if(a<0){a=-a;}
@@ -944,6 +965,7 @@ int main(void)
         }
         int asy = (int)acc[1];
         asy-=hgy;
+        asy>>1;asy<<1;
         if( asy > HOURGLASSBORDER || asy < -HOURGLASSBORDER ){
           int a = asy;
           if(a<0){a=-a;}
@@ -1090,7 +1112,7 @@ int main(void)
       uint32_t wtime = ((atime-last_wait)/100000);
       last_wait = atime;
       //printf("wt= %d [%d]\n",wtime,FRAME_DELAY-wtime);
-      if(wtime>=FRAME_DELAY){wtime=99;}
+      if(wtime>=FRAME_DELAY){wtime=FRAME_DELAY-1;}
       sleep_ms(FRAME_DELAY-wtime);
     }
     return 0;
