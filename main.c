@@ -48,10 +48,10 @@ static losa* plosa=(losa*)losabuf;
 datetime_t default_time = {
   .year  = 2022,
   .month = 10,
-  .day   = 18,
-  .dotw  = 2, // 0 is Sunday, so 5 is Friday
-  .hour  = 11,
-  .min   = 10,
+  .day   = 19,
+  .dotw  = 3, // 0 is Sunday, so 5 is Friday
+  .hour  = 21,
+  .min   = 55,
   .sec   = 0
 };
 
@@ -61,6 +61,8 @@ datetime_t default_time = {
 // NO_SENSORS 1 : don't show sensor values [gyro,acc,bat]
 #define NO_SENSORS 1
 #define NO_GYROCROSS 0
+#define SECOND_BENDER 1
+#define SMOOTH_BACKGROUND 1
 
 // SLEEP_DEEPER : increases sleep_frame by SLEEP_FRAME_ADD till SLEEP_FRAME_END
 // so at max, pico is only able to awake every 10th second
@@ -244,6 +246,8 @@ H  - M - S - DOW
 #define THEMES 4
 
 CMode cmode = CM_None;
+int8_t xold,xoldt;
+int8_t yold,yoldt;
 
 //uint8_t theme_pos = DEFAULT_THEME;
 const PosMat_t* positions[THEMES] = {&p_cn,&p_us,&p_us,&p_us};
@@ -311,8 +315,8 @@ char *datetime_str = &datetime_buf[0];
 char* dt_date;
 char* dt_time;
 
-uint32_t dps=0;
-uint32_t dpsc=0;
+//uint32_t dps=0;
+//uint32_t dpsc=0;
 
 //ky-040
 #define CCLK 16
@@ -384,6 +388,8 @@ char** week[THEMES] = {week_cn,week_usa,week_ger,week_tr};
 uint8_t last[13] = {0,31,28,31,30,31,30,31,31,30,31,30,31};
 
 char cn_buffer[32] = {0};
+
+
 
 uint16_t to_rgb565(uint8_t r,uint8_t g,uint8_t b){
   r>>=3;
@@ -628,11 +634,15 @@ void draw_gfx(){
   //printf("st: %d\n",st);
   if(!analog_seconds){
     // 'jump' seconds
-    xi = (int)(tcos[plosa->dt.sec*6]*114);
-    yi = (int)(tsin[plosa->dt.sec*6]*114);
+    xi = (int8_t)(tcos[plosa->dt.sec*6]*114);
+    yi = (int8_t)(tsin[plosa->dt.sec*6]*114);
     x1 = (uint8_t)x0+xi;
     y1 = (uint8_t)y0+yi;
-    lcd_line(x0,y0, x1, y1, colt[plosa->theme_pos]->col_s, 1);
+    if(SECOND_BENDER){
+      lcd_bez2curve(0,0,(int8_t)(xi/2)-(int8_t)(acc[1]/25.0f),(int8_t)(yi/2)-(int8_t)(acc[0]/25.0f),xi,yi,114,colt[plosa->theme_pos]->col_s,2);
+    }else{
+      lcd_line(x0,y0, x1, y1, colt[plosa->theme_pos]->col_s, 1);
+    }
     lcd_blit((int)(x0-8+tcos[plosa->dt.sec*6]*102),(int)(y0-8+tsin[plosa->dt.sec*6]*102),16,16,colt[plosa->theme_pos]->alpha,stars[plosa->theme_pos]);
   }else{
     uint32_t st = time_us_32();
@@ -729,11 +739,10 @@ void draw_text(){
 
 int main(void)
 {
+    stdio_init_all();
     bool init=false;
     bool fixed=false;
-    stdio_init_all();
-    puts("stdio init");
-    printf("mode='%s'\n",plosa->mode);
+    sleep_ms(400);  // reboot takes about 1.6 sec. -> increase time by 2sec, wait 0.4sec
     if(!(plosa->mode[0]=='G'&&plosa->mode[1]=='O'&&plosa->mode[2]=='O'&&plosa->mode[3]=='D')){
       plosa->dt.year  = default_time.year ;
       plosa->dt.month = default_time.month;
@@ -754,12 +763,15 @@ int main(void)
       if(plosa->dt.min   > 59) {plosa->dt.min   = default_time.min  ;fixed=true;}
       if(plosa->dt.sec   > 59) {plosa->dt.sec   = default_time.sec  ;fixed=true;}
       if(plosa->theme_pos>=THEMES){plosa->theme_pos=0;fixed=true;}
-      sleep_ms(400);  // reboot takes about 1.6 sec. -> increase time by 2sec, wait 0.4sec
       rtc_set_datetime(&plosa->dt);
     }
+    printf("mode='%s'\n",plosa->mode);
     lcd_init();
+    puts("stdio init");
     lcd_set_brightness(30);
     puts("lcd init");
+    printf("%02d-%02d%04d %02d:%02d:%02d [%d]\n",plosa->dt.day,plosa->dt.month,plosa->dt.year,plosa->dt.hour,plosa->dt.min,plosa->dt.sec,plosa->dt.dotw);
+    printf("mode='%s'\n",plosa->mode);
     uint8_t* b0 = malloc(LCD_SZ);
     uint32_t o = 0;
     lcd_setimg((uint16_t*)b0);
@@ -809,6 +821,7 @@ int main(void)
     acc[0]=0.0f;
     acc[1]=0.0f;
     acc[2]=0.0f;
+    //bez2init(&bez);
 
     while(true){
       QMI8658_read_xyz(acc, gyro, &tim_count);
@@ -858,23 +871,27 @@ int main(void)
 
       if(bg_dynamic[plosa->theme_pos]){ // dynamic background
         for(int i=0;i<LCD_SZ;i++){b0[i]=0x00;}
-        if(acc[1]>1024){acc[1]=1024;}
-        if(acc[1]<-1024){acc[1]=-1024;}
-        if(acc[0]>1024){acc[0]=1024;}
-        if(acc[0]<-1024){acc[0]=-1024;}
         int8_t xa = (int8_t)(acc[1]/50.0f);
         int8_t ya = (int8_t)(acc[0]/50.0f);
-        xa>>1;xa<<1;
-        ya>>1;ya<<1;
         if(xa>EYE_MAX){xa=EYE_MAX;}
         if(xa<-EYE_MAX){xa=-EYE_MAX;}
         if(ya>EYE_MAX){ya=EYE_MAX;}
         if(ya<-EYE_MAX){ya=-EYE_MAX;}
+        if(SMOOTH_BACKGROUND){
+          xoldt = xa;
+          yoldt = ya;
+          xa+=xold;
+          ya+=yold;
+          xa>>=1;
+          ya>>=1;
+          xold = xoldt;
+          yold = yoldt;
+        }
         lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,backgrounds[plosa->theme_pos]);
       }else{
           mcpy(b0,backgrounds[plosa->theme_pos],LCD_SZ);
       }
-      dps++;
+      //dps++;
       uint8_t save_sec = plosa->dt.sec;
       uint8_t save_min = plosa->dt.min;
       if(cmode!=CM_Editpos || editpos==7 ){
@@ -1107,6 +1124,9 @@ int main(void)
           draw_gfx();
         }
       }
+      //only one test for now or a pointer to bool for every test
+      //lcd_bez2curvet(-50,-50,30,10,-50,60,32,BROWN,4);
+      //lcd_bez2test(-50,-50,30,10,-50,60,32,YELLOW,2);
       lcd_display(b0);
       uint32_t atime = time_us_32();
       uint32_t wtime = ((atime-last_wait)/100000);
