@@ -639,7 +639,7 @@ void draw_gfx(){
     x1 = (uint8_t)x0+xi;
     y1 = (uint8_t)y0+yi;
     if(SECOND_BENDER){
-      lcd_bez2curve(0,0,(int8_t)(xi/2)-(int8_t)(acc[1]/25.0f),(int8_t)(yi/2)-(int8_t)(acc[0]/25.0f),xi,yi,114,colt[plosa->theme_pos]->col_s,2);
+      lcd_bez2curve(0,0,(int8_t)(xi/2)+(int8_t)(acc[1]/25.0f),(int8_t)(yi/2)-(int8_t)(acc[0]/25.0f),xi,yi,114,colt[plosa->theme_pos]->col_s,2);
     }else{
       lcd_line(x0,y0, x1, y1, colt[plosa->theme_pos]->col_s, 1);
     }
