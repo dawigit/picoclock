@@ -971,6 +971,11 @@ int main(void)
           xold = xoldt;
           yold = yoldt;
         }
+        if(xa>20){xa=20;}
+        if(ya>20){ya=20;}
+        if(xa<-20){xa=-20;}
+        if(ya<-20){ya=-20;}
+        printf("xya: %d %d\n",xa,ya);
         lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,backgrounds[plosa->theme_pos]);
       }else{
           mcpy(b0,backgrounds[plosa->theme_pos],LCD_SZ);
