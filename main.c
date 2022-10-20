@@ -1,9 +1,9 @@
-//﻿#include "LCD_Test.h"   //Examples
 static __attribute__((section (".noinit")))char losabuf[1024];
 
 #include "stdio.h"
 #include "pico/stdlib.h"
 #include "stdlib.h"
+#include "string.h"
 #include "pico/time.h"
 #include <math.h>
 #include "pico/util/datetime.h"
@@ -17,7 +17,7 @@ static __attribute__((section (".noinit")))char losabuf[1024];
 #include "lcd.h"
 #include "QMI8658.h"
 
-#include "lib/Fonts/fonts.h"
+//#include "lib/Fonts/fonts.h"
 #include "img/Font34.h"
 #include "img/Font30.h"
 #include "img/bega.h"
@@ -59,10 +59,12 @@ datetime_t default_time = {
 // NO_POS_MODE 1 : gyroscope+button control
 #define NO_POS_MODE 1
 // NO_SENSORS 1 : don't show sensor values [gyro,acc,bat]
-#define NO_SENSORS 1
-#define NO_GYROCROSS 0
-#define SECOND_BENDER 1
-#define SMOOTH_BACKGROUND 1
+bool NO_SENSORS = 1;
+bool NO_GYROCROSS = 0;
+bool SECOND_BENDER = 0;
+bool SMOOTH_BACKGROUND = 1;
+bool INSOMNIA = 0;
+bool DYNAMIC_CIRCLES = 0;
 
 // SLEEP_DEEPER : increases sleep_frame by SLEEP_FRAME_ADD till SLEEP_FRAME_END
 // so at max, pico is only able to awake every 10th second
@@ -253,8 +255,13 @@ int8_t yold,yoldt;
 const PosMat_t* positions[THEMES] = {&p_cn,&p_us,&p_us,&p_us};
 const uint8_t* flags[THEMES] = {cn32,usa32,ger32,tr32};
 const uint8_t* stars[THEMES] = {cn16,usa16,ger16,tr16};
+
 const char* backgrounds[THEMES] = {earth190,irisa190,bega,sand};
 const bool bg_dynamic[THEMES] = {true,true,false,false};
+
+// for development, smale code – short flash
+//const char* backgrounds[THEMES] = {earth190,earth190,earth190,earth190};
+//const bool bg_dynamic[THEMES] = {true,true,true,true};
 const uint16_t edit_colors[THEMES] = {ORANGE,YELLOW,ORANGE,ORANGE};
 const uint16_t change_colors[THEMES] = {YELLOW,YELLOW,YELLOW,YELLOW};
 
@@ -286,11 +293,11 @@ uint16_t colors[8]  = {WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE};
 uint16_t dcolors[8] = {WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE};
 
 uint16_t blinker[2] = {BLUE,RED};
-#define CTM0 360
-uint16_t ct0=0;
-uint16_t ct1=0;
-uint8_t ec_x[7] = {};
-uint8_t ec_y[7] = {};
+//#define CTM0 360
+//uint16_t ct0=0;
+//uint16_t ct1=0;
+//uint8_t ec_x[7] = {};
+//uint8_t ec_y[7] = {};
 
 typedef enum Dir_t {
   D_NONE = 0,
@@ -309,6 +316,30 @@ uint32_t sleep_frame = SLEEP_FRAME_START;
 char timebuffer[16] = {0};
 char* ptimebuffer=timebuffer;
 bool h24=true;
+
+uint16_t comi=0;
+char combufa[256]={0};
+int16_t comt;
+uint8_t comc;
+
+
+//shell vars!
+int16_t bcx0 = 80;
+int16_t bcy0 = 80;
+int16_t bcx1 = 80;
+int16_t bcy1 = 80;
+
+int16_t tpoy = 30;
+int16_t tpox = 22;
+
+int16_t tpol = -22;
+int16_t tpor = 22;
+
+
+Bez2_t* bezt[8] = {NULL};
+
+Bez2_t* tbez = NULL;
+int16_t bfc = 0;
 
 char datetime_buf[256];
 char *datetime_str = &datetime_buf[0];
@@ -559,8 +590,64 @@ void gpio_callback(uint gpio, uint32_t events) {
     if(sw){sw=false;fire=true;}
     if(osw){osw=false;ceasefire=true;}
 }
+char C_SET[4]="set ";
+char C_GET[4]="get ";
+
+void command(char* c){
+  bool set=false;
+  if(strstr(c,"set ") == c){
+    set=true;
+    printf("set\n");
+  }
+  if(set){
+    char* left=c+4;
+    if(strstr(left," ")){
+      char* space = strstr(left," ");
+      space[0] = 0;
+      char* right = space+1;
+
+      // found left & right
+      printf("%s = %s\n", left, right);
+      if(strstr(left,"bcx0")){        bcx0 = (int16_t)atoi(right);      }
+      if(strstr(left,"bcy0")){        bcy0 = (int16_t)atoi(right);      }
+      if(strstr(left,"bcx1")){        bcx1 = (int16_t)atoi(right);      }
+      if(strstr(left,"bcy1")){        bcy1 = (int16_t)atoi(right);      }
+      if(strstr(left,"tpox")){        tpox = (int16_t)atoi(right);      }
+      if(strstr(left,"tpoy")){        tpoy = (int16_t)atoi(right);      }
+      if(strstr(left,"tpol")){        tpol = (int16_t)atoi(right);      }
+      if(strstr(left,"tpor")){        tpor = (int16_t)atoi(right);      }
+
+      if(strstr(left,"NO_SENSORS")){ NO_SENSORS = (bool)atoi(right);}
+      if(strstr(left,"NO_GYROCROSS")){ NO_GYROCROSS = (bool)atoi(right);}
+      if(strstr(left,"SECOND_BENDER")){ SECOND_BENDER = (bool)atoi(right);}
+      if(strstr(left,"SMOOTH_BACKGROUND")){ SMOOTH_BACKGROUND = (bool)atoi(right);}
+      if(strstr(left,"INSOMNIA")){ INSOMNIA = (bool)atoi(right);}
+      if(strstr(left,"DYNAMIC_CIRCLES")){ DYNAMIC_CIRCLES = (bool)atoi(right);}
+    }
+  }
 
 
+}
+
+void shell(){
+  // shell
+  comt=getchar_timeout_us(100);
+  while(comt!=PICO_ERROR_TIMEOUT){
+    comc=comt&0xff;
+    //putchar(comc);
+    combufa[comi++]=comc;
+    if(comc=='\n'){
+      combufa[comi]=0;
+      combufa[comi-1]=0;
+      printf("CMD: %s\n",combufa);
+      command(&combufa[0]);
+      comi=0;
+    }
+    if(comi==254){comi=0;}
+    comt=getchar_timeout_us(100);
+  }
+
+}
 
 void draw_gfx(){
   uint8_t x1,y1,xt,yt;
@@ -734,9 +821,6 @@ void draw_text(){
   lcd_str(POS_TIME_X+6*TFW, POS_TIME_Y, dbuf, &TFONT, colors[6], BLACK);
 }
 
-
-
-
 int main(void)
 {
     stdio_init_all();
@@ -770,7 +854,7 @@ int main(void)
     puts("stdio init");
     lcd_set_brightness(30);
     puts("lcd init");
-    printf("%02d-%02d%04d %02d:%02d:%02d [%d]\n",plosa->dt.day,plosa->dt.month,plosa->dt.year,plosa->dt.hour,plosa->dt.min,plosa->dt.sec,plosa->dt.dotw);
+    printf("%02d-%02d-%04d %02d:%02d:%02d [%d]\n",plosa->dt.day,plosa->dt.month,plosa->dt.year,plosa->dt.hour,plosa->dt.min,plosa->dt.sec,plosa->dt.dotw);
     printf("mode='%s'\n",plosa->mode);
     uint8_t* b0 = malloc(LCD_SZ);
     uint32_t o = 0;
@@ -837,7 +921,7 @@ int main(void)
       if((acc[2]>0&&last_z<0)||(acc[2]<0&&last_z>0)){no_moveshake=true;}  // coin-flipped
       last_z=acc[2];
       if(no_moveshake){
-        if(!is_sleeping && cmode==CM_None && !usb_loading){
+        if(!is_sleeping && cmode==CM_None && !(usb_loading|INSOMNIA)){
           screensaver--;
           if(screensaver<=0){
             if(bg_dynamic[plosa->theme_pos]){
@@ -1104,14 +1188,18 @@ int main(void)
           if(plosa->theme_pos==0){
             lcd_rect(POS_CNDOW_X-6,POS_CNDOW_Y,POS_CNDOW_X+CNFONT.w+3,POS_CNDOW_Y+CNFONT.h*3+1,cmode_color,3);
           }else{
-            lcd_circle(tpos[editpos].x+18,tpos[editpos].y+8,25,cmode_color,3,0);
+            if(DYNAMIC_CIRCLES){lcd_bez3circ(tpos[editpos].x+18,tpos[editpos].y+8,25,cmode_color,3,xold,yold);}
+            else{lcd_circle(tpos[editpos].x+18,tpos[editpos].y+8,25,cmode_color,3,0);}
           }
         }else if(editpos==3){
-          lcd_circle(tpos[editpos].x+12,tpos[editpos].y+5,30,cmode_color,3,0);
+          if(DYNAMIC_CIRCLES){lcd_bez3circ(tpos[editpos].x+12,tpos[editpos].y+5,30,cmode_color,3,xold,yold);}
+          else{lcd_circle(tpos[editpos].x+12,tpos[editpos].y+5,30,cmode_color,3,0);}
         }else if(editpos==7){
-          lcd_circle(tpos[editpos].x,tpos[editpos].y,19,cmode_color,3,0);
+          if(DYNAMIC_CIRCLES){lcd_bez3circ(tpos[editpos].x,tpos[editpos].y,19,cmode_color,3,xold,yold);}
+          else{lcd_circle(tpos[editpos].x,tpos[editpos].y,19,cmode_color,3,0);}
         }else{
-          lcd_circle(tpos[editpos].x+12,tpos[editpos].y+5,20,cmode_color,3,0);
+          if(DYNAMIC_CIRCLES){lcd_bez3circ(tpos[editpos].x+12,tpos[editpos].y+5,20,cmode_color,3,xold,yold);}
+          else{lcd_circle(tpos[editpos].x+12,tpos[editpos].y+5,20,cmode_color,3,0);}
         }
       }
 
@@ -1124,10 +1212,9 @@ int main(void)
           draw_gfx();
         }
       }
-      //only one test for now or a pointer to bool for every test
-      //lcd_bez2curvet(-50,-50,30,10,-50,60,32,BROWN,4);
-      //lcd_bez2test(-50,-50,30,10,-50,60,32,YELLOW,2);
+
       lcd_display(b0);
+      //shell();
       uint32_t atime = time_us_32();
       uint32_t wtime = ((atime-last_wait)/100000);
       last_wait = atime;

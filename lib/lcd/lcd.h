@@ -65,6 +65,39 @@ typedef struct _tFont
   uint16_t h;
 } sFONT;
 
+#define BX 120
+#define BY 120
+
+typedef struct Bez2_t {
+  uint16_t frame;
+  uint16_t frames;
+  uint16_t color;
+  uint16_t ps;
+
+  int16_t x0;
+  int16_t y0;
+  int16_t x1;
+  int16_t y1;
+
+  int16_t x2;
+  int16_t y2;
+  int16_t x3;
+  int16_t y3;
+
+  int16_t ax;
+  int16_t ay;
+  int16_t bx;
+  int16_t by;
+
+
+  int16_t x;
+  int16_t y;
+  bool init;
+} Bez2_t;
+
+
+
+
 
 void lcd_init();
 
@@ -103,10 +136,25 @@ void lcd_xline(uint8_t x, uint8_t y, uint8_t l, uint16_t color, uint8_t ps);
 void lcd_yline(uint8_t x, uint8_t y, uint8_t l, uint16_t color, uint8_t ps);
 void lcd_xlineq(uint16_t x, uint16_t y, uint16_t l, uint16_t c);
 uint16_t lcd_colrgb(uint8_t r, uint8_t g, uint8_t b);
-void lcd_bez2curve(int8_t x0, int8_t y0, int8_t x1, int8_t y1, int8_t x2, int8_t y2, int8_t fr, uint16_t color, uint8_t ps);
-void lcd_bez2curvet(int8_t x0, int8_t y0, int8_t x1, int8_t y1, int8_t x2, int8_t y2, int8_t fr, uint16_t color, uint8_t ps);
-void lcd_bez2test(int8_t x0, int8_t y0, int8_t x1, int8_t y1, int8_t x2, int8_t y2, int8_t fr, uint16_t color, uint8_t ps);
-void lcd_bez2bend(int8_t x0, int8_t y0, int8_t x1, int8_t y1, int8_t x2, int8_t y2, int8_t fr, uint16_t color, uint8_t ps);
+void lcd_bez2curve(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t fr, uint16_t color, uint16_t ps);
+void lcd_bez2curvet(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t fr, uint16_t color, uint16_t ps);
+void lcd_bez2curvet16(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t fr, uint16_t color, uint16_t ps);
+Bez2_t* lcd_bez2test(Bez2_t* bez, int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+  int16_t x2, int16_t y2, int16_t x3, int16_t y3, int16_t fr, uint16_t color, uint16_t ps);
+void lcd_bez2l(Bez2_t* b);
+void lcd_bez2p(Bez2_t* b,uint16_t color, int16_t ps);
+void lcd_bez2circ(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3, int16_t fr, uint16_t color, uint16_t ps);
+Bez2_t* lcd_bez2initfull(Bez2_t* bez,
+    int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+    int16_t x2, int16_t y2, int16_t x3, int16_t y3,
+    int16_t fr, uint16_t color, uint16_t ps);
+
+void lcd_bez3curve(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3, int16_t f, int16_t fr, uint16_t color, uint16_t ps);
+void lcd_bez3curvel(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3, int16_t f, int16_t fr, uint16_t color, uint16_t ps);
+
+void lcd_bez3circle(int16_t x, int16_t y, int16_t r, int16_t f, int16_t fr, uint16_t color, int16_t ps, int16_t xo, int16_t yo);
+void lcd_bez3circ(int16_t x, int16_t y, int16_t r,uint16_t color, int16_t ps, int16_t xo, int16_t yo);
+
 uint8_t slice_num;
 
 #endif //__GC9A01_H

@@ -28,3 +28,20 @@ Find the '--address' with:
 
 `cd picoclock;mkdir build;cd build;cmake ..;make`
 
+### News
+
+- added bez2/3 curves
+- added dynamic circles
+- added shell: file 'pigsh' contains a simple bash script sending your input to /dev/ttyACMx
+- 'pigsh 0' to connect to  /dev/ttyACM0 
+- 'pigsh 1' to connect to  /dev/ttyACM1
+- 'set DYNAMIC_CIRCLES 1' to enable dynamic circles [0 to disable]
+- and so on… the (boolean) values you can change between 0/1 are:
+- NO_SENSORS			[sensor text]
+- NO_GYROCROSS			[show/hide gyrocross]
+- SECOND_BENDER			[second pointer elasctic]
+- SMOOTH_BACKGROUND		[smoother/1frame delay for movement]
+- INSOMNIA				[never sleeps – for development only! stays on when bat full and not loading]
+- DYNAMIC_CIRCLES		[gyroscope changes circle, looks crappy atm]
+- also added a few testing functions for bezier curves [they show all the lines, bigger dots]
+

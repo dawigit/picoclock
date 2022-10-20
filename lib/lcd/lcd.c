@@ -4,8 +4,35 @@ uint16_t* img=NULL;
 uint8_t slice_num;
 
 bool test_init = true;
+uint16_t test_color;
+int16_t test_f=0;
+int16_t test_fr=0;
+int16_t test_ps=0;
+
+int16_t test_ax;
+int16_t test_ay;
+int16_t test_bx;
+int16_t test_by;
+
+int16_t test_x0;
+int16_t test_y0;
+int16_t test_x1;
+int16_t test_y1;
+int16_t test_x2;
+int16_t test_y2;
+
+int16_t test_txa;
+int16_t test_tya;
+int16_t test_txb;
+int16_t test_tyb;
+int16_t test_cx;
+int16_t test_cy;
+int16_t test_x;
+int16_t test_y;
+
 //uint8_t* b0=NULL; //db
 //uint8_t* b1=NULL; //db
+
 uint16_t pbuf[64*64*2];
 char cbuf[32];
 void lcd_init(){
@@ -513,6 +540,8 @@ inline void lcd_xlineq(uint16_t x, uint16_t y, uint16_t l, uint16_t c){
 }
 
 inline void lcd_pixel_rawps(uint16_t x, uint16_t y, uint16_t c, uint16_t ps){
+  if(x>=LCD_W){x=LCD_W-1;}
+  if(y>=LCD_H){y=LCD_H-1;}
   uint16_t i=0;
   x-=(ps>>1);
   y-=(ps>>1);
@@ -600,30 +629,6 @@ uint16_t lcd_colrgb(uint8_t r, uint8_t g, uint8_t b){
 // used for testing, now playground
 // based on the Wikipedia animations
 
-#define BX 120
-#define BY 120
-
-typedef struct Bez2_t {
-  uint8_t frame;
-  uint8_t frames;
-  int8_t xsa;
-  int8_t ysa;
-  int8_t xea;
-  int8_t yea;
-
-  int8_t xsb;
-  int8_t ysb;
-  int8_t xeb;
-  int8_t yeb;
-
-  int8_t ax;
-  int8_t ay;
-  int8_t bx;
-  int8_t by;
-
-  int8_t x;
-  int8_t y;
-} Bez2_t;
 
 Bez2_t bez = {
   0,64,
@@ -633,149 +638,257 @@ Bez2_t bez = {
 };
 
 void bez2init(Bez2_t* b){
-  b->ax = b->xea-b->xsa;
-  b->ay = b->yea-b->ysa;
-  b->bx = b->xeb-b->xsb;
-  b->by = b->yeb-b->ysb;
+  b->ax = b->x2-b->x0;
+  b->ay = b->y2-b->y0;
+  b->bx = b->x3-b->x1;
+  b->by = b->y3-b->y1;
 }
 
-void lcd_bez2test(int8_t x0, int8_t y0, int8_t x1, int8_t y1, int8_t x2, int8_t y2, int8_t fr, uint16_t color, uint8_t ps){
+Bez2_t* lcd_bez2initfull(Bez2_t* bez,
+    int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+    int16_t x2, int16_t y2, int16_t x3, int16_t y3,
+    int16_t fr, uint16_t color, uint16_t ps)
+{
+    if(!bez){
+      printf("bez2test init\n");
+      printf("bez: %08x\n",bez);
+      bez=malloc(sizeof(Bez2_t));
+      if(!bez){printf("kaa bezi ned, heast!\n");return NULL;}
+      printf("bez: %08x\n",bez);
+    }
+
+    color=__builtin_bswap16(color);
+    bez->frame = 0;
+    bez->frames = fr;
+    bez->color = color;
+    bez->ps = ps;
+    bez->x0 = x0;
+    bez->y0 = y0;
+    bez->x1 = x1;
+    bez->y1 = y1;
+    bez->x2 = x2;
+    bez->y2 = y2;
+    bez->x3 = x3;
+    bez->y3 = y3;
+    bez->ax = bez->x1-bez->x0;
+    bez->ay = bez->y1-bez->y0;
+    bez->bx = bez->x3-bez->x2;
+    bez->by = bez->y3-bez->y2;
+    bez->init = false;
+    return bez;
+}
+
+Bez2_t* lcd_bez2test(Bez2_t* bez,
+    int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+    int16_t x2, int16_t y2, int16_t x3, int16_t y3,
+    int16_t fr, uint16_t color, uint16_t ps)
+{
+  if(!bez){
+    printf("bez2test init\n");
+    printf("bez: %08x\n",bez);
+    bez=malloc(sizeof(Bez2_t));
+    if(!bez){printf("kaa bezi ned, heast!\n");return NULL;}
+    printf("bez: %08x\n",bez);
+    bez->init = true;
+  }
   color=__builtin_bswap16(color);
-  if(test_init){
-    bez.frame = 0;
-    bez.frames = fr;
-    bez.xsa = x0;
-    bez.ysa = y0;
-    bez.xsb = x2;
-    bez.ysb = y2;
-    bez.xea = x1;
-    bez.yea = y1;
-    bez.xeb = x1;
-    bez.yeb = y1;
-    bez.ax = bez.xea-bez.xsa;
-    bez.ay = bez.yea-bez.ysa;
-    bez.bx = bez.xeb-bez.xsb;
-    bez.by = bez.yeb-bez.ysb;
-    test_init = false;
+  bez->color = color;
+  if(bez->init){
+    bez->frame = 0;
+    bez->frames = fr;
+    bez->ps = ps;
+    bez->x0 = x0;
+    bez->y0 = y0;
+    bez->x1 = x1;
+    bez->y1 = y1;
+    bez->x2 = x2;
+    bez->y2 = y2;
+    bez->x3 = x3;
+    bez->y3 = y3;
+    bez->ax = bez->x1-bez->x0;
+    bez->ay = bez->y1-bez->y0;
+    bez->bx = bez->x3-bez->x2;
+    bez->by = bez->y3-bez->y2;
+    bez->init = false;
   }
 
-  lcd_line(BX+bez.xsa,BY+bez.ysa,BX+bez.xea,BY+bez.yea,__builtin_bswap16(YELLOW),1);
-  lcd_line(BX+bez.xsb,BY+bez.ysb,BX+bez.xeb,BY+bez.yeb,__builtin_bswap16(GREEN),1);
-  int8_t txa = ((int32_t)(bez.xsa+((bez.ax*bez.frame)/bez.frames)));
-  int8_t tya = ((int32_t)(bez.ysa+((bez.ay*bez.frame)/bez.frames)));
-  int8_t txb = ((int32_t)(bez.xsb+((bez.bx*bez.frame)/bez.frames)));
-  int8_t tyb = ((int32_t)(bez.ysb+((bez.by*bez.frame)/bez.frames)));
-  lcd_pixel_rawps((uint16_t)BX+txa,(uint16_t)BY+tya,__builtin_bswap16(BLUE),ps);
-  lcd_pixel_rawps((uint16_t)BX+txb,(uint16_t)BY+tyb,__builtin_bswap16(CYAN),ps);
+  lcd_line(BX+bez->x0,BY+bez->y0,BX+bez->x1,BY+bez->y1,__builtin_bswap16(YELLOW),1);
+  lcd_line(BX+bez->x2,BY+bez->y2,BX+bez->x3,BY+bez->y3,__builtin_bswap16(GREEN),1);
+  int16_t txa = ((int32_t)(bez->x0+((bez->ax*bez->frame)/bez->frames)));
+  int16_t tya = ((int32_t)(bez->y0+((bez->ay*bez->frame)/bez->frames)));
+  int16_t txb = ((int32_t)(bez->x2+((bez->bx*bez->frame)/bez->frames)));
+  int16_t tyb = ((int32_t)(bez->y2+((bez->by*bez->frame)/bez->frames)));
+  lcd_pixel_rawps((uint16_t)BX+txa,(uint16_t)BY+tya,__builtin_bswap16(BLUE),bez->ps);
+  lcd_pixel_rawps((uint16_t)BX+txb,(uint16_t)BY+tyb,__builtin_bswap16(CYAN),bez->ps);
   lcd_line(BX+txa,BY+tya,BX+txb,BY+tyb,RED,1);
-  int8_t cx = txb - txa;
-  int8_t cy = tyb - tya;
-  bez.x = ((int32_t)(txa+((cx*bez.frame)/bez.frames)));
-  bez.y = ((int32_t)(tya+((cy*bez.frame)/bez.frames)));
-  lcd_pixel_rawps((uint16_t)BX+bez.x,(uint16_t)BY+bez.y,color,ps+1);
-  bez.frame++;
-  if(bez.frame==bez.frames){bez.frame=0;}
-
-
+  int16_t cx = txb - txa;
+  int16_t cy = tyb - tya;
+  bez->x = ((int32_t)(txa+((cx*bez->frame)/bez->frames)));
+  bez->y = ((int32_t)(tya+((cy*bez->frame)/bez->frames)));
+  lcd_pixel_rawps((uint16_t)BX+bez->x,(uint16_t)BY+bez->y,bez->color,bez->ps+1);
+  bez->frame++;
+  if(bez->frame==bez->frames){bez->frame=0;bez->init=true;}
+  return bez;
 }
 
 
 void lcd_bez2(Bez2_t* b){
-  int8_t t;
-  lcd_line(BX+b->xsa,BY+b->ysa,BX+b->xea,BY+b->yea,YELLOW,1);
-  lcd_line(BX+b->xsb,BY+b->ysb,BX+b->xeb,BY+b->yeb,GREEN,1);
-  int8_t txa = ((int32_t)(b->xsa+((b->ax*b->frame)/b->frames)));
-  int8_t tya = ((int32_t)(b->ysa+((b->ay*b->frame)/b->frames)));
-  int8_t txb = ((int32_t)(b->xsb+((b->bx*b->frame)/b->frames)));
-  int8_t tyb = ((int32_t)(b->ysb+((b->by*b->frame)/b->frames)));
+  int16_t t;
+  lcd_line(BX+b->x0,BY+b->y0,BX+b->x2,BY+b->y2,YELLOW,1);
+  lcd_line(BX+b->x1,BY+b->y1,BX+b->x3,BY+b->y3,GREEN,1);
+  int16_t txa = ((int32_t)(b->x0+((b->ax*b->frame)/b->frames)));
+  int16_t tya = ((int32_t)(b->y0+((b->ay*b->frame)/b->frames)));
+  int16_t txb = ((int32_t)(b->x2+((b->bx*b->frame)/b->frames)));
+  int16_t tyb = ((int32_t)(b->y2+((b->by*b->frame)/b->frames)));
   lcd_pixel_rawps((uint16_t)BX+txa,(uint16_t)BY+tya,__builtin_bswap16(BLUE),3);
   lcd_pixel_rawps((uint16_t)BX+txb,(uint16_t)BY+tyb,__builtin_bswap16(CYAN),3);
   lcd_line(BX+txa,BY+tya,BX+txb,BY+tyb,RED,1);
-  int8_t cx = txb - txa;
-  int8_t cy = tyb - tya;
+  int16_t cx = txb - txa;
+  int16_t cy = tyb - tya;
   b->x = ((int32_t)(txa+((cx*b->frame)/b->frames)));
   b->y = ((int32_t)(tya+((cy*b->frame)/b->frames)));
   lcd_pixel_rawps((uint16_t)BX+b->x,(uint16_t)BY+b->y,__builtin_bswap16(BRED),3);
 }
 
 void lcd_bez2l(Bez2_t* b){
-  b->frame=0;
-  while(b->frame<b->frames){
-    int8_t t;
-    int8_t txa = ((int32_t)(b->xsa+((b->ax*b->frame)/b->frames)));
-    int8_t tya = ((int32_t)(b->ysa+((b->ay*b->frame)/b->frames)));
-    int8_t txb = ((int32_t)(b->xsb+((b->bx*b->frame)/b->frames)));
-    int8_t tyb = ((int32_t)(b->ysb+((b->by*b->frame)/b->frames)));
-    int8_t cx = txb - txa;
-    int8_t cy = tyb - tya;
-    b->x = ((int32_t)(txa+((cx*b->frame)/b->frames)));
-    b->y = ((int32_t)(tya+((cy*b->frame)/b->frames)));
-    lcd_pixel_rawps((uint16_t)BX+b->x,(uint16_t)BY+b->y,__builtin_bswap16(BRED),3);
+  int16_t tf = 0;
+  while(tf<b->frames+1){
+    int16_t t;
+    int16_t txa = ((int32_t)(b->x0+((b->ax*tf)/b->frames)));
+    int16_t tya = ((int32_t)(b->y0+((b->ay*tf)/b->frames)));
+    int16_t txb = ((int32_t)(b->x2+((b->bx*tf)/b->frames)));
+    int16_t tyb = ((int32_t)(b->y2+((b->by*tf)/b->frames)));
+    int16_t cx = txb - txa;
+    int16_t cy = tyb - tya;
+    int16_t x = ((int32_t)(txa+((cx*tf)/b->frames)));
+    int16_t y = ((int32_t)(tya+((cy*tf)/b->frames)));
+    lcd_pixel_rawps((uint16_t)BX+x,(uint16_t)BY+y,b->color,b->ps+1);
 
-    b->frame++;
+    tf++;
   }
 }
 
-void lcd_bez2curvet(int8_t x0, int8_t y0, int8_t x1, int8_t y1, int8_t x2, int8_t y2, int8_t fr, uint16_t color, uint8_t ps){
+void lcd_bez2p(Bez2_t* b,uint16_t color, int16_t ps){
+  lcd_pixel_rawps((uint16_t)BX+b->x,(uint16_t)BY+b->y,__builtin_bswap16(color),ps);
+}
+
+void lcd_bez2curvet(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t fr, uint16_t color, uint16_t ps){
   lcd_bez2curve(x0,y0,x2,y2,x1,y1,fr,color,ps);
 }
 
-void lcd_bez2curve(int8_t x0, int8_t y0, int8_t x1, int8_t y1, int8_t x2, int8_t y2, int8_t fr, uint16_t color, uint8_t ps){
+void lcd_bez2curve(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t fr, uint16_t color, uint16_t ps){
   color = __builtin_bswap16(color);
-  int8_t t;
-  int8_t f=0;
-  int8_t ax = x2-x0;
-  int8_t ay = y2-y0;
-  int8_t bx = x2-x1;
-  int8_t by = y2-y1;
+  int16_t f=0;
+  int16_t ax = x2-x0;
+  int16_t ay = y2-y0;
+  int16_t bx = x2-x1;
+  int16_t by = y2-y1;
   while(f<fr){
-    int8_t t;
-    int8_t txa = ((int32_t)(x0+((ax*f)/fr)));
-    int8_t tya = ((int32_t)(y0+((ay*f)/fr)));
-    int8_t txb = ((int32_t)(x1+((bx*f)/fr)));
-    int8_t tyb = ((int32_t)(y1+((by*f)/fr)));
-    int8_t cx = txb - txa;
-    int8_t cy = tyb - tya;
-    int8_t x = ((int32_t)(txa+((cx*f)/fr)));
-    int8_t y = ((int32_t)(tya+((cy*f)/fr)));
+    int16_t txa = ((int32_t)(x0+((ax*f)/fr)));
+    int16_t tya = ((int32_t)(y0+((ay*f)/fr)));
+    int16_t txb = ((int32_t)(x1+((bx*f)/fr)));
+    int16_t tyb = ((int32_t)(y1+((by*f)/fr)));
+    int16_t cx = txb - txa;
+    int16_t cy = tyb - tya;
+    int16_t x = ((int32_t)(txa+((cx*f)/fr)));
+    int16_t y = ((int32_t)(tya+((cy*f)/fr)));
     lcd_pixel_rawps((uint16_t)BX+x,(uint16_t)BY+y,color,ps);
     ++f;
   }
 }
 
+// for testing / better visualization
+void lcd_bez3curve(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3, int16_t f, int16_t fr, uint16_t color, uint16_t ps){
+  color = __builtin_bswap16(color);
+  int16_t ax = x1-x0;
+  int16_t ay = y1-y0;
+  int16_t bx = x2-x1;
+  int16_t by = y2-y1;
+  int16_t cx = x3-x2;
+  int16_t cy = y3-y2;
+  lcd_line(BX+x0,BY+y0,BX+x1,BY+y1,RED,1);
+  lcd_line(BX+x1,BY+y1,BX+x2,BY+y2,RED,1);
+  lcd_line(BX+x2,BY+y2,BX+x3,BY+y3,RED,1);
+
+  int16_t tx0 = (int16_t)(x0+ax*f/fr);
+  int16_t ty0 = (int16_t)(y0+ay*f/fr);
+  int16_t tx1 = (int16_t)(x1+bx*f/fr);
+  int16_t ty1 = (int16_t)(y1+by*f/fr);
+  int16_t tx2 = (int16_t)(x2+cx*f/fr);
+  int16_t ty2 = (int16_t)(y2+cy*f/fr);
+
+  lcd_pixel_rawps(BX+tx0,BY+ty0,CYAN,3);
+  lcd_pixel_rawps(BX+tx1,BY+ty1,CYAN,3);
+  lcd_pixel_rawps(BX+tx2,BY+ty2,CYAN,3);
+
+  lcd_line(BX+tx0,BY+ty0,BX+tx1,BY+ty1,BLUE,1);
+  lcd_line(BX+tx1,BY+ty1,BX+tx2,BY+ty2,BLUE,1);
+
+  // got 3 points
+  int16_t cx0 = tx1 - tx0;
+  int16_t cy0 = ty1 - ty0;
+  int16_t cx1 = tx2 - tx1;
+  int16_t cy1 = ty2 - ty1;
+
+  int16_t tcx0 = ((int32_t)(tx0+((cx0*f)/fr)));
+  int16_t tcy0 = ((int32_t)(ty0+((cy0*f)/fr)));
+  int16_t tcx1 = ((int32_t)(tx1+((cx1*f)/fr)));
+  int16_t tcy1 = ((int32_t)(ty1+((cy1*f)/fr)));
+
+  lcd_line(BX+tcx0,BY+tcy0, BX+tcx1,BY+tcy1, GREEN,1);
+  lcd_pixel_rawps((uint16_t)BX+tcx0,(uint16_t)BY+tcy0,color,ps);
+  lcd_pixel_rawps((uint16_t)BX+tcx1,(uint16_t)BY+tcy1,color,ps);
+
+  int16_t dx0 = tcx1-tcx0;
+  int16_t dy0 = tcy1-tcy0;
+
+  int16_t dtx = ((int32_t)(tcx0+((dx0*f)/fr)));
+  int16_t dty = ((int32_t)(tcy0+((dy0*f)/fr)));
+
+  lcd_pixel_rawps((uint16_t)BX+dtx,(uint16_t)BY+dty,color,ps);
+}
 
 
+void lcd_bez3curvel(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3, int16_t f, int16_t fr, uint16_t color, uint16_t ps){
+  color = __builtin_bswap16(color);
+  int16_t ax = x1-x0;
+  int16_t ay = y1-y0;
+  int16_t bx = x2-x1;
+  int16_t by = y2-y1;
+  int16_t cx = x3-x2;
+  int16_t cy = y3-y2;
+  while(f<=fr){
+  int16_t tx0 = (int16_t)(x0+ax*f/fr);
+  int16_t ty0 = (int16_t)(y0+ay*f/fr);
+  int16_t tx1 = (int16_t)(x1+bx*f/fr);
+  int16_t ty1 = (int16_t)(y1+by*f/fr);
+  int16_t tx2 = (int16_t)(x2+cx*f/fr);
+  int16_t ty2 = (int16_t)(y2+cy*f/fr);
+  // got 3 points
+  int16_t cx0 = tx1 - tx0;
+  int16_t cy0 = ty1 - ty0;
+  int16_t cx1 = tx2 - tx1;
+  int16_t cy1 = ty2 - ty1;
 
-void lcd_bez2bend(int8_t x0, int8_t y0, int8_t x1, int8_t y1, int8_t x2, int8_t y2, int8_t fr, uint16_t color, uint8_t ps){
-  int8_t txa,tya,txb,tyb,cx,cy;
-    color = __builtin_bswap16(color);
-    bez.frame = 0;
-    bez.frames = fr;
-    bez.xsa = x0;
-    bez.ysa = y0;
-    bez.xsb = x2;
-    bez.ysb = y2;
-    bez.xea = x1;
-    bez.yea = y1;
-    bez.xeb = x1;
-    bez.yeb = y1;
-    bez.ax = bez.xea-bez.xsa;
-    bez.ay = bez.yea-bez.ysa;
-    bez.bx = bez.xeb-bez.xsb;
-    bez.by = bez.yeb-bez.ysb;
-    test_init = false;
+  int16_t tcx0 = ((int32_t)(tx0+((cx0*f)/fr)));
+  int16_t tcy0 = ((int32_t)(ty0+((cy0*f)/fr)));
+  int16_t tcx1 = ((int32_t)(tx1+((cx1*f)/fr)));
+  int16_t tcy1 = ((int32_t)(ty1+((cy1*f)/fr)));
 
+  int16_t dx0 = tcx1-tcx0;
+  int16_t dy0 = tcy1-tcy0;
 
-  while(bez.frame<bez.frames){
-    txa = ((int32_t)(bez.xsa+((bez.ax*bez.frame)/bez.frames)));
-    tya = ((int32_t)(bez.ysa+((bez.ay*bez.frame)/bez.frames)));
-    txb = ((int32_t)(bez.xsb+((bez.bx*bez.frame)/bez.frames)));
-    tyb = ((int32_t)(bez.ysb+((bez.by*bez.frame)/bez.frames)));
-    cx  = txb - txa;
-    cy  = tyb - tya;
-    bez.x = ((int32_t)(txa+((cx*bez.frame)/bez.frames)));
-    bez.y = ((int32_t)(tya+((cy*bez.frame)/bez.frames)));
-    lcd_pixel_rawps((uint16_t)BX+bez.x,(uint16_t)BY+bez.y,color,ps);
-    bez.frame++;
+  int16_t dtx = ((int32_t)(tcx0+((dx0*f)/fr)));
+  int16_t dty = ((int32_t)(tcy0+((dy0*f)/fr)));
+
+  lcd_pixel_rawps((uint16_t)BX+dtx,(uint16_t)BY+dty,color,ps);
+  ++f;
   }
+}
+void lcd_bez3circ(int16_t x, int16_t y, int16_t r,uint16_t color, int16_t ps, int16_t xo, int16_t yo){
+  lcd_bez3circle(x-120,y-120,r,0,100,color,ps,xo,yo);
+}
+void lcd_bez3circle(int16_t x, int16_t y, int16_t r, int16_t f, int16_t fr, uint16_t color, int16_t ps, int16_t xo, int16_t yo){
+  lcd_bez3curvel(x-r+(xo>>2),y,  x-r-(xo>>1),y+(r+(r>>1)),  x+r+(xo>>2),y+(r+(r>>1)), x+r+(xo>>1),y ,f,fr,color,ps);
+  lcd_bez3curvel(x-r+(xo>>2),y,  x-r-(xo>>1),y-(r+(r>>1)),  x+r+(xo>>2),y-(r+(r>>1)), x+r+(xo>>1),y ,f,fr,color,ps);
 }
