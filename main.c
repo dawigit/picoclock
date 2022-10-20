@@ -61,7 +61,7 @@ datetime_t default_time = {
 // NO_SENSORS 1 : don't show sensor values [gyro,acc,bat]
 bool NO_SENSORS = 1;
 bool NO_GYROCROSS = 0;
-bool SECOND_BENDER = 0;
+bool SECOND_BENDER = 1;
 bool SMOOTH_BACKGROUND = 1;
 bool INSOMNIA = 0;
 bool DYNAMIC_CIRCLES = 0;
