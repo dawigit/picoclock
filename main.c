@@ -58,6 +58,7 @@ datetime_t default_time = {
 #define DEFAULT_THEME 0
 // NO_POS_MODE 1 : gyroscope+button control
 #define NO_POS_MODE 1
+#define SHELL_ENABLED 0
 // NO_SENSORS 1 : don't show sensor values [gyro,acc,bat]
 bool NO_SENSORS = 1;
 bool NO_GYROCROSS = 0;
@@ -597,7 +598,7 @@ void command(char* c){
   bool set=false;
   if(strstr(c,"set ") == c){
     set=true;
-    printf("set\n");
+    //printf("set\n");
   }
   if(set){
     char* left=c+4;
@@ -607,7 +608,7 @@ void command(char* c){
       char* right = space+1;
 
       // found left & right
-      printf("%s = %s\n", left, right);
+      //printf("%s = %s\n", left, right);
       if(strstr(left,"bcx0")){        bcx0 = (int16_t)atoi(right);      }
       if(strstr(left,"bcy0")){        bcy0 = (int16_t)atoi(right);      }
       if(strstr(left,"bcx1")){        bcx1 = (int16_t)atoi(right);      }
@@ -975,7 +976,7 @@ int main(void)
         if(ya>20){ya=20;}
         if(xa<-20){xa=-20;}
         if(ya<-20){ya=-20;}
-        printf("xya: %d %d\n",xa,ya);
+        //printf("xya: %d %d\n",xa,ya);
         lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,backgrounds[plosa->theme_pos]);
       }else{
           mcpy(b0,backgrounds[plosa->theme_pos],LCD_SZ);
@@ -1219,7 +1220,9 @@ int main(void)
       }
 
       lcd_display(b0);
-      //shell();
+      if(SHELL_ENABLED){
+        shell();
+      }
       uint32_t atime = time_us_32();
       uint32_t wtime = ((atime-last_wait)/100000);
       last_wait = atime;
