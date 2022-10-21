@@ -69,7 +69,7 @@ bool DYNAMIC_CIRCLES = 1;
 
 // SLEEP_DEEPER : increases sleep_frame by SLEEP_FRAME_ADD till SLEEP_FRAME_END
 // so at max, pico is only able to awake every 10th second
-#define SLEEP_DEEPER 1
+#define SLEEP_DEEPER 0
 #define SLEEP_FRAME_START 1000
 #define SLEEP_FRAME_END   10000
 #define SLEEP_FRAME_ADD   100
