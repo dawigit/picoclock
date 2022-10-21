@@ -1,0 +1,24 @@
+#!/bin/bash
+
+start=$(grep -U -E -m1 -n ".+CUT HERE.+" $1 | grep -Eo "[0-9]{1,2}")
+end=$(grep -U -E -m2 -n ".+CUT HERE.+" $1 | grep -Eo "[0-9]{3,5}")
+echo $start
+echo $end
+start=$((start+1))
+end=$((end-1))
+cp $1 $1_tmp
+sepo="${start},${end}p"
+echo $sepo
+sed -n $sepo $1_tmp > $1_head
+xxd -r -p $1_head > $1_bin
+dd conv=swab if=$1_bin of=$1.bmp;
+convert $1.bmp -flip $1.bmp;
+rm $1_tmp
+rm $1_head
+rm $1_bin
+FILEEOG="/usr/bin/eog"
+if [ -f $FILEEOG ]; then
+   eog $1.bmp
+fi
+
+

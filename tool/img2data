@@ -1,0 +1,18 @@
+#!/bin/bash
+#img2data image W*H
+#usage: 'img2data test32.png 32*32'
+#function img2data()
+#{
+oname=$(echo "$1" | cut -f 1 -d '.')
+name=$(echo "$1" | cut -f 1 -d '.')rgb565
+echo "name: $name"
+convert $1 -rotate 180 -flop -alpha off -define bmp:subtype=RGB565 $name.bmp
+#conversion: swap bytes (hi/lo)
+dd conv=swab bs=138 skip=1 if=$name.bmp of=$oname.raw
+touch $oname.h
+echo "const unsigned char $oname[$2*2] = {" > $oname.h
+hexdump -v -e '"0x" 1/1 "%02X" ","' $oname.raw >> $oname.h
+rm $oname.raw
+rm $name.bmp
+echo "};" >> $oname.h
+#}

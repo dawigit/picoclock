@@ -1,0 +1,6 @@
+#!/bin/bash
+while true; do
+read -e -p "pigsh>" shinput
+	history -s "$shinput"
+	echo $shinput > /dev/ttyACM$1
+done
