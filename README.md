@@ -52,3 +52,4 @@ Find the '--address' with:
 - also added a few testing functions for bezier curves [they show all the lines, bigger dots]
 - all tools/scripts moved to folder 'tool'
 - img2data.md -> tool/tools.md
+- to use the shell minicom has to be started first: 'minicom -o -D /dev/ttyACM0' [0/1]
