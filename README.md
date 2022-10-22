@@ -35,9 +35,7 @@ Find the '--address' with:
 `cd picoclock;mkdir build;cd build;cmake ..;make`
 
 ### News
-
-- added bez2/3 curves
-- added dynamic circles
+- snapshots with 'snaps' script: `snaps 0 mysnapfilename` [/dev/ttyACM0]
 - added shell: file 'pigsh' contains a simple bash script sending your input to /dev/ttyACMx
 - 'pigsh 0' to connect to  /dev/ttyACM0 
 - 'pigsh 1' to connect to  /dev/ttyACM1
@@ -49,7 +47,10 @@ Find the '--address' with:
 - SMOOTH_BACKGROUND		[smoother/1frame delay for movement]
 - INSOMNIA				[never sleeps – for development only! stays on when bat full and not loading]
 - DYNAMIC_CIRCLES		[gyroscope changes circle, looks crappy atm]
-- also added a few testing functions for bezier curves [they show all the lines, bigger dots]
 - all tools/scripts moved to folder 'tool'
 - img2data.md -> tool/tools.md
-- to use the shell minicom has to be started first: 'minicom -o -D /dev/ttyACM0' [0/1]
+- added bez2/3 curves
+- added dynamic circles
+- also added a few testing functions for bezier curves [they show all the lines, bigger dots]
+
+ 
