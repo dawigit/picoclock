@@ -4,7 +4,46 @@
 #### example: pigsh 0
 #### connect to your device, send commands, make screenshots
 
-## snapshot
+
+## snaps
+### usage: snaps ACMNUMBER FILENAME
+### example: snaps 0 mysnapshot
+- starts a snapshot reading data from /dev/ttyACM0 [ACMNUMBER]
+- the 'bmp' image will be converted (and flipped) to 'png'
+- your output file name will be: 'mysnapshot.png' according to the above example
+- if it hangs reset your device and repeat the process
+
+snaps will call mksnap ACMNUMBER FILENAME
+sleeps 2 seconds
+then sends " " then "SNAPSHOT" to /dev/ttyACM[ACMNUMBER]
+mksnap will open the 'png' with eog image viewer (if installed)
+
+## snaps via ssh?
+### example:
+### ssh user@host 'cd picoclock/img; ../tool/snaps 1 mysnap'
+### picoclock has to be in your home '/home/user/picoclock'
+- connects to your host (like jim@raspi4 )
+- changes to your 'picoclock/img' folder in your home (so images saved are there)
+- calls 'snaps' script from 'tools' folder
+- connection finished - ssh stuff done
+##
+
+### local image view: [you work from a linux system, ssh connected to a pi]
+### ssh user@host 'cd picoclock/img; ../tool/snaps 1 mysnap'; eog mysnap.png
+- assumptions:
+- 'sshfs user@host:/home/user/picoclock' ./picoclock
+- cd ~/picoclock/img
+- my pi4 is headless, so no X installed.
+
+### from your local terminal:
+- ssh user@host 'cd picoclock/img; ../tool/snaps 1 mysnap'; eog mysnap.png
+
+
+
+## obsolate [use snaps]
+### snapshot
+
+i left the old code if you want to play
 
 ### usage: snapshot CUTFILE
 #### example: snapshot s_cn
@@ -22,7 +61,7 @@
     - when the pointer starts moving again press 'control+c'
 5. snapshot snapshotcut
 6. hopefully creates snapshotcut.bmp
-
+## obsolate
 
 
 ## img2data
