@@ -35,18 +35,36 @@ Find the '--address' with:
 `cd picoclock;mkdir build;cd build;cmake ..;make`
 
 ### News
-- snapshots with 'snaps' script: `snaps 0 mysnapfilename` [/dev/ttyACM0]
-- added shell: file 'pigsh' contains a simple bash script sending your input to /dev/ttyACMx
+- added "pico_bootsel_via_double_reset" in CMakeLists.txt
+- more vars (values) now resist in 'noinit' ram
+- battery display will flicker a lot at start (or when bat is lo) as it finds new min/max values
+- when sleeping and a new lo-bat minimum was found, it saves (new minimum value)
+- changed shell commands
+- added flash ram
+- added save: press the button for >3 sec when in center position (cursor/flag) to save save ram to flash ram
+- gyrocross improved, shows ghosted old position
+- battery display improved
+- bending second pointer fixed at the star
+- lcd_rect -> lcd_frame (and other changes in lcd)
+- changed button system (internal)
+- added battery types
+- changed shell commands, see below
+- snapshots with 'snaps' script: `snaps 0 mysnapfilename` [/dev/ttyACM0] (minicom must be stopped before)
+- added shell: file 'pigsh' contains a simple bash script sending your input to /dev/ttyACMx (minicom has to be started before)
 - 'pigsh 0' to connect to  /dev/ttyACM0 
 - 'pigsh 1' to connect to  /dev/ttyACM1
-- 'set DYNAMIC_CIRCLES 1' to enable dynamic circles [0 to disable]
+- 'DYNCIRCLE 1' to enable dynamic circles [0 to disable]
 - and so on… the (boolean) values you can change between 0/1 are:
-- NO_SENSORS			[sensor text]
-- NO_GYROCROSS			[show/hide gyrocross]
-- SECOND_BENDER			[second pointer elasctic]
-- SMOOTH_BACKGROUND		[smoother/1frame delay for movement]
-- INSOMNIA				[never sleeps – for development only! stays on when bat full and not loading]
-- DYNAMIC_CIRCLES		[gyroscope changes circle, looks crappy atm]
+- SENSORS			[sensor text]
+- GYROCROSS			[show/hide gyrocross]
+- BENDER			[second pointer elasctic]
+- SMOOTHBG			[smoother/1frame delay for movement]
+- INSOMNIA			[never sleeps – for development only! stays on when bat full and not loading]
+- DYNCIRCLE			[gyroscope changes circle, looks crappy atm]
+- SLEEPDEEP			[enables SLEEP_DEEP mode, sleeps deeper, can wake up every (1-30) second(s), sleeps deeper in time]
+### the only command accepting a value in the range 0-100
+- LIGHT				[BRIGHTNESS (0-100)]
+
 - all tools/scripts moved to folder 'tool'
 - img2data.md -> tool/tools.md
 - added bez2/3 curves

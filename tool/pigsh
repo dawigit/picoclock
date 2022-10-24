@@ -1,6 +1,13 @@
 #!/bin/bash
+# minicom -o -D /dev/ttyACM$1 must be started
+if [ -z $1 ]; then
+	echo "usage: pigsh 0"
+	echo "to connect to /dev/ttyACM0"
+	exit
+fi
+ANR=$1
 while true; do
 read -e -p "pigsh>" shinput
 	history -s "$shinput"
-	echo $shinput > /dev/ttyACM$1
+	echo $shinput > /dev/ttyACM$ANR
 done

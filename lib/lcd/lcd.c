@@ -494,6 +494,9 @@ void lcd_char(uint8_t x, uint8_t y, uint8_t c, sFONT* font, uint16_t cf, uint16_
 }
 void lcd_string(uint8_t x, uint8_t y, char* data, sFONT* font,bool cn, uint16_t cf, uint16_t cb){
   uint8_t c,px=x,py=y;
+  cf = __builtin_bswap16(cf);
+  cb = __builtin_bswap16(cb);
+
   while(*data){
     c=*data;
     //printf("lcd_string: '%c'\n",c);
@@ -505,14 +508,14 @@ void lcd_string(uint8_t x, uint8_t y, char* data, sFONT* font,bool cn, uint16_t 
 }
 
 void lcd_str(uint8_t x, uint8_t y, char* data, sFONT* font, uint16_t cf, uint16_t cb){
-  cf = __builtin_bswap16(cf);
-  cb = __builtin_bswap16(cb);
+  //cf = __builtin_bswap16(cf);
+  //cb = __builtin_bswap16(cb);
   lcd_string(x,y,data,font,false,cf,cb);
 }
 
 void lcd_strc(uint8_t x, uint8_t y, char* data, sFONT* font, uint16_t cf, uint16_t cb){
-  cf = __builtin_bswap16(cf);
-  cb = __builtin_bswap16(cb);
+  //cf = __builtin_bswap16(cf);
+  //cb = __builtin_bswap16(cb);
   lcd_string(x,y,data,font,true,cf,cb);
 }
 
@@ -522,7 +525,18 @@ void lcd_number(uint8_t x, uint8_t y, uint32_t n ,sFONT* font, uint16_t cf, uint
 }
 
 void lcd_float(uint8_t x, uint8_t y, float f ,sFONT* font, uint16_t cf, uint16_t cb){
-  sprintf(cbuf,"%0.2f\0",f);
+  lcd_floats(x,y,f,font,cf,cb,false);
+}
+void lcd_floatshort(uint8_t x, uint8_t y, float f ,sFONT* font, uint16_t cf, uint16_t cb){
+  lcd_floats(x,y,f,font,cf,cb,true);
+}
+
+void lcd_floats(uint8_t x, uint8_t y, float f ,sFONT* font, uint16_t cf, uint16_t cb, bool column){
+  if(column){ // 4 columns@all
+    sprintf(cbuf,"%+4.2f\0",f);
+  }else{ // 8 columns@all
+    sprintf(cbuf,"%+8.2f\0",f);
+  }
   lcd_str(x,y,&cbuf[0],font,cf,cb);
 }
 
@@ -612,7 +626,7 @@ inline void lcd_yline(uint8_t x, uint8_t y, uint8_t l, uint16_t color, uint8_t p
   }
 }
 
-void lcd_rect(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t color, uint8_t ps){
+void lcd_frame(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t color, uint8_t ps){
     color=__builtin_bswap16(color);
     lcd_xline(x0,y0,x1-x0,color,ps);
     lcd_xline(x0,y1-ps,x1-x0,color,ps);
@@ -848,6 +862,39 @@ void lcd_bez3curve(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, i
   lcd_pixel_rawps((uint16_t)BX+dtx,(uint16_t)BY+dty,color,ps);
 }
 
+void lcd_bez3curver(int16_t* rx, int16_t* ry, int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3, int16_t f, int16_t fr){
+  int16_t ax = x1-x0;
+  int16_t ay = y1-y0;
+  int16_t bx = x2-x1;
+  int16_t by = y2-y1;
+  int16_t cx = x3-x2;
+  int16_t cy = y3-y2;
+  int16_t tx0 = (int16_t)(x0+ax*f/fr);
+  int16_t ty0 = (int16_t)(y0+ay*f/fr);
+  int16_t tx1 = (int16_t)(x1+bx*f/fr);
+  int16_t ty1 = (int16_t)(y1+by*f/fr);
+  int16_t tx2 = (int16_t)(x2+cx*f/fr);
+  int16_t ty2 = (int16_t)(y2+cy*f/fr);
+  // got 3 points
+  int16_t cx0 = tx1 - tx0;
+  int16_t cy0 = ty1 - ty0;
+  int16_t cx1 = tx2 - tx1;
+  int16_t cy1 = ty2 - ty1;
+
+  int16_t tcx0 = ((int32_t)(tx0+((cx0*f)/fr)));
+  int16_t tcy0 = ((int32_t)(ty0+((cy0*f)/fr)));
+  int16_t tcx1 = ((int32_t)(tx1+((cx1*f)/fr)));
+  int16_t tcy1 = ((int32_t)(ty1+((cy1*f)/fr)));
+
+  int16_t dx0 = tcx1-tcx0;
+  int16_t dy0 = tcy1-tcy0;
+
+  *rx = ((int32_t)(tcx0+((dx0*f)/fr)));
+  *ry = ((int32_t)(tcy0+((dy0*f)/fr)));
+
+  //lcd_pixel_rawps((uint16_t)BX+dtx,(uint16_t)BY+dty,color,ps);
+
+}
 
 void lcd_bez3curvel(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3, int16_t f, int16_t fr, uint16_t color, uint16_t ps){
   color = __builtin_bswap16(color);
@@ -891,4 +938,20 @@ void lcd_bez3circ(int16_t x, int16_t y, int16_t r,uint16_t color, int16_t ps, in
 void lcd_bez3circle(int16_t x, int16_t y, int16_t r, int16_t f, int16_t fr, uint16_t color, int16_t ps, int16_t xo, int16_t yo){
   lcd_bez3curvel(x-r+(xo>>2),y,  x-r-(xo>>1),y+(r+(r>>1)),  x+r+(xo>>2),y+(r+(r>>1)), x+r+(xo>>1),y ,f,fr,color,ps);
   lcd_bez3curvel(x-r+(xo>>2),y,  x-r-(xo>>1),y-(r+(r>>1)),  x+r+(xo>>2),y-(r+(r>>1)), x+r+(xo>>1),y ,f,fr,color,ps);
+}
+
+void lcd_bez2curver(int16_t* rx, int16_t* ry, int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t fr){
+  int16_t f=0;
+  int16_t ax = x2-x0;
+  int16_t ay = y2-y0;
+  int16_t bx = x2-x1;
+  int16_t by = y2-y1;
+  int16_t txa = ((int32_t)(x0+((ax*f)/fr)));
+  int16_t tya = ((int32_t)(y0+((ay*f)/fr)));
+  int16_t txb = ((int32_t)(x1+((bx*f)/fr)));
+  int16_t tyb = ((int32_t)(y1+((by*f)/fr)));
+  int16_t cx = txb - txa;
+  int16_t cy = tyb - tya;
+  *rx = ((int32_t)(txa+((cx*f)/fr)));
+  *ry = ((int32_t)(tya+((cy*f)/fr)));
 }

@@ -20,7 +20,19 @@ pico_enable_stdio_uart(main 1)
 # create map/bin/hex/uf2 file etc.
 pico_add_extra_outputs(main)
 
-target_link_libraries(main lcd QMI8658 pico_stdlib hardware_spi hardware_i2c hardware_rtc hardware_timer hardware_pwm hardware_adc)
+target_link_libraries(main
+lcd QMI8658
+pico_stdlib
+hardware_spi
+hardware_i2c
+hardware_pwm
+hardware_rtc
+hardware_timer
+hardware_adc
+hardware_flash
+hardware_sync
+pico_bootsel_via_double_reset
+)
 
 add_custom_command(
         TARGET main POST_BUILD
