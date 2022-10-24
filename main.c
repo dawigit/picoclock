@@ -1099,7 +1099,7 @@ int main(void)
     		sprintf((char*)plosa->mode,"LOAD");
     		flash_data();
     }else{
-    		if(!force_no_load && strstr((char*)plosa->mode,"LOAD")){
+    		if(!force_no_load && !strstr((char*)plosa->mode,"LOAD")){
     			flash_data_load();
     		}else{
     			//plosa->rules[0]=0;
