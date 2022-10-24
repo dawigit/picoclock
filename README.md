@@ -5,6 +5,8 @@
 ![s_us](https://github.com/dawigit/picoclock/blob/main/img/s_us.png) ![s_us1](https://github.com/dawigit/picoclock/blob/main/img/s_us1.png) 
 ![s_cn](https://github.com/dawigit/picoclock/blob/main/img/s_cn.png) ![s_cn1](https://github.com/dawigit/picoclock/blob/main/img/s_cn1.png)
 ![s_de](https://github.com/dawigit/picoclock/blob/main/img/s_de.png) ![s_tr](https://github.com/dawigit/picoclock/blob/main/img/s_tr.png)
+![gyrocross](https://github.com/dawigit/picoclock/blob/main/img/gyrocross.png) ![gyrocrosscn](https://github.com/dawigit/picoclock/blob/main/img/gyrocrosscn.png)
+
 
 
 ![uscn1](https://user-images.githubusercontent.com/26333559/196231673-cdbe89fb-14fd-46a9-b566-e3241b16d3c8.png)
