@@ -1360,10 +1360,10 @@ int main(void)
     sleep_ms(400);  // reboot takes about 1.6 sec. -> increase time by 2sec, wait 0.4sec
     //plosa->spin=1;
     //plosa->gfxmode=GFX_ROTATE;
-    plosa->pointerdemo=true;
+    plosa->pointerdemo=false;
     plosa->pstyle=2;
     plosa->theme_pos=0;
-    plosa->texture=2;
+    plosa->texture=0;
     lcd_init();
     lcd_make_cosin();
     //printf("sin0=%f\n",gcosin(0));
