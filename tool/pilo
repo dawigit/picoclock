@@ -1,0 +1,4 @@
+#!/bin/bash
+#alias pilo='sudo picotool load ./main.uf2 -x --bus 1 --address $(picotool info | grep "device in BOOTSEL" | cut -d" " -f6)'
+sudo picotool load ./main.uf2 -x --bus 1 --address $(picotool info | grep "device in BOOTSEL" | cut -d" " -f6)
+

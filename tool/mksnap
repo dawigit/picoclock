@@ -1,0 +1,11 @@
+#!/bin/bash
+stty -F /dev/ttyACM$1 raw;
+head -c 115338 /dev/ttyACM$1 > acm$1;
+convert acm$1 -flip $2.png
+rm acm$1;
+FILEEOG="/usr/bin/eog"
+if [ -f $FILEEOG ]; then
+   eog $2.png
+fi
+
+
