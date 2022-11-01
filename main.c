@@ -1363,6 +1363,7 @@ int main(void)
     plosa->pointerdemo=true;
     plosa->pstyle=2;
     plosa->theme_pos=0;
+    plosa->texture=2;
     lcd_init();
     lcd_make_cosin();
     //printf("sin0=%f\n",gcosin(0));
