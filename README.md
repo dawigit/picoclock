@@ -1,7 +1,7 @@
 # picoclock
 ### for use with WAVESHARE RP2040-LCD-1.28
 ### RP2040 LCD 1.28
-
+![pointerdemo](https://github.com/dawigit/picoclock/blob/main/img/pointerdemo.png)
 ![rotoz](https://github.com/dawigit/picoclock/blob/main/img/rotoz.png) ![rotoz1](https://github.com/dawigit/picoclock/blob/main/img/rotoz1.png)
 ![s_us](https://github.com/dawigit/picoclock/blob/main/img/s_us.png) ![s_us1](https://github.com/dawigit/picoclock/blob/main/img/s_us1.png)
 ![s_cn](https://github.com/dawigit/picoclock/blob/main/img/s_cn.png) ![s_cn1](https://github.com/dawigit/picoclock/blob/main/img/s_cn1.png)
