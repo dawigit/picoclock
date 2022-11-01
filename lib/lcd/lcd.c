@@ -1246,10 +1246,15 @@ void lcd_blit_deg(Vec2 vs, Vec2 ve, Vec2 vts, int16_t deg, const uint8_t* src, u
   Vec2* pvx = lcd_linev2list(vx,&lenx);
   Vec2 vy = gvdl(deg+90,ve.y);
   Vec2* pvy = lcd_linev2list(vy,&leny);
-  //printf("pvx = %08x %d (%d %d)\n",pvx,lenx,vx.x,vx.y);
-  //printf("pvy = %08x %d (%d %d)\n",pvy,leny,vy.x,vy.y);
-  //for(int i=0;i<leny;++i)printf("pvxy= %d %d , %d %d\n",pvx[i].x,pvx[i].y,pvy[i].x,pvy[i].y);
-  //printf("\n");
+  if(lenx>ve.x)lenx=ve.x;
+  if(leny>ve.y)leny=ve.y;
+
+  //if(!centric){
+  //  printf("pvx = %08x %d (%d %d)\n",pvx,lenx,vx.x,vx.y);
+  //  printf("pvy = %08x %d (%d %d)\n",pvy,leny,vy.x,vy.y);
+  //  for(int i=0;i<leny;++i)printf("pvxy[%d]= %d %d , %d %d\n",i,pvx[i].x,pvx[i].y,pvy[i].x,pvy[i].y);
+  //  printf("\n");
+  //}
   int16_t px,py;
   uint16_t* ps=(uint16_t*)src;
 
@@ -1257,12 +1262,18 @@ void lcd_blit_deg(Vec2 vs, Vec2 ve, Vec2 vts, int16_t deg, const uint8_t* src, u
   float fly = (float)vts.y/leny;
   float flx1 = (float)lenx/vts.x;
   float fly1 = (float)leny/vts.y;
+  if(flx<0)flx=-flx;
+  if(fly<0)fly=-fly;
+  if(flx1<0)flx1=-flx1;
+  if(fly1<0)fly1=-fly1;
+
   bool vexsm = (ve.x<lenx);
   bool veysm = (ve.y<leny);
   int16_t nx = vexsm?ve.x:lenx;
   int16_t ny = veysm?ve.y:leny;
-
-  //printf("deg: %d:: %d %d - %f %f %f %f %d %d %d %d\n",deg,nx,ny,flx,fly,flx1,fly1, ve.x,ve.y, lenx,leny);
+  //if(!centric){
+  //  printf("deg: %d:: %d %d - %f %f %f %f %d %d %d %d\n",deg,nx,ny,flx,fly,flx1,fly1, ve.x,ve.y, lenx,leny);
+  //}
 
   int16_t utab[256];
   int16_t vtab[256];
