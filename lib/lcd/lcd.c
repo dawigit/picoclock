@@ -1158,6 +1158,11 @@ inline Vec2 vrot(Vec2 v, int16_t deg){
   return vr;
 }
 
+inline Vec2 vset(int16_t x,int16_t y){
+  Vec2 r ={x,y};
+  return r;
+}
+
 
 void lcd_alpha_line(uint8_t xs, uint8_t ys, uint8_t xe, uint8_t ye, uint16_t color, int16_t ps){
   //printf("L: %d %d %d %d [%04x] %d\n",xs,ys,xe,ye,color,ps);
@@ -1228,7 +1233,7 @@ Vec2* lcd_linev2list(Vec2 ve, int16_t* rsret){
 }
 
 
-void lcd_blit_deg(Vec2 vs, Vec2 ve, int16_t deg, const uint8_t* src, uint16_t alpha,bool centric){
+void lcd_blit_deg(Vec2 vs, Vec2 ve, Vec2 vts, int16_t deg, const uint8_t* src, uint16_t alpha,bool centric){
   int16_t lenx=0;
   int16_t leny=0;
   float cos=tcos[deg];
@@ -1248,10 +1253,10 @@ void lcd_blit_deg(Vec2 vs, Vec2 ve, int16_t deg, const uint8_t* src, uint16_t al
   int16_t px,py;
   uint16_t* ps=(uint16_t*)src;
 
-  float flx = (float)ve.x/lenx;
-  float fly = (float)ve.y/leny;
-  float flx1 = (float)lenx/ve.x;
-  float fly1 = (float)leny/ve.y;
+  float flx = (float)vts.x/lenx;
+  float fly = (float)vts.y/leny;
+  float flx1 = (float)lenx/vts.x;
+  float fly1 = (float)leny/vts.y;
   bool vexsm = (ve.x<lenx);
   bool veysm = (ve.y<leny);
   int16_t nx = vexsm?ve.x:lenx;
@@ -1310,7 +1315,7 @@ void lcd_blit_deg(Vec2 vs, Vec2 ve, int16_t deg, const uint8_t* src, uint16_t al
       for(int16_t x=0;x<nx;x++){
         int16_t ax=pvx[x].x+px;
         int16_t ay=pvx[x].y+py;
-        uint16_t c = ps[vtab[y]*ve.x + utab[x]];
+        uint16_t c = ps[vtab[y]*vts.x + utab[x]];
         if(c!=alpha){
           lcd_pixel_raw(ax ,  ay   ,c);        lcd_pixel_raw(ax+1 ,ay   ,c);        lcd_pixel_raw(ax+1 ,ay+1 ,c);        lcd_pixel_raw(ax ,  ay+1 ,c);
         }
@@ -1323,7 +1328,7 @@ void lcd_blit_deg(Vec2 vs, Vec2 ve, int16_t deg, const uint8_t* src, uint16_t al
       for(int16_t x=0;x<nx;x++){
         int16_t ax=pvx[0].x+px;
         int16_t ay=pvx[0].y+py;
-        uint16_t c = ps[vtab[y]*ve.x + utab[x]];
+        uint16_t c = ps[vtab[y]*vts.x + utab[x]];
         if(c!=alpha){
           lcd_pixel_raw(ax ,  ay   ,c);        lcd_pixel_raw(ax+1 ,ay   ,c);        lcd_pixel_raw(ax+1 ,ay+1 ,c);        lcd_pixel_raw(ax ,  ay+1 ,c);
 //          lcd_pixel_raw(px+ax ,  py+ay   ,c);        lcd_pixel_raw(px+ax+1 ,py+ay   ,c);        lcd_pixel_raw(px+ax+1 ,py+ay+1 ,c);        lcd_pixel_raw(px+ax ,  py+ay+1 ,c);
@@ -1337,7 +1342,7 @@ void lcd_blit_deg(Vec2 vs, Vec2 ve, int16_t deg, const uint8_t* src, uint16_t al
       for(int16_t x=0;x<nx;x++){
         int16_t ax=pvx[x].x+px;
         int16_t ay=pvx[x].y+py;
-        uint16_t c = ps[vtab[y]*ve.x + utab[x]];
+        uint16_t c = ps[vtab[y]*vts.x + utab[x]];
         if(c!=alpha){
           lcd_pixel_raw(ax ,  ay   ,c);        lcd_pixel_raw(ax+1 ,ay   ,c);        lcd_pixel_raw(ax+1 ,ay+1 ,c);        lcd_pixel_raw(ax ,  ay+1 ,c);
 //          lcd_pixel_raw(px+ax ,  py+ay   ,c);        lcd_pixel_raw(px+ax+1 ,py+ay   ,c);        lcd_pixel_raw(px+ax+1 ,py+ay+1 ,c);        lcd_pixel_raw(px+ax ,  py+ay+1 ,c);

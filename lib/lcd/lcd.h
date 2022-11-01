@@ -196,9 +196,10 @@ void fxyd(float* x, float* y, int16_t deg);
 
 void lcd_roto(const uint8_t* src, int16_t w, int16_t h);
 void lcd_rotoa();
-void lcd_blit_deg(Vec2 vs, Vec2 ve, int16_t deg, const uint8_t* src, uint16_t alpha, bool centric);
+//void lcd_blit_deg(Vec2 vs, Vec2 ve, int16_t deg, const uint8_t* src, uint16_t alpha, bool centric);
+void lcd_blit_deg(Vec2 vs, Vec2 ve, Vec2 vts, int16_t deg, const uint8_t* src, uint16_t alpha,bool centric);
 Vec2 vrot(Vec2 v, int16_t deg);
-
+Vec2 vset(int16_t x, int16_t y);
 //uint16_t lcd_lighter(uint16_t c);
 extern uint8_t slice_num;
 extern int16_t rotox,rotoy;

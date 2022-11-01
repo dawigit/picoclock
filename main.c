@@ -44,8 +44,11 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "img/cn16.h"
 #include "img/ger16.h"
 #include "img/tr16.h"
-//wood texture
+
+//textures
 #include "img/w2.h"
+#include "img/mo1.h"
+#include "img/flow.h"
 
 typedef enum {
   GFX_NORMAL,
@@ -55,11 +58,11 @@ typedef enum {
 } GFX_MODE;
 
 typedef enum {
-  CPS_NORMAL,
-  CPS_ALPHA,
-  CPS_TEXTURE,
-  CPS_BENDER
-} CP_STYLE; //Clock Pointer Style
+  PS_NORMAL,
+  PS_ALPHA,
+  PS_TEXTURE,
+  PS_BENDER
+} PSTYLE; //Clock Pointer Style
 
 
 typedef struct Battery_t {
@@ -95,8 +98,9 @@ typedef struct {
   bool clock;
   bool pointerdemo;
   GFX_MODE gfxmode;
-  CP_STYLE cpstyle;
+  PSTYLE pstyle;
   int16_t spin;
+  uint8_t texture;
 } LOSA_t;
 
 static LOSA_t* plosa=(LOSA_t*)losabuf;
@@ -386,6 +390,10 @@ const PosMat_t* positions[THEMES] = {&p_cn,&p_us,&p_us,&p_us};
 const uint8_t* flags[THEMES] = {cn32,usa32,ger32,tr32};
 const uint8_t* stars[THEMES] = {cn16,usa16,ger16,tr16};
 
+uint16_t tex = 0;
+const char* textures[3] ={w2,flow,mo1};
+Vec2 psize_h[3] = {65,5,75,20,75,20};
+Vec2 psize_m[3] = {102,4,102,10,102,10};
 const char* backgrounds[THEMES] = {earth190,irisa190,bega,sand};
 const int16_t bgsz[THEMES] = {190,190,240,240};
 
@@ -415,8 +423,6 @@ void update_pos_matrix(){
 Vec2 vO = {120,120};
 Vec2 v0 = {0,0};
 
-Vec2 psize_h[3] = {65,6,65,8,75,20};
-Vec2 psize_m[3] = {102,4,102,4,105,10};
 
 
 uint16_t dcol = WHITE;
@@ -605,9 +611,10 @@ void check_save_data(){
     plosa->highpointer = false;
     plosa->alphapointer = true;
     plosa->pointerdemo = false;
-    plosa->cpstyle = CPS_NORMAL;
+    plosa->pstyle = PS_NORMAL;
     plosa->clock = true;
     plosa->spin = 1;
+    plosa->texture = 1;
     sprintf(plosa->mode,"LOAD\0");
     printf("settings reset to defaults");
   }else{ // do a few sanity checks
@@ -621,9 +628,10 @@ void check_save_data(){
     if(plosa->theme_pos>=THEMES){plosa->theme_pos=0;}
     if(plosa->editpos>EDITPOSITIONS){plosa->editpos=EDITPOSITIONS;}
     plosa->pointerdemo = false;
-    plosa->cpstyle = CPS_NORMAL;
+    plosa->pstyle = PS_NORMAL;
     plosa->clock = true;
     plosa->spin = 1;
+    plosa->texture = 1;
     rtc_set_datetime(&plosa->dt);
     printf("mode reset to defaults='%s'\n",plosa->mode);
   }
@@ -934,7 +942,8 @@ void command(char* c){
       if(strstr(left,"deep")){ plosa->DEEPSLEEP = (bool)atoi(right);}
       if(strstr(left,"high")){ plosa->highpointer = (bool)atoi(right);}
       if(strstr(left,"alpha")){ plosa->alphapointer = (bool)atoi(right);}
-      if(strstr(left,"cpst")){ plosa->cpstyle = (int16_t)atoi(right);}
+      if(strstr(left,"pstyle")){ plosa->pstyle = (int16_t)atoi(right);}
+      if(strstr(left,"texture")){ plosa->texture = (int16_t)atoi(right);}
       if(strstr(left,"spin")){ plosa->spin = (int16_t)atoi(right);}
       if(strstr(left,"clock")){ plosa->clock = (bool)atoi(right);}
       if(strstr(left,"pointerdemo")){ plosa->pointerdemo = (bool)atoi(right);}
@@ -1045,23 +1054,25 @@ void fx_circle(uint16_t x, uint16_t y, uint16_t r, uint16_t c, uint16_t ps, uint
   }
 }
 
-void draw_pointer_mode(int16_t len, int16_t width, int16_t tu, uint16_t color, const uint8_t* sr, uint16_t alpha, CP_STYLE cps){
-  Vec2 vm = {len,width};
+void draw_pointer_mode(Vec2 vs, Vec2 vts, int16_t tu, uint16_t color, const uint8_t* sr, uint16_t alpha, PSTYLE cps){
   switch(cps){
-    case CPS_NORMAL:
-      lcd_line_deg(vO, tu, len, color, width);
+    case PS_NORMAL:
+      lcd_line_deg(vO, tu, vs.x, color, vs.y);
       break;
-    case CPS_ALPHA:
-      lcd_alpha_line_deg(vO, tu, len, color, width);
+    case PS_ALPHA:
+      lcd_alpha_line_deg(vO, tu, vs.x, color, vs.y);
       break;
-    case CPS_TEXTURE:
-      lcd_blit_deg(vO,vm,tu,sr,alpha,false);
+    case PS_TEXTURE:
+      lcd_blit_deg(vO,vs,vts,tu,sr,alpha,false);
+      break;
+    case PS_BENDER:
+      lcd_blit_deg(vO,vs,vts,90,sr,alpha,true);
       break;
   };
 }
 
-void draw_pointer(int16_t len, int16_t width, int16_t tu, uint16_t color, const uint8_t* sr, uint16_t alpha){
-  draw_pointer_mode(len,width,tu,color,sr,alpha,plosa->cpstyle);
+void draw_pointer(Vec2 vs, Vec2 vts, int16_t tu, uint16_t color, const uint8_t* sr, uint16_t alpha){
+  draw_pointer_mode(vs,vts,tu,color,sr,alpha,plosa->pstyle);
 }
 
 
@@ -1123,24 +1134,33 @@ void draw_gfx(){
     }
   }
 
+  Vec2 dp1 = {128,20};
   // draw minute pointer
   int16_t tu=plosa->dt.min*6;
-  draw_pointer(psize_m[plosa->cpstyle].x,psize_m[plosa->cpstyle].y,tu,colt[plosa->theme_pos]->col_m,w2,BLACK);
+  Vec2 dp0 = {102,10};
+  draw_pointer(dp0,dp1,tu,colt[plosa->theme_pos]->col_m,textures[plosa->texture],BLACK);
 
   if(plosa->pointerdemo){
-    draw_pointer_mode(102,6,flagdeg1, colt[plosa->theme_pos]->col_m,w2,BLACK,CPS_NORMAL);
-    draw_pointer_mode(102,6,flagdeg1a, colt[plosa->theme_pos]->col_m,w2,BLACK,CPS_ALPHA);
-    draw_pointer_mode(105,10,flagdeg1b, colt[plosa->theme_pos]->col_m,w2,BLACK,CPS_TEXTURE);
+    dp0.x=102;dp0.y=6; draw_pointer_mode(dp0,dp1,flagdeg1, colt[plosa->theme_pos]->col_m,textures[plosa->texture],BLACK,PS_NORMAL);
+    dp0.x=102;dp0.y=4; draw_pointer_mode(dp0,dp1,flagdeg1a, colt[plosa->theme_pos]->col_m,textures[plosa->texture],BLACK,PS_ALPHA);
+    dp0.x=102;dp0.y=10;draw_pointer_mode(dp0,dp1,flagdeg1b, colt[plosa->theme_pos]->col_m,textures[1],BLACK,PS_TEXTURE);
   }
   tu=(int16_t)plosa->dt.hour;
   if(tu>=12){tu-=12;}
   tu*=30;
   tu+=(int16_t)(plosa->dt.min>>1);
-  draw_pointer(psize_h[plosa->cpstyle].x,psize_h[plosa->cpstyle].y,tu, colt[plosa->theme_pos]->col_h,w2,BLACK);
+
+  dp0=vset(75, 20);
+  draw_pointer(dp0,dp1,tu, colt[plosa->theme_pos]->col_h,textures[plosa->texture],BLACK);
   if(plosa->pointerdemo){
-    draw_pointer_mode(65,10,flagdeg2, colt[plosa->theme_pos]->col_h,w2,BLACK,CPS_NORMAL);
-    draw_pointer_mode(65,10,flagdeg2a, colt[plosa->theme_pos]->col_h,w2,BLACK,CPS_ALPHA);
-    draw_pointer_mode(75,20,flagdeg2b, colt[plosa->theme_pos]->col_h,w2,BLACK,CPS_TEXTURE);
+    dp0=vset(65,3);draw_pointer_mode(dp0,dp1,flagdeg2, colt[plosa->theme_pos]->col_m,textures[plosa->texture],BLACK,PS_NORMAL);
+    dp0.x=65;dp0.y=5; draw_pointer_mode(dp0,dp1,flagdeg2a, colt[plosa->theme_pos]->col_m,textures[plosa->texture],BLACK,PS_ALPHA);
+    dp0.x=75;dp0.y=20; draw_pointer_mode(dp0,dp1,flagdeg2b, colt[plosa->theme_pos]->col_m,textures[1],BLACK,PS_TEXTURE);
+
+
+    //draw_pointer_mode(65,10,flagdeg2, colt[plosa->theme_pos]->col_h,textures[plosa->texture],BLACK,PS_NORMAL);
+    //draw_pointer_mode(65,10,flagdeg2a, colt[plosa->theme_pos]->col_h,textures[plosa->texture],BLACK,PS_ALPHA);
+    //draw_pointer_mode(75,20,flagdeg2b, colt[plosa->theme_pos]->col_h,textures[plosa->texture],BLACK,PS_TEXTURE);
   }
 
   if(tseco!=plosa->dt.sec){
@@ -1166,7 +1186,7 @@ void draw_gfx(){
         lcd_alpha_on();
         lcd_bez2curve(0,0,(int8_t)(xi/2)+(int8_t)(acc[1]/25.0f),(int8_t)(yi/2)-(int8_t)(acc[0]/25.0f),xi,yi,114,colt[plosa->theme_pos]->col_s,2);
         lcd_alpha_off();
-        if(plosa->cpstyle == CPS_ALPHA){
+        if(plosa->pstyle == PS_ALPHA){
           //lcd_alpha_line(x1,y1, xit, yit, colt[plosa->theme_pos]->col_s, 1);
           lcd_alpha_line_deg(v1, tu, 7, colt[plosa->theme_pos]->col_s, 1);
 
@@ -1175,7 +1195,9 @@ void draw_gfx(){
           //lcd_line(x1,y1, xit, yit, colt[plosa->theme_pos]->col_s, 1);
         }
     }else{
-      draw_pointer(114,1,tu, colt[plosa->theme_pos]->col_s,w2,BLACK);
+      dp0.x=106;dp0.y=1;
+      draw_pointer_mode(vO,dp0,tu, colt[plosa->theme_pos]->col_s,textures[plosa->texture],BLACK,PS_NORMAL);
+
     }
     lcd_blit((int)(x0-8+tcos[plosa->dt.sec*6]*100),(int)(y0-8+tsin[plosa->dt.sec*6]*100),16,16,colt[plosa->theme_pos]->alpha,stars[plosa->theme_pos]);
   }
@@ -1196,6 +1218,8 @@ void draw_gfx(){
   if(plosa->alphapointer){lcd_alpha_off();}
 
   lcd_blit(120-16,120-16,32,32,colt[plosa->theme_pos]->alpha, flags[plosa->theme_pos]); // center
+
+  //draw_pointer_mode(120,20,90, colt[plosa->theme_pos]->col_h,textures[plosa->texture],BLACK,PS_BENDER);
 
   // looks
   //Vec2 vflag_pos = {120-16,120-16};
@@ -1336,7 +1360,9 @@ int main(void)
     sleep_ms(400);  // reboot takes about 1.6 sec. -> increase time by 2sec, wait 0.4sec
     //plosa->spin=1;
     //plosa->gfxmode=GFX_ROTATE;
-    //plosa->pointerdemo=true;
+    plosa->pointerdemo=true;
+    plosa->pstyle=2;
+    plosa->theme_pos=0;
     lcd_init();
     lcd_make_cosin();
     //printf("sin0=%f\n",gcosin(0));
@@ -1512,7 +1538,7 @@ int main(void)
             //Vec2 vbs = {0,0};
 
             Vec2 vbe = {190,190};
-            lcd_blit_deg(vbs,vbe,flagdeg,backgrounds[plosa->theme_pos],colt[plosa->theme_pos]->alpha,true);
+            lcd_blit_deg(vbs,vbe,vbe,flagdeg,backgrounds[plosa->theme_pos],colt[plosa->theme_pos]->alpha,true);
           }else{
             lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,backgrounds[plosa->theme_pos]);
           }
