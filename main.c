@@ -18,10 +18,14 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include <float.h>
 #include "pico/types.h"
 #include "pico/bootrom/sf_table.h"
+#include <stdio.h>
+#include "hardware/i2c.h"
+#include "pico/binary_info.h"
+#include "pico/stdlib.h"
 
 #include "lcd.h"
 #include "QMI8658.h"
-
+//#include "lib/bme280.h"
 //#include "lib/Fonts/fonts.h"
 #include "img/Font34.h"
 #include "img/Font30.h"
@@ -40,6 +44,23 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "img/cn16.h"
 #include "img/ger16.h"
 #include "img/tr16.h"
+//wood texture
+#include "img/w2.h"
+
+typedef enum {
+  GFX_NORMAL,
+  GFX_DYNABG,
+  GFX_ROTOZOOM,
+  GFX_ROTATE,
+} GFX_MODE;
+
+typedef enum {
+  CPS_NORMAL,
+  CPS_ALPHA,
+  CPS_TEXTURE,
+  CPS_BENDER
+} CP_STYLE; //Clock Pointer Style
+
 
 typedef struct Battery_t {
   char mode[8];
@@ -52,11 +73,14 @@ typedef struct Battery_t {
 } Battery_t;
 
 
+
 typedef struct {
   char mode[8];
   datetime_t dt;
-  uint8_t theme_pos;
   Battery_t bat;
+  uint8_t theme_pos;
+  uint8_t editpos;
+  uint8_t BRIGHTNESS;
 
   bool SENSORS;
   bool GYROCROSS;
@@ -64,12 +88,15 @@ typedef struct {
   bool SMOOTH_BACKGROUND;
   bool INSOMNIA;
   bool DYNAMIC_CIRCLES;
-  uint8_t BRIGHTNESS;
   bool DEEPSLEEP;
-
   bool is_sleeping;
-  uint8_t editpos;
-
+  bool highpointer;
+  bool alphapointer;
+  bool clock;
+  bool pointerdemo;
+  GFX_MODE gfxmode;
+  CP_STYLE cpstyle;
+  int16_t spin;
 } LOSA_t;
 
 static LOSA_t* plosa=(LOSA_t*)losabuf;
@@ -85,6 +112,13 @@ datetime_t default_time = {
   .sec   = 0
 };
 
+int16_t flagdeg=90;
+int16_t flagdeg1=30;
+int16_t flagdeg2=60;
+int16_t flagdeg1a=30;
+int16_t flagdeg2a=60;
+int16_t flagdeg1b=130;
+int16_t flagdeg2b=260;
 #define DEFAULT_THEME 0
 // NO_POS_MODE 1 : gyroscope+button control
 #define NO_POS_MODE 1
@@ -98,8 +132,8 @@ datetime_t default_time = {
 #define SLEEP_FRAME_END   30000
 #define SLEEP_FRAME_ADD   100
 
-Battery_t bat0 = {"GOOD\0", 150.0f, 4.16f, 3.38f, 5.55f, 0.0f, 0.0f};
-Battery_t bat1 = {"GOOD\0",1100.0f, 4.19f, 3.30f, 5.55f, 0.0f, 0.0f};
+Battery_t bat0 = {"GOOD\0", 150.0f, 4.16f, 3.325781f, 4.158838f, 0.0f, 0.0f}; // 150mA
+Battery_t bat1 = {"GOOD\0",1100.0f, 4.19f, 3.346729f, 4.189453f, 0.0f, 0.0f}; //1100ma
 
 // add new battery:
 // change the XX below to your value when the battery is loading [the least one]
@@ -174,7 +208,6 @@ float read_battery(){
 #define CNFONT Font30
 
 
-
 #define mcpy(d,s,sz) for(int i=0;i<sz;i++){d[i]=s[i];}
 #define THEMES 4
 
@@ -185,13 +218,11 @@ float read_battery(){
 #define LOOPWAIT 50
 
 #define DRAW_GFX_FIRST true //1 == text floating above clock
-#define to_rad(angleInDegrees) ((angleInDegrees) * M_PI / 180.0)
-#define to_deg(angleInRadians) ((angleInRadians) * 180.0 / M_PI)
 #define HOURGLASSBORDER 200 // minimum rise/fall of acc_x
-#define HOURGLASS 600*(100/LOOPWAIT)  // rise/fall of acc_x border till switch (cw/ccw)
+#define HOURGLASS 1000*(100/LOOPWAIT)  // rise/fall of acc_x border till switch (cw/ccw)
 #define BUTTONGLASSC 300
 #define BUTTONGLASS 1400
-#define SCRSAV 60*(100/LOOPWAIT)
+#define SCRSAV 15*(100/LOOPWAIT)
 #define SCRSAV2 SCRSAV*2
 #define BRIGHTD 20
 #define SWITCH_THEME_DELAY 10
@@ -334,7 +365,7 @@ H  - M - S - DOW
   PosMat_t p_cn = {4,3,pos_matrix_CN};
 
 
-#define USA_Old_Glory_Red 0xB0C8 //0xB31942
+#define USA_Old_Glory_Red  0xB0C8 //0xB31942
 #define USA_Old_Glory_Blue 0x098C //0x0A3161
 
 #define CN_Red 0xE8E4 //0xee1c25
@@ -344,7 +375,6 @@ H  - M - S - DOW
 #define GER_Red 0xF800
 
 #define TR_Red 0xF800
-
 #define THEMES 4
 
 CMode cmode = CM_None;
@@ -357,6 +387,8 @@ const uint8_t* flags[THEMES] = {cn32,usa32,ger32,tr32};
 const uint8_t* stars[THEMES] = {cn16,usa16,ger16,tr16};
 
 const char* backgrounds[THEMES] = {earth190,irisa190,bega,sand};
+const int16_t bgsz[THEMES] = {190,190,240,240};
+
 const bool bg_dynamic[THEMES] = {true,true,false,false};
 
 const uint16_t edit_colors[THEMES] = {ORANGE,YELLOW,ORANGE,ORANGE};
@@ -365,9 +397,9 @@ const uint16_t change_colors[THEMES] = {YELLOW,YELLOW,YELLOW,YELLOW};
 uint8_t theme_bg_dynamic_mode = 0;
 
 ColorTheme_t colt1={BLACK,CN_Red,CN_Red,CN_Gold,CN_Red,CN_Gold,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
-ColorTheme_t colt2={BLACK,USA_Old_Glory_Red,USA_Old_Glory_Blue,WHITE,USA_Old_Glory_Red,WHITE,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
-ColorTheme_t colt3={BLACK,GER_Red,0x0001,GER_Gold,GER_Red,GER_Gold,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
-ColorTheme_t colt4={BLACK,WHITE,TR_Red,WHITE,WHITE,TR_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
+ColorTheme_t colt2={BLACK,USA_Old_Glory_Red,USA_Old_Glory_Blue,NWHITE,USA_Old_Glory_Red,WHITE,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
+ColorTheme_t colt3={BLACK,GER_Red,BLACK,GER_Gold,GER_Red,GER_Gold,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
+ColorTheme_t colt4={BLACK,TR_Red,TR_Red,WHITE,NWHITE,TR_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
 
 ColorTheme_t* colt[THEMES];
 
@@ -380,6 +412,11 @@ void update_pos_matrix(){
   }
 }
 
+Vec2 vO = {120,120};
+Vec2 v0 = {0,0};
+
+Vec2 psize_h[3] = {65,6,65,8,75,20};
+Vec2 psize_m[3] = {102,4,102,4,105,10};
 
 
 uint16_t dcol = WHITE;
@@ -390,11 +427,6 @@ uint16_t colors[8]  = {WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE};
 uint16_t dcolors[8] = {WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE,WHITE};
 
 uint16_t blinker[2] = {BLUE,RED};
-//#define CTM0 360
-//uint16_t ct0=0;
-//uint16_t ct1=0;
-//uint8_t ec_x[7] = {};
-//uint8_t ec_y[7] = {};
 
 typedef enum Dir_t {
   D_NONE = 0,
@@ -407,6 +439,9 @@ Dir_t dir_x;
 Dir_t dir_y;
 uint8_t no_pos_x=0;
 uint8_t no_pos_y=0;
+
+int16_t gyrox=0;
+int16_t gyroy=0;
 
 uint32_t sleep_frame = SLEEP_FRAME_START;
 
@@ -454,7 +489,7 @@ int16_t tpor = 22;
 
 //one button /
 #define CBUT0 22
-#define CBUT1 5
+#define CBUT1 3
 uint32_t nopvar;
 bool fire_pressed=false;
 bool analog_seconds=false;
@@ -497,10 +532,8 @@ char dbuf[8];
 float temperature = -99.99f;
 
 float mag[3];
-bool draw_gfx_first = DRAW_GFX_FIRST;
 bool usb_loading = false;
-
-
+bool draw_gfx_first = DRAW_GFX_FIRST;
 
 float acc[3], gyro[3];
 unsigned int tim_count = 0;
@@ -548,7 +581,17 @@ void __no_inline_not_in_flash_func(flash_data)(){
 }
 
 void check_save_data(){
-  if(!strstr((char*)plosa->mode,"LOAD")){
+  if(strstr((char*)plosa->bat.mode,"GOOD")!=plosa->bat.mode){
+    plosa->bat.mA = bat_default->mA;
+    plosa->bat.load = bat_default->load;
+    plosa->bat.max = bat_default->max;
+    plosa->bat.min = bat_default->min;
+    plosa->bat.dif = bat_default->dif;
+    plosa->bat.read = bat_default->read;
+    sprintf(plosa->bat.mode,"GOOD\0");
+    printf("bat mode reset to defaults='%s'\n",plosa->bat.mode);
+  }
+  if(strstr((char*)plosa->mode,"LOAD")!=plosa->mode){
     plosa->dt.year  = default_time.year ;
     plosa->dt.month = default_time.month;
     plosa->dt.day   = default_time.day  ;
@@ -559,7 +602,14 @@ void check_save_data(){
     plosa->theme_pos = DEFAULT_THEME;
     plosa->editpos = EDITPOSITIONS; //center
     plosa->is_sleeping = false;
+    plosa->highpointer = false;
+    plosa->alphapointer = true;
+    plosa->pointerdemo = false;
+    plosa->cpstyle = CPS_NORMAL;
+    plosa->clock = true;
+    plosa->spin = 1;
     sprintf(plosa->mode,"LOAD\0");
+    printf("settings reset to defaults");
   }else{ // do a few sanity checks
     plosa->dt.sec+=1;
     if(plosa->dt.month > 12 ){plosa->dt.month = default_time.month;}
@@ -570,20 +620,15 @@ void check_save_data(){
     if(plosa->dt.sec   > 59) {plosa->dt.sec   = default_time.sec  ;}
     if(plosa->theme_pos>=THEMES){plosa->theme_pos=0;}
     if(plosa->editpos>EDITPOSITIONS){plosa->editpos=EDITPOSITIONS;}
+    plosa->pointerdemo = false;
+    plosa->cpstyle = CPS_NORMAL;
+    plosa->clock = true;
+    plosa->spin = 1;
     rtc_set_datetime(&plosa->dt);
     printf("mode reset to defaults='%s'\n",plosa->mode);
   }
 
-  if(!strstr((char*)plosa->bat.mode,"GOOD")){
-    plosa->bat.mA = bat_default->mA;
-    plosa->bat.load = bat_default->load;
-    plosa->bat.max = bat_default->max;
-    plosa->bat.min = bat_default->min;
-    plosa->bat.dif = bat_default->dif;
-    plosa->bat.read = bat_default->read;
-    sprintf(plosa->bat.mode,"GOOD\0");
-    printf("bat mode reset to defaults='%s'\n",plosa->bat.mode);
-  }
+
 
 }
 
@@ -733,6 +778,80 @@ void print_font_table(){
   printf("CHARLIST:\n%s\n",ftst);
   cn_chars=fts;
 }
+
+
+bool reserved_addr(uint8_t addr) {
+  return (addr & 0x78) == 0 || (addr & 0x78) == 0x78;
+}
+
+#define AHT15 0x38
+#define I2C0 i2c0
+#define I2C_SDA 4
+#define I2C_SCL 5
+
+
+void i2c_scan(){
+
+  i2c_init(I2C0, 100 * 1000);
+	gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
+	gpio_set_function(I2C_SCL, GPIO_FUNC_I2C);
+	gpio_pull_up(I2C_SDA);
+	gpio_pull_up(I2C_SCL);
+  bi_decl(bi_2pins_with_func(I2C_SDA, I2C_SCL, GPIO_FUNC_I2C));
+	printf("\nI2C Bus Scan\n");
+	printf("   0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\n");
+	for (int addr = 0; addr < (1 << 7); ++addr) {
+			if (addr % 16 == 0) {					printf("%02x ", addr);			}
+			int ret;
+			uint8_t rxdata=0;
+			if (reserved_addr(addr))
+					ret = PICO_ERROR_GENERIC;
+			else
+					ret = i2c_read_blocking(I2C0, addr, &rxdata, 1, false);
+
+			printf(ret < 0 ? "." : "@");
+			printf(addr % 16 == 15 ? "\n" : "  ");
+			//if(ret>=0 && addr==HIH71){has_hih=true;}
+	}
+}
+
+void i2c_read(){
+  uint8_t cmd=0;
+  uint8_t data[6];
+
+  //cmd = 0b11100001; // init
+  cmd = 0xE1; // reset
+  i2c_write_blocking(I2C0, AHT15, &cmd,1, true);
+  sleep_ms(100);
+
+  //cmd = 0b10101100; // read
+  cmd = 0xAC;
+  i2c_write_blocking(I2C0, AHT15, &cmd,1, true);
+  sleep_ms(100);
+  i2c_read_blocking( I2C0, AHT15, &data[0],6, false);
+  printf("0x%02x 0x%02x\n",data[0],data[1]);
+  printf("0x%02x 0x%02x\n",data[2],data[3]);
+  printf("0x%02x 0x%02x\n",data[4],data[5]);
+
+  //uint32_t humidity   = data[1];                          //20-bit raw humidity data
+  //         humidity <<= 8;
+  //         humidity  |= data[2];
+  //         humidity <<= 4;
+  //         humidity  |= data[3] >> 4;
+  //if (humidity > 0x100000) {humidity = 0x100000;}             //check if RH>100, no need to check for RH<0 since "humidity" is "uint"
+  //float hum = ((float)humidity / 0x100000) * 100;
+
+  //uint32_t temperature   = data[3] & 0x0F;                //20-bit raw temperature data
+  //         temperature <<= 8;
+  //         temperature  |= data[4];
+  //         temperature <<= 8;
+  //         temperature  |= data[5];
+
+  //float tem = ((float)temperature / 0x100000) * 200 - 50;
+  //printf("%f %f\n",hum,tem);
+
+}
+
 #define MS 1000
 #define US 1000000
 #define BUTD 500  // delay between possible button presses (default: 500, half of a second)
@@ -743,6 +862,7 @@ uint32_t button0_time=0;
 uint32_t button1_time=0;
 uint32_t button0_dif=0;
 uint32_t button1_dif=0;
+
 void gpio_callback(uint gpio, uint32_t events) {
     if(events&GPIO_IRQ_EDGE_RISE){
       if(gpio==CSW){        osw=true;      }
@@ -804,31 +924,74 @@ void command(char* c){
       char* space = strstr(left," ");
       space[0] = 0;
       char* right = space+1;
-      if(strstr(left,"SENSORS")){   plosa->SENSORS = (bool)atoi(right);}
-      if(strstr(left,"GYROCROSS")){ plosa->GYROCROSS = (bool)atoi(right);}
-      if(strstr(left,"BENDER")){    plosa->SECOND_BENDER = (bool)atoi(right);}
-      if(strstr(left,"SMOOTHBG")){  plosa->SMOOTH_BACKGROUND = (bool)atoi(right);}
-      if(strstr(left,"INSOMNIA")){  plosa->INSOMNIA = (bool)atoi(right);}
-      if(strstr(left,"DYNCIRCLE")){ plosa->DYNAMIC_CIRCLES = (bool)atoi(right);}
-      if(strstr(left,"LIGHT")){     plosa->BRIGHTNESS = (uint8_t)atoi(right);lcd_set_brightness(plosa->BRIGHTNESS);}
-      if(strstr(left,"SLEEPDEEP")){ plosa->DEEPSLEEP = (uint8_t)atoi(right);}
-      if(strstr(left,"BMIN")){ plosa->bat.min = (float)atof(right); }
-      if(strstr(left,"HOUR")){ uint8_t tv = (uint8_t)atoi(right);if(tv>=0&&tv<24){plosa->dt.hour = tv;tc=true;}}
-      if(strstr(left,"MIN")){  uint8_t tv = (uint8_t)atoi(right);if(tv>=0&&tv<60){plosa->dt.min  = tv;tc=true;}}
-      if(strstr(left,"SEC")){  uint8_t tv = (uint8_t)atoi(right);if(tv>=0&&tv<60){plosa->dt.sec  = tv;tc=true;}}
+      if(strstr(left,"sensors")){   plosa->SENSORS = (bool)atoi(right);}
+      if(strstr(left,"gyro")){ plosa->GYROCROSS = (bool)atoi(right);}
+      if(strstr(left,"bender")){    plosa->SECOND_BENDER = (bool)atoi(right);}
+      if(strstr(left,"smooth")){  plosa->SMOOTH_BACKGROUND = (bool)atoi(right);}
+      if(strstr(left,"insomnia")){  plosa->INSOMNIA = (bool)atoi(right);}
+      if(strstr(left,"circle")){ plosa->DYNAMIC_CIRCLES = (bool)atoi(right);}
+      if(strstr(left,"light")){     plosa->BRIGHTNESS = (uint8_t)atoi(right);lcd_set_brightness(plosa->BRIGHTNESS);}
+      if(strstr(left,"deep")){ plosa->DEEPSLEEP = (bool)atoi(right);}
+      if(strstr(left,"high")){ plosa->highpointer = (bool)atoi(right);}
+      if(strstr(left,"alpha")){ plosa->alphapointer = (bool)atoi(right);}
+      if(strstr(left,"cpst")){ plosa->cpstyle = (int16_t)atoi(right);}
+      if(strstr(left,"spin")){ plosa->spin = (int16_t)atoi(right);}
+      if(strstr(left,"clock")){ plosa->clock = (bool)atoi(right);}
+      if(strstr(left,"pointerdemo")){ plosa->pointerdemo = (bool)atoi(right);}
+      if(strstr(left,"theme")){
+        plosa->theme_pos = (uint8_t)atoi(right);
+        if(plosa->theme_pos>=THEMES){
+          plosa->theme_pos=THEMES-1;
+        }
+      }
+      if(strstr(left,"deg")){
+        flagdeg=(int16_t)atoi(right);
+      }
 
-      if(strstr(left,"DAY")){   uint8_t tv = (uint8_t)atoi(right);if(tv>0&&tv<=last[plosa->dt.month]){plosa->dt.day = tv;tc=true;}}
-      if(strstr(left,"MONTH")){ uint8_t tv = (uint8_t)atoi(right);if(tv>0&&tv<13){plosa->dt.month  = tv;tc=true;}}
-      if(strstr(left,"YEAR")){  uint16_t tv = (uint16_t)atoi(right);if(tv>=0){plosa->dt.year  = tv;tc=true;}}
-      if(strstr(left,"DOTW")||strstr(left,"WDAY")){ uint8_t tv = (uint8_t)atoi(right);if(tv>=0&&tv<7){plosa->dt.dotw  = tv;tc=true;}}
+      if(strstr(left,"hour")){ uint8_t tv = (uint8_t)atoi(right);if(tv>=0&&tv<24){plosa->dt.hour = tv;tc=true;}}
+      if(strstr(left,"min")){  uint8_t tv = (uint8_t)atoi(right);if(tv>=0&&tv<60){plosa->dt.min  = tv;tc=true;}}
+      if(strstr(left,"sec")){  uint8_t tv = (uint8_t)atoi(right);if(tv>=0&&tv<60){plosa->dt.sec  = tv;tc=true;}}
+
+      if(strstr(left,"day")){   uint8_t tv = (uint8_t)atoi(right);if(tv>0&&tv<=last[plosa->dt.month]){plosa->dt.day = tv;tc=true;}}
+      if(strstr(left,"mon")){ uint8_t tv = (uint8_t)atoi(right);if(tv>0&&tv<13){plosa->dt.month  = tv;tc=true;}}
+      if(strstr(left,"year")){  uint16_t tv = (uint16_t)atoi(right);if(tv>=0){plosa->dt.year  = tv;tc=true;}}
+      if(strstr(left,"dotw")||strstr(left,"WDAY")){ uint8_t tv = (uint8_t)atoi(right);if(tv>=0&&tv<7){plosa->dt.dotw  = tv;tc=true;}}
       if(tc){rtc_set_datetime(&plosa->dt);}
       return;
     }
-    if(strstr(left,"DYCI0")){plosa->DYNAMIC_CIRCLES=false;printf("DYCI0\n");return;}
-    if(strstr(left,"DYCI1")){plosa->DYNAMIC_CIRCLES=true;printf("DYCI1\n");return;}
-    if(strstr(left,"BATMAX")){ printf("BATMAX: %f\n", plosa->bat.max); return; }
-    if(strstr(left,"BATMIN")){ printf("BATMIN: %f\n", plosa->bat.min); return; }
-    if(strstr(left,"SAVE")){ dosave(); }
+    if(strstr(left,"cir0")){plosa->DYNAMIC_CIRCLES=false;printf("DYCI0\n");return;}
+    if(strstr(left,"cir1")){plosa->DYNAMIC_CIRCLES=true;printf("DYCI1\n");return;}
+    if(strstr(left,"batmax")){ printf("BATMAX: %f\n", plosa->bat.max); return; }
+    if(strstr(left,"batmin")){ printf("BATMIN: %f\n", plosa->bat.min); return; }
+    if(strstr(left,"save")){ dosave(); }
+    //if(strstr(left,"read")){ uint8_t data[4]; i2c_read((uint8_t*)&data); }
+    //if(strstr(left,"scan")){ i2c_scan(); }
+    if(strstr(left,"rota")){ plosa->gfxmode=GFX_ROTATE;}
+    if(strstr(left,"roto")){ plosa->gfxmode=GFX_ROTOZOOM;}
+    if(strstr(left,"norm")){ plosa->gfxmode=GFX_NORMAL;}
+    if(strstr(left,"stat")){
+      if(plosa->theme_pos>=THEMES){plosa->theme_pos=0;}
+      if(plosa->editpos>7){plosa->editpos=0;}
+      if(plosa->dt.dotw>6){plosa->dt.dotw=0;}
+
+      printf("\n- STATUS -\n\nmode[8]: %s\n",plosa->mode);
+      printf("dt: %02d:%02d:%04d\n",plosa->dt.day,plosa->dt.month,plosa->dt.year);
+      printf("dt: %s %02d:%02d:%02d\n",week[plosa->theme_pos][plosa->dt.dotw],plosa->dt.hour,plosa->dt.min,plosa->dt.sec);
+      printf("bat: %s %fmA [%d] %fmax %fmin\n", plosa->bat.mode,plosa->bat.mA,(plosa->bat.load)?1:0,plosa->bat.max,plosa->bat.min);
+      printf("editpos: %d\n",plosa->editpos);
+      printf("theme_pos: %d\n",plosa->theme_pos);
+      printf("BRIGHTNESS : %d\n",plosa->BRIGHTNESS);
+
+      printf("is_sleeping: %s\n",(plosa->is_sleeping)?"1":"0");
+      printf("SENSORS: %s\n",plosa->SENSORS?"1":"0");
+      printf("GYROCROSS: %s\n",plosa->GYROCROSS?"1":"0");
+      printf("SECOND_BENDER: %s\n",plosa->SECOND_BENDER?"1":"0");
+      printf("SMOOTH_BACKGROUND: %s\n",plosa->SMOOTH_BACKGROUND?"1":"0");
+      printf("INSOMNIA : %s\n",plosa->INSOMNIA?"1":"0");
+      printf("DYNAMIC_CIRCLES: %s\n",plosa->DYNAMIC_CIRCLES?"1":"0");
+      printf("DEEPSLEEP: %s\n",plosa->DEEPSLEEP?"1":"0");
+      printf("HIGHPOINTER: %s\n",plosa->highpointer?"1":"0");
+    }
     if(strstr(left,"SNAPSHOT")){
       //printf("-----------------------> CUT HERE <---------------------\n\nuint8_t imagedata[138+  240*240*2] = {\n");
       if(b0==NULL){return;}
@@ -849,9 +1012,9 @@ void command(char* c){
         putchar_raw(b0[i+1]);
         putchar_raw(b0[i]);
       }
+      stdio_flush();
+      //stdio_usb_init();
     }
-    stdio_flush();
-    stdio_usb_init();
 }
 
 void shell(){
@@ -882,12 +1045,36 @@ void fx_circle(uint16_t x, uint16_t y, uint16_t r, uint16_t c, uint16_t ps, uint
   }
 }
 
+void draw_pointer_mode(int16_t len, int16_t width, int16_t tu, uint16_t color, const uint8_t* sr, uint16_t alpha, CP_STYLE cps){
+  Vec2 vm = {len,width};
+  switch(cps){
+    case CPS_NORMAL:
+      lcd_line_deg(vO, tu, len, color, width);
+      break;
+    case CPS_ALPHA:
+      lcd_alpha_line_deg(vO, tu, len, color, width);
+      break;
+    case CPS_TEXTURE:
+      lcd_blit_deg(vO,vm,tu,sr,alpha,false);
+      break;
+  };
+}
+
+void draw_pointer(int16_t len, int16_t width, int16_t tu, uint16_t color, const uint8_t* sr, uint16_t alpha){
+  draw_pointer_mode(len,width,tu,color,sr,alpha,plosa->cpstyle);
+}
+
+
 void draw_gfx(){
   uint8_t x1,y1,xt,yt;
   uint8_t x0=120;
   uint8_t y0=120;
-
+  if(!plosa->clock){return;}
+  // battery display
   lcd_frame(POS_BAT_X    ,POS_BAT_Y,   POS_BAT_X+102+(POS_BAT_PS<<1), POS_BAT_Y+POS_BAT_YS, BLUE, POS_BAT_PS); // frame
+  lcd_line(POS_BAT_X-1    ,POS_BAT_Y+1, POS_BAT_X-1    ,POS_BAT_Y+POS_BAT_YS-2,BLUE,1);// round end
+  lcd_line(POS_BAT_X+102+(POS_BAT_PS<<1)    ,POS_BAT_Y+1, POS_BAT_X+102+(POS_BAT_PS<<1)    ,POS_BAT_Y+POS_BAT_YS-2,BLUE,1); //round end
+  lcd_yline(POS_BAT_X+103+(POS_BAT_PS<<1)    ,POS_BAT_Y+POS_BAT_YS/2-2,4,__builtin_bswap16(BLUE),2);  //+
   //printf("bat: %f %f %f %f\n",plosa->bat.read,plosa->bat.max, plosa->bat.min, plosa->bat.dif);
   float bat_dif = ( plosa->bat.dif - (plosa->bat.max - plosa->bat.read ) );
   if(bat_dif<0.0f){bat_dif=0.0f;}
@@ -906,7 +1093,7 @@ void draw_gfx(){
     sprintf(dbuf,"LOADING",bat);
   }
   lcd_str(94, 12, dbuf, &Font12, level_color, BLACK);
-  //lcd_str(94, 12, dbuf, &Font34);
+
   if(plosa->SENSORS){
     if((plosa->dt.sec==0||plosa->dt.sec==30)&&(!temp_read)){
       temperature = QMI8658_readTemp();
@@ -919,47 +1106,49 @@ void draw_gfx(){
   //printf("gyro_x  = %4.3fdps, gyro_y = %4.3fdps, gyro_z = %4.3fdps\r\n", gyro[0], gyro[1], gyro[2]);
   //printf("tim_count = %d\r\n", tim_count);
   int xi,yi;
-  for(uint16_t i=0;i<60;i++){
-    xi = (int)(tcos[i*6]*120);
-    yi = (int)(tsin[i*6]*120);
-    x1 = (uint8_t)x0+xi;
-    y1 = (uint8_t)y0+yi;
+  Vec2 vc_s,vc_e;
+  for(int16_t i=0;i<60;i++){
+    vc_e = gvdl(i*6,119);
+    vc_e = vadd(vc_e,vO);
     if(!(i%5)){
-      xi = (int)(tcos[i*6]*110);
-      yi = (int)(tsin[i*6]*110);
-      lcd_line((uint8_t)x0+xi,(uint8_t)y0+yi, x1, y1, colt[plosa->theme_pos]->col_cs5, 1);
+      vc_s = gvdl(i*6,110);
+      vc_s = vadd(vc_s,vO);
+      lcd_linev2(vc_s,vc_e, colt[plosa->theme_pos]->col_cs, 1);
+
     }else{
-      xi = (int)(tcos[i*6]*115);
-      yi = (int)(tsin[i*6]*115);
-      lcd_line((uint8_t)x0+xi,(uint8_t)y0+yi, x1, y1, colt[plosa->theme_pos]->col_cs, 1);
+      vc_s = gvdl(i*6,115);
+      vc_s = vadd(vc_s,vO);
+      lcd_linev2(vc_s,vc_e, colt[plosa->theme_pos]->col_cs5, 1);
+
     }
   }
-  xi = (int)(tcos[plosa->dt.min*6]*105);
-  yi = (int)(tsin[plosa->dt.min*6]*105);
-  x1 = (uint8_t)x0+xi;
-  y1 = (uint8_t)y0+yi;
-  lcd_line(x0,y0, x1, y1, colt[plosa->theme_pos]->col_m, 3);
 
-  int th=(int)plosa->dt.hour;
-  if(th>=12){th-=12;}
-  th*=30;
-  th+=(int)(plosa->dt.min>>1);
-  xi = (int)(tcos[th]*64);
-  yi = (int)(tsin[th]*64);
-  x1 = (uint8_t)x0+xi;
-  y1 = (uint8_t)y0+yi;
-  lcd_line(x0,y0, x1, y1, colt[plosa->theme_pos]->col_h, 5);
+  // draw minute pointer
+  int16_t tu=plosa->dt.min*6;
+  draw_pointer(psize_m[plosa->cpstyle].x,psize_m[plosa->cpstyle].y,tu,colt[plosa->theme_pos]->col_m,w2,BLACK);
+
+  if(plosa->pointerdemo){
+    draw_pointer_mode(102,6,flagdeg1, colt[plosa->theme_pos]->col_m,w2,BLACK,CPS_NORMAL);
+    draw_pointer_mode(102,6,flagdeg1a, colt[plosa->theme_pos]->col_m,w2,BLACK,CPS_ALPHA);
+    draw_pointer_mode(105,10,flagdeg1b, colt[plosa->theme_pos]->col_m,w2,BLACK,CPS_TEXTURE);
+  }
+  tu=(int16_t)plosa->dt.hour;
+  if(tu>=12){tu-=12;}
+  tu*=30;
+  tu+=(int16_t)(plosa->dt.min>>1);
+  draw_pointer(psize_h[plosa->cpstyle].x,psize_h[plosa->cpstyle].y,tu, colt[plosa->theme_pos]->col_h,w2,BLACK);
+  if(plosa->pointerdemo){
+    draw_pointer_mode(65,10,flagdeg2, colt[plosa->theme_pos]->col_h,w2,BLACK,CPS_NORMAL);
+    draw_pointer_mode(65,10,flagdeg2a, colt[plosa->theme_pos]->col_h,w2,BLACK,CPS_ALPHA);
+    draw_pointer_mode(75,20,flagdeg2b, colt[plosa->theme_pos]->col_h,w2,BLACK,CPS_TEXTURE);
+  }
 
   if(tseco!=plosa->dt.sec){
     tseco=plosa->dt.sec;
     stime = time_us_32();
-    //printf("bat-result: %f\n",(result[resulti] * conversion_factor));
-
-    //dpsc = dps;
-    //dps = 0;
   }
+  tu=plosa->dt.sec*6;
 
-  //printf("st: %d\n",st);
   if(!analog_seconds){
     // 'jump' seconds
     xi = (int8_t)(tcos[plosa->dt.sec*6]*114);
@@ -973,25 +1162,54 @@ void draw_gfx(){
         yi = (int8_t)(tsin[plosa->dt.sec*6]*106);
         x1 = (uint8_t)x0+xi;
         y1 = (uint8_t)y0+yi;
+        Vec2 v1={x1,y1};
+        lcd_alpha_on();
         lcd_bez2curve(0,0,(int8_t)(xi/2)+(int8_t)(acc[1]/25.0f),(int8_t)(yi/2)-(int8_t)(acc[0]/25.0f),xi,yi,114,colt[plosa->theme_pos]->col_s,2);
-        lcd_line(x1,y1, xit, yit, colt[plosa->theme_pos]->col_s, 1);
+        lcd_alpha_off();
+        if(plosa->cpstyle == CPS_ALPHA){
+          //lcd_alpha_line(x1,y1, xit, yit, colt[plosa->theme_pos]->col_s, 1);
+          lcd_alpha_line_deg(v1, tu, 7, colt[plosa->theme_pos]->col_s, 1);
+
+        }else{
+          lcd_line_deg(v1, tu, 7, colt[plosa->theme_pos]->col_s, 1);
+          //lcd_line(x1,y1, xit, yit, colt[plosa->theme_pos]->col_s, 1);
+        }
     }else{
-      lcd_line(x0,y0, x1, y1, colt[plosa->theme_pos]->col_s, 1);
+      draw_pointer(114,1,tu, colt[plosa->theme_pos]->col_s,w2,BLACK);
     }
-    lcd_blit((int)(x0-8+tcos[plosa->dt.sec*6]*102),(int)(y0-8+tsin[plosa->dt.sec*6]*102),16,16,colt[plosa->theme_pos]->alpha,stars[plosa->theme_pos]);
-  }else{
-    uint32_t st = time_us_32();
-    st-=stime;
-    st=st/US; //micro-seconds
-    // 'analog' seconds
-    xi = (int)(tfcos[plosa->dt.sec*10+st]*114);
-    yi = (int)(tfsin[plosa->dt.sec*10+st]*114);
-    x1 = (uint8_t)x0+xi;
-    y1 = (uint8_t)y0+yi;
-    lcd_line(x0,y0, x1, y1, colt[plosa->theme_pos]->col_s, 1);
-    lcd_blit((int)(x0-8+tfcos[plosa->dt.sec*10+st]*102),(int)(y0-8+tfsin[plosa->dt.sec*10+st]*102),16,16,colt[plosa->theme_pos]->alpha,stars[plosa->theme_pos]);
+    lcd_blit((int)(x0-8+tcos[plosa->dt.sec*6]*100),(int)(y0-8+tsin[plosa->dt.sec*6]*100),16,16,colt[plosa->theme_pos]->alpha,stars[plosa->theme_pos]);
   }
+  //else{
+  //  uint32_t st = time_us_32();
+  //  st-=stime;
+  //  st=st/US; //micro-seconds
+  //  // 'analog' seconds
+  //  xi = (int)(tfcos[plosa->dt.sec*10+st]*114);
+  //  yi = (int)(tfsin[plosa->dt.sec*10+st]*114);
+  //  x1 = (uint8_t)x0+xi;
+  //  y1 = (uint8_t)y0+yi;
+  //  lcd_line(x0,y0, x1, y1, colt[plosa->theme_pos]->col_s, 1);
+  //
+  //  lcd_blit((int)(x0-9+tfcos[plosa->dt.sec*10+st]*100),(int)(y0-9+tfsin[plosa->dt.sec*10+st]*100),16,16,colt[plosa->theme_pos]->alpha,stars[plosa->theme_pos]);
+  //}
+
+  if(plosa->alphapointer){lcd_alpha_off();}
+
   lcd_blit(120-16,120-16,32,32,colt[plosa->theme_pos]->alpha, flags[plosa->theme_pos]); // center
+
+  // looks
+  //Vec2 vflag_pos = {120-16,120-16};
+  //Vec2 vflag = {32,32};
+  //lcd_blit_deg(vflag_pos,vflag,flagdeg,flags[plosa->theme_pos],colt[plosa->theme_pos]->alpha); // center
+  if(plosa->spin!=0){
+    flagdeg = gdeg(flagdeg+plosa->spin);
+    flagdeg1  = gdeg(flagdeg1 +plosa->spin+(gyrox>>3));
+    flagdeg2  = gdeg(flagdeg2 -plosa->spin*7);
+    flagdeg1a = gdeg(flagdeg1a-plosa->spin*2);
+    flagdeg2a = gdeg(flagdeg2a+plosa->spin*5);
+    flagdeg1b = gdeg(flagdeg1b-plosa->spin);
+    flagdeg2b = gdeg(flagdeg2b+plosa->spin*7);
+  }
   // graphical view of x/y gyroscope
   if(plosa->GYROCROSS){
     #define GSPX 120
@@ -1113,19 +1331,23 @@ int main(void)
     stdio_init_all();
 
     check_save_data(); // init
-    //print_losa();
-
     //bool init=false;
     //bool fixed=false;
     sleep_ms(400);  // reboot takes about 1.6 sec. -> increase time by 2sec, wait 0.4sec
-
+    //plosa->spin=1;
+    //plosa->gfxmode=GFX_ROTATE;
+    //plosa->pointerdemo=true;
     lcd_init();
+    lcd_make_cosin();
+    //printf("sin0=%f\n",gcosin(0));
     puts("stdio init");
     lcd_set_brightness(plosa->BRIGHTNESS);
     puts("lcd init");
     printf("%02d-%02d-%04d %02d:%02d:%02d [%d]\n",plosa->dt.day,plosa->dt.month,plosa->dt.year,plosa->dt.hour,plosa->dt.min,plosa->dt.sec,plosa->dt.dotw);
     printf("mode='%s'\n",plosa->mode);
+
     b0 = malloc(LCD_SZ);
+    if(b0==0){printf("b0==0!\n");}
     uint32_t o = 0;
     lcd_setimg((uint16_t*)b0);
     //printf("INIT: %b FIXED: %b [%08x] mode='%s'\n",init,fixed,plosa,plosa->mode);
@@ -1152,16 +1374,20 @@ int main(void)
     gpio_set_irq_enabled(CBUT0, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     gpio_set_irq_enabled(CBUT1, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     //gpio_pull_up(CBUT);
+    //i2c_scan();
     rtc_init();
+    printf("init realtime clock\n");
     rtc_set_datetime(&plosa->dt);
+    printf("init realtime clock done\n");
     if(!(plosa->dt.year%4)){last[2]=29;}else{last[2]=28;}
-
-    //set_colt_colors();
-    set_dcolors(); // are set from dcolors so set em first
-    //copy_pos_matrix(theme_pos);
-
     QMI8658_init();
     printf("QMI8658_init\r\n");
+
+    //set_colt_colors();
+    //set_dcolors(); // are set from dcolors so set em first
+    //copy_pos_matrix(theme_pos);
+    //command("scan");
+    //command("stat");
 
     for(uint16_t i=0;i<360;i++){
       float f = (float)i;
@@ -1176,10 +1402,14 @@ int main(void)
     acc[0]=0.0f;
     acc[1]=0.0f;
     acc[2]=0.0f;
-    //bez2init(&bez);
 
+    command("stat");
+    bool qmis = false;
     while(true){
-      QMI8658_read_xyz(acc, gyro, &tim_count);
+      qmis = !qmis;
+      if(qmis){
+        QMI8658_read_xyz(acc, gyro, &tim_count);
+      }
       //check if not moving
       #define GYRMAX 300.0f
       #define ACCMAX 500.0f
@@ -1197,7 +1427,7 @@ int main(void)
         lcd_set_brightness(plosa->BRIGHTNESS);
         lcd_sleepoff();
       }
-      if((acc[2]>0&&last_z<0)||(acc[2]<0&&last_z>0)){no_moveshake=true;}  // coin-flipped
+      //if((acc[2]>0&&last_z<0)||(acc[2]<0&&last_z>0)){no_moveshake=true;}  // coin-flipped
       last_z=acc[2];
       if(no_moveshake){
         if(!plosa->is_sleeping && cmode==CM_None && !(usb_loading|plosa->INSOMNIA)){
@@ -1249,36 +1479,52 @@ int main(void)
         }
       }
 
+      for(int i=0;i<LCD_SZ;i++){b0[i]=0x00;}
 
+      if(plosa->gfxmode==GFX_NORMAL||plosa->gfxmode==GFX_ROTATE){
+        if(bg_dynamic[plosa->theme_pos]){ // dynamic background
+          int8_t xa = (int8_t)(acc[1]/50.0f);
+          int8_t ya = (int8_t)(acc[0]/50.0f);
+          if(xa>EYE_MAX){xa=EYE_MAX;}
+          if(xa<-EYE_MAX){xa=-EYE_MAX;}
+          if(ya>EYE_MAX){ya=EYE_MAX;}
+          if(ya<-EYE_MAX){ya=-EYE_MAX;}
+          if(plosa->SMOOTH_BACKGROUND){
+            xoldt = xa;
+            yoldt = ya;
+            xa+=xold;
+            ya+=yold;
+            xa>>=1;
+            ya>>=1;
+            xold = xoldt;
+            yold = yoldt;
+          }
+          if(xa >18){xa= 18;}
+          if(ya >18){ya= 18;}
+          if(xa<-18){xa=-18;}
+          if(ya<-18){ya=-18;}
+          gyrox=xa;
+          gyroy=ya;
+          //printf("xya: %d %d\n",xa,ya);
+          if(plosa->gfxmode==GFX_ROTATE){
+            //printf("XAYA: %d %d\n",xa,ya);
+            Vec2 vbs = {120-95+xa,120-95-ya};
+            //Vec2 vbs = {0,0};
 
-      if(bg_dynamic[plosa->theme_pos]){ // dynamic background
-        for(int i=0;i<LCD_SZ;i++){b0[i]=0x00;}
-        int8_t xa = (int8_t)(acc[1]/50.0f);
-        int8_t ya = (int8_t)(acc[0]/50.0f);
-        if(xa>EYE_MAX){xa=EYE_MAX;}
-        if(xa<-EYE_MAX){xa=-EYE_MAX;}
-        if(ya>EYE_MAX){ya=EYE_MAX;}
-        if(ya<-EYE_MAX){ya=-EYE_MAX;}
-        if(plosa->SMOOTH_BACKGROUND){
-          xoldt = xa;
-          yoldt = ya;
-          xa+=xold;
-          ya+=yold;
-          xa>>=1;
-          ya>>=1;
-          xold = xoldt;
-          yold = yoldt;
-        }
-        if(xa>20){xa=20;}
-        if(ya>20){ya=20;}
-        if(xa<-20){xa=-20;}
-        if(ya<-20){ya=-20;}
-        //printf("xya: %d %d\n",xa,ya);
-        lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,backgrounds[plosa->theme_pos]);
-      }else{
+            Vec2 vbe = {190,190};
+            lcd_blit_deg(vbs,vbe,flagdeg,backgrounds[plosa->theme_pos],colt[plosa->theme_pos]->alpha,true);
+          }else{
+            lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,backgrounds[plosa->theme_pos]);
+          }
+        }else{
           mcpy(b0,backgrounds[plosa->theme_pos],LCD_SZ);
+        }
+      }else if(plosa->gfxmode==GFX_ROTOZOOM){
+        lcd_roto(backgrounds[plosa->theme_pos],bgsz[plosa->theme_pos],bgsz[plosa->theme_pos]);
+        lcd_rotoa();
       }
-      //dps++;
+
+
       uint8_t save_sec = plosa->dt.sec;
       uint8_t save_min = plosa->dt.min;
       if(cmode!=CM_Editpos || plosa->editpos==7 ){
@@ -1520,7 +1766,7 @@ int main(void)
       }
 
       if(!theme_bg_dynamic_mode){
-        if(draw_gfx_first||cmode==CM_Editpos){
+        if(!plosa->highpointer||cmode==CM_Editpos){
           draw_gfx();
           draw_text();
         }else{
@@ -1533,12 +1779,15 @@ int main(void)
       if(SHELL_ENABLED){
         shell();
       }
-      uint32_t atime = time_us_32();
-      uint32_t wtime = ((atime-last_wait)/100000);
-      last_wait = atime;
-      //printf("wt= %d [%d]\n",wtime,FRAME_DELAY-wtime);
-      if(wtime>=FRAME_DELAY){wtime=FRAME_DELAY-1;}
-      sleep_ms(FRAME_DELAY-wtime);
+      //Vec2 vs = {120,120};
+      //Vec2 ve = {32,32};
+      //lcd_blit_deg(vs,ve,deg,usa32);
+      //uint32_t atime = time_us_32();
+      //uint32_t wtime = ((atime-last_wait)/100000);
+      //last_wait = atime;
+      ////printf("wt= %d [%d]\n",wtime,FRAME_DELAY-wtime);
+      //if(wtime>=FRAME_DELAY){wtime=FRAME_DELAY-1;}
+      //sleep_ms(FRAME_DELAY-wtime);
     }
     return 0;
 }

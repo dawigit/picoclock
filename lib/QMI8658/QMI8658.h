@@ -501,9 +501,12 @@ enum QMI8658_WakeOnMotionThreshold
     QMI8658WomThreshold_low = 32    /*!< Low threshold - small motion needed to wake. */
 };
 
+#define QMI8658_Reset 0x60
+
 extern unsigned char QMI8658_write_reg(unsigned char reg, unsigned char value);
 extern unsigned char QMI8658_read_reg(unsigned char reg, unsigned char *buf, unsigned short len);
 extern unsigned char QMI8658_init(void);
+extern unsigned char QMI8658_reset(void);
 extern void QMI8658_Config_apply(struct QMI8658Config const *config);
 extern void QMI8658_enableSensors(unsigned char enableFlags);
 extern void QMI8658_read_acc_xyz(float acc_xyz[3]);
@@ -517,5 +520,12 @@ extern unsigned char QMI8658_readStatus1(void);
 extern float QMI8658_readTemp(void);
 extern void QMI8658_enableWakeOnMotion(void);
 extern void QMI8658_disableWakeOnMotion(void);
+
+void DEV_I2C_Write_Byte(uint8_t addr, uint8_t reg, uint8_t Value);
+void DEV_I2C_Write_Register(uint8_t addr, uint8_t reg, uint16_t value);
+void DEV_I2C_Write_nByte(uint8_t addr, uint8_t *pData, uint32_t Len);
+uint8_t DEV_I2C_Read_Byte(uint8_t addr, uint8_t reg);
+void DEV_I2C_Read_Register(uint8_t addr, uint8_t reg, uint16_t *value);
+void DEV_I2C_Read_nByte(uint8_t addr, uint8_t reg, uint8_t *pData, uint32_t Len);
 
 #endif

@@ -593,8 +593,14 @@ void QMI8658_Config_apply(struct QMI8658Config const *config)
 	QMI8658_enableSensors(fisSensors);
 }
 
+unsigned char QMI8658_reset(void){
+	QMI8658_write_reg(QMI8658_Reset, 0x01);
+}
+
 unsigned char QMI8658_init(void)
 {
+	QMI8658_reset();
+	sleep_ms(100);
 	unsigned char QMI8658_chip_id = 0x00;
 	unsigned char QMI8658_revision_id = 0x00;
 	unsigned char QMI8658_slave[2] = {QMI8658_SLAVE_ADDR_L, QMI8658_SLAVE_ADDR_H};

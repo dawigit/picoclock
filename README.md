@@ -38,6 +38,7 @@ Find the '--address' with:
 `cd picoclock;mkdir build;cd build;cmake ..;make`
 
 ### News
+- added textured pointers
 - added alpha pointers
 - added rotating background (themes 0,1)
 - added rotozoom (from hagl [https://github.com/tuupola/hagl]) (cannon travel!)
@@ -72,6 +73,7 @@ Find the '--address' with:
 - 'high'		[highpointer: pointer above text]
 - 'alpha'		[alpha pointers]
 - 'clock'		[shows/hides analog clock]
+- 'pointerdemo' [enables/disables clock pointer demo]
 
 #### non boolean values
 - 'theme'		[set theme (0-3)]
@@ -85,6 +87,7 @@ Find the '--address' with:
 - 'day'			[set day (1-31)]
 - 'spin'		[set degrees (-359,0,359) +/- when 'rota' is eanbled]
 - 'deg'			[set the degree when (0-359) 'rota' is enabled]
+- 'cpst'    [set clock pointer style (0-2) normal,alpha,texture]
 
 #### no args
 - 'cir0'		[dynamic circle off]

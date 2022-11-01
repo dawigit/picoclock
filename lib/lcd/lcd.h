@@ -1,13 +1,14 @@
 #ifndef __GCLCD_H
 #define __GCLCD_H
 
+
 #include <stdlib.h>
 #include "stdio.h"
 #include "hardware/adc.h"
 #include "hardware/spi.h"
 #include "hardware/i2c.h"
 #include "hardware/pwm.h"
-#include<math.h>
+#include <math.h>
 
 #define SPI_PORT spi1
 #define I2C_PORT i2c1
@@ -52,10 +53,22 @@
 #define GRAY           0X8430
 #define LGRAY          0X8551
 #define NBLACK         0x0821
+#define NWHITE         0xFFFE
 
 #define IMAGE_BACKGROUND    WHITE
 #define FONT_FOREGROUND     BLACK
 #define FONT_BACKGROUND     WHITE
+
+#define PI 3.14159265
+#define PIdi (3.14159265/180)
+
+#define DEGS 360
+#define mdeg (DEGS/60)
+#define sdeg (DEGS/60)
+#define hdeg (DEGS/12)
+
+#define to_rad(angleInDegrees) ((angleInDegrees) * M_PI / 180.0)
+#define to_deg(angleInRadians) ((angleInRadians) * 180.0 / M_PI)
 
 
 typedef struct _tFont
@@ -95,9 +108,10 @@ typedef struct Bez2_t {
   bool init;
 } Bez2_t;
 
-
-
-
+typedef struct Vec2{
+  int16_t x;
+  int16_t y;
+} Vec2;
 
 void lcd_init();
 
@@ -119,6 +133,7 @@ void lcd_setimg(uint16_t* image);
 void lcd_copyalpha(uint16_t* dst, uint16_t* src, uint8_t xs, uint8_t ys, uint16_t alpha);
 void lcd_blit(uint8_t x, uint8_t y, uint8_t xs, uint8_t ys, uint16_t alpha, const uint8_t* src);
 void lcd_line(uint8_t xs, uint8_t ys, uint8_t xe, uint8_t ye, uint16_t color, uint8_t ps);
+void lcd_aline(uint8_t xs, uint8_t ys, uint8_t xe, uint8_t ye, uint16_t color, uint8_t ps);
 void lcd_char(uint8_t x, uint8_t y, uint8_t c, sFONT* font, uint16_t cf, uint16_t cb, bool cn);
 void lcd_str(uint8_t x, uint8_t y, char* data, sFONT* font, uint16_t cf, uint16_t cb);
 void lcd_strc(uint8_t x, uint8_t y, char* data, sFONT* font, uint16_t cf, uint16_t cb);
@@ -159,7 +174,33 @@ void lcd_bez3circ(int16_t x, int16_t y, int16_t r,uint16_t color, int16_t ps, in
 
 void lcd_bez3curver(int16_t* rx, int16_t* ry, int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3, int16_t f, int16_t fr);
 void lcd_bez2curver(int16_t* rx, int16_t* ry, int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t fr);
+void lcd_alpha_on();
+void lcd_alpha_off();
+void lcd_alpha_line(uint8_t xs, uint8_t ys, uint8_t xe, uint8_t ye, uint16_t color, int16_t ps);
+void lcd_apixel_raw(uint16_t X, uint16_t Y, uint16_t color);
+uint16_t lcd_darker(uint16_t c);
+void lcd_make_cosin();
+void lcd_line_deg(Vec2 vs, int16_t deg, int16_t l, uint16_t color, int16_t ps);
+void lcd_alpha_line_deg(Vec2 vs, int16_t deg, int16_t l, uint16_t color, int16_t ps);
+void lcd_alpha_line2(Vec2 v0, Vec2 v1, Vec2 v2, Vec2 v3, uint16_t color);
+Vec2* lcd_linev2list(Vec2 ve, int16_t* rsret);
+void lcd_linev2(Vec2 vs, Vec2 ve, uint16_t color, int16_t ps);
 
-uint8_t slice_num;
+Vec2 gvdl(int16_t deg, int16_t l);
+void gxyld(int16_t* x, int16_t* y, uint16_t l, uint16_t deg);
+Vec2 gvdl(int16_t deg, int16_t l);
+Vec2 vadd(Vec2 a, Vec2 b);
+Vec2 vsub(Vec2 a, Vec2 b);
+int16_t gdeg(int16_t d);
+void fxyd(float* x, float* y, int16_t deg);
+
+void lcd_roto(const uint8_t* src, int16_t w, int16_t h);
+void lcd_rotoa();
+void lcd_blit_deg(Vec2 vs, Vec2 ve, int16_t deg, const uint8_t* src, uint16_t alpha, bool centric);
+Vec2 vrot(Vec2 v, int16_t deg);
+
+//uint16_t lcd_lighter(uint16_t c);
+extern uint8_t slice_num;
+extern int16_t rotox,rotoy;
 
 #endif //__GC9A01_H
