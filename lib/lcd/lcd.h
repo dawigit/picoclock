@@ -31,6 +31,8 @@
 
 #define LCD_W 240
 #define LCD_H 240
+#define LCD_W2 120
+#define LCD_H2 120
 #define LCD_SZ LCD_W*LCD_H*2
 
 #define HORIZONTAL 0
@@ -200,6 +202,7 @@ void lcd_rotoa();
 void lcd_blit_deg(Vec2 vs, Vec2 ve, Vec2 vts, int16_t deg, const uint8_t* src, uint16_t alpha,bool centric);
 Vec2 vrot(Vec2 v, int16_t deg);
 Vec2 vset(int16_t x, int16_t y);
+int16_t chkdeg(int16_t d);
 //uint16_t lcd_lighter(uint16_t c);
 extern uint8_t slice_num;
 extern int16_t rotox,rotoy;

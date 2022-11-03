@@ -1364,3 +1364,10 @@ void lcd_blit_deg(Vec2 vs, Vec2 ve, Vec2 vts, int16_t deg, const uint8_t* src, u
   free(pvx);
   free(pvy);
 }
+
+
+inline int16_t chkdeg(int16_t d){
+  if(d<0)     {d+=360;}
+  if(d>=360)  {d-=360;}
+  return d;
+}

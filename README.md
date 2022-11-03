@@ -20,9 +20,8 @@ The images/fonts are in the ./img folder.
 The file 'img2data.md' contains shell scripts for converting image data and fonts into header files.
 
 #### Problems, bugs, tbd:
-
-- analog seconds (pointer) not working properly
 - battery display has to be adjusted depending on battery (still testing)
+- some crashes result in pico freezing at QMI8658_init() - remove battery
 
 ## To flash the image
 
@@ -38,6 +37,9 @@ Find the '--address' with:
 `cd picoclock;mkdir build;cd build;cmake ..;make`
 
 ### News
+- added config (next to center, opposite dotw)
+- added more textures
+- removed pointerdemo
 - added textured pointers
 - added alpha pointers
 - added rotating background (themes 0,1)
@@ -73,7 +75,6 @@ Find the '--address' with:
 - 'high'		[highpointer: pointer above text]
 - 'alpha'		[alpha pointers]
 - 'clock'		[shows/hides analog clock]
-- 'pointerdemo' [enables/disables clock pointer demo]
 
 #### non boolean values
 - 'theme'		[set theme (0-3)]
@@ -107,3 +108,6 @@ Find the '--address' with:
 - added bez2/3 curves
 - added dynamic circles
 - also added a few testing functions for bezier curves [they show all the lines, bigger dots]
+- icons from icons8
+- textures from opengameart.org (most of them)
+- images from wikimedia.org
