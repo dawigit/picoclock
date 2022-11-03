@@ -1,6 +1,8 @@
 # picoclock
 ### for use with WAVESHARE RP2040-LCD-1.28
 ### RP2040 LCD 1.28
+![s_conf](https://github.com/dawigit/picoclock/blob/main/img/s_conf.png) ![s_conf1](https://github.com/dawigit/picoclock/blob/main/img/s_conf1.png)
+![s_conf2](https://github.com/dawigit/picoclock/blob/main/img/s_conf2.png) ![s_conf3](https://github.com/dawigit/picoclock/blob/main/img/s_conf3.png)
 ![pwood](https://github.com/dawigit/picoclock/blob/main/img/pwood.png) ![pointerdemo](https://github.com/dawigit/picoclock/blob/main/img/pointerdemo.png)
 ![rotoz](https://github.com/dawigit/picoclock/blob/main/img/rotoz.png) ![rotoz1](https://github.com/dawigit/picoclock/blob/main/img/rotoz1.png)
 ![s_us](https://github.com/dawigit/picoclock/blob/main/img/s_us.png) ![s_us1](https://github.com/dawigit/picoclock/blob/main/img/s_us1.png)
@@ -102,7 +104,7 @@ Find the '--address' with:
 - 'norm'		[gfx_mode = normal gfx, no rotation, no rotozoom]
 
 
-
+### additional information
 - all tools/scripts moved to folder 'tool'
 - img2data.md -> tool/tools.md
 - added bez2/3 curves
