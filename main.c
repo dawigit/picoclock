@@ -1694,6 +1694,10 @@ int main(void)
             draw_text_enabled=false;
             draw_config_enabled=true;
             cmode=CM_Config;
+            hgx = (int16_t)acc[0];
+            hgy = (int16_t)acc[1];
+            hg_enabled = true;
+
           }
         }else if(cmode==CM_Editpos){
           cdeg_fine_adder=0;
