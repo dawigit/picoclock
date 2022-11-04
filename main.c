@@ -137,10 +137,18 @@ int16_t flagdeg2a=60;
 int16_t flagdeg1b=130;
 int16_t flagdeg2b=260;
 
-int16_t cdeg_adder=0;
-int16_t cdeg_fine=270;
-int16_t cdeg_fine_adder=0;
-int16_t cdeg_finestopper=3;
+//int16_t cdeg_adder=0;
+//int16_t cdeg_fine=270;
+int16_t edeg_fine=270;
+//int16_t cdeg_fine_adder=0;
+//int16_t cdeg_finestopper=3;
+
+//int16_t gdeg_adder=0;
+int16_t gdeg_fine=0;
+//int16_t gdeg_fine_adder=0;
+//int16_t gdeg_finestopper=3;
+
+
 #define DEFAULT_THEME 0
 // NO_POS_MODE 1 : gyroscope+button control
 #define NO_POS_MODE 1
@@ -441,7 +449,10 @@ ColorTheme_t colt4={BLACK,TR_Red,TR_Red,WHITE,NWHITE,TR_Red,WHITE,WHITE,WHITE,WH
 
 ColorTheme_t* colt[THEMES];
 
-#define MAX_CONFIG_POS 8
+#define MAX_CONF 8
+#define MAX_CONFD (360/MAX_CONF)
+#define MAX_FCONF 4
+#define MAX_FCONFD (360/MAX_CONF)
 typedef enum {
   CP_ACCEPT,
   CP_IMG,
@@ -453,7 +464,7 @@ typedef enum {
   CP_CLOCK1,
 } CONF_POS;
 
-const uint8_t* config_images[MAX_CONFIG_POS+1] = {conf_accept,conf_img,conf_rot,conf_rota,conf_safe,conf_clk,conf_clock,conf_clock};
+const uint8_t* config_images[MAX_CONF+1] = {conf_accept,conf_img,conf_rot,conf_rota,conf_safe,conf_clk,conf_clock,conf_clock};
 
 void update_pos_matrix(){
   if(pos_matrix_x>=positions[plosa->theme]->dim_x){
@@ -588,6 +599,7 @@ bool draw_gfx_first = DRAW_GFX_FIRST;
 bool draw_text_enabled = true;
 bool draw_gfx_enabled = true;
 bool draw_config_enabled = false;
+bool draw_flagconfig_enabled = false;
 
 // config symbol
 DOImage* doi_config;
@@ -687,13 +699,13 @@ void check_save_data(){
     if(plosa->dt.sec   > 59) {plosa->dt.sec   = default_time.sec  ;}
     if(plosa->theme>=THEMES){plosa->theme=0;}
     if(plosa->editpos>EDITPOSITIONS){plosa->editpos=EDITPOSITIONS;}
+    if(plosa->conf_bg>=MAX_BG){plosa->conf_bg = 0;}
     //plosa->pointerdemo = false;
     //plosa->pstyle = PS_NORMAL;
     //plosa->clock = true;
     //plosa->spin = 0;
     //plosa->texture = 0;
     //plosa->configpos = 0;
-    //plosa->conf_bg = 0;
     //plosa->conf_pmin = 0;
     //plosa->conf_phour = 0;
     //plosa->rota = false;
@@ -1018,6 +1030,9 @@ void command(char* c){
       if(strstr(left,"spin")){ plosa->spin = (int16_t)atoi(right);}
       if(strstr(left,"clock")){ plosa->clock = (bool)atoi(right);}
       if(strstr(left,"pointerdemo")){ plosa->pointerdemo = (bool)atoi(right);}
+      if(strstr(left,"bg")){ plosa->conf_bg = (uint8_t)atoi(right);
+        if(plosa->conf_bg >= MAX_BG){plosa->conf_bg=0;}
+      }
       if(strstr(left,"theme")){
         plosa->theme = (uint8_t)atoi(right);
         if(plosa->theme>=THEMES){
@@ -1122,6 +1137,25 @@ void shell(){
 }
 
 
+int16_t draw_getdeg(int16_t deg){
+  float   FACT      = 25.0f;
+  int16_t EPC_BXY   = 30;
+  int16_t FINE_STOP = 2;
+  int8_t xa = (int8_t)(acc[0]/FACT);
+  int8_t ya = (int8_t)(acc[1]/FACT);
+  //printf("{%d} %d %d -> %d %d / %d %d [%d %d] %d %d",plosa->configpos,xa,ya,hgx,hgy,(int8_t)(hgx/FACT),(int8_t)(hgy/FACT));
+  xa = xa - (int8_t)(hgx/FACT);
+  ya = ya - (int8_t)(hgy/FACT);
+  if(xa>  EPC_BXY){xa=  EPC_BXY;}
+  if(xa< -EPC_BXY){xa= -EPC_BXY;}
+  if(ya>  EPC_BXY){ya=  EPC_BXY;}
+  if(ya< -EPC_BXY){ya= -EPC_BXY;}
+  //printf("%d %d  , %d %d\n",xa,ya,deg);
+  if(ya>2||ya<-2){
+    deg+=ya;
+  }
+  return chkdeg(deg);
+}
 
 void draw_init(){
   doi_config = DOImage_new(240-(32+16), 120-16, 32,32 ,BLACK,config);
@@ -1135,6 +1169,36 @@ void fx_circle(uint16_t x, uint16_t y, uint16_t r, uint16_t c, uint16_t ps, uint
   }else{
     lcd_circle(x,y,r,c,ps,0);
   }
+}
+
+int16_t draw_circmenu(int16_t cdf, uint8_t num_items, const uint8_t** src_menuitems){
+  int16_t cdeg_fine=cdf;
+  int16_t cdeg = cdeg_fine;
+  int16_t cdegc;
+  int16_t maxcd = (int16_t)(360/num_items);
+  if(plosa->theme==0){
+    cdegc = 360-cdeg_fine-90;
+  }else{
+    cdegc = 360-cdeg_fine-270;
+  }
+  cdeg=chkdeg(cdeg);
+  cdegc=chkdeg(cdegc);
+  int16_t cdegd = cdegc%maxcd;
+  plosa->configpos = cdegc/maxcd;
+  if(cdegd > (maxcd/2)){++plosa->configpos;}
+  //printf("configpos=%d cdegd=%d\n",plosa->configpos,cdegd);
+  for(uint16_t i=0;i<num_items;i++){
+    Vec2 cv = gvdl(cdeg,88);
+    lcd_blit(cv.x-16+LCD_W2,cv.y-16+LCD_H2,32,32,BLACK,src_menuitems[i]);
+    cdeg=chkdeg(cdeg+maxcd);
+  }
+  int16_t d = cdeg%maxcd;
+  if(d!=0){
+    if(d>(maxcd/2)){  return d-maxcd;
+    }else{            return d;    }
+  }
+  return 0;
+
 }
 
 void draw_clock_hands(){
@@ -1396,9 +1460,9 @@ int main(void)
     //plosa->theme=0;
     //plosa->texture=1;
     if(plosa->theme==0){
-      cdeg_fine = 270;
+      edeg_fine = 270;
     }else{
-      cdeg_fine = 90;
+      edeg_fine = 90;
     }
 
     lcd_init();
@@ -1620,61 +1684,77 @@ int main(void)
           hgx = (int16_t)acc[0];
           hgy = (int16_t)acc[1];
           hg_enabled = true;
-          printf("hgxy: %d %d\n",hgx,hgy);
+          //printf("hgxy: %d %d\n",hgx,hgy);
           //puts("CM_Changepos");
           cmode=CM_Changepos;
           colors[plosa->editpos]=edit_colors[plosa->theme];
         }else if(cmode==CM_Config){
-          switch(plosa->configpos){
-            case CP_ACCEPT:
-              cmode=CM_None;
-              draw_gfx_enabled=true;
-              draw_text_enabled=true;
-              draw_config_enabled=false;
-              hg_enabled = false;
-              break;
-            case CP_IMG:
-              ++plosa->conf_bg;
-              if(plosa->conf_bg==MAX_BG){plosa->conf_bg=0;}
-              break;
-            case CP_CLK:
-              if(plosa->pstyle!=PS_TEXTURE){
-                plosa->pstyle++;
-              }else{
-                plosa->pstyle=PS_NORMAL;
-              }
-              break;
-            case CP_ROT:
-              plosa->rotoz = (bool)!plosa->rotoz;
-              if(plosa->rotoz){
-                plosa->gfxmode=GFX_ROTOZOOM;
-              }else{
-                plosa->gfxmode=GFX_NORMAL;
-              }
-              break;
-            case CP_ROTA:
-              plosa->rota = (bool)!plosa->rota;
-              if(plosa->rota){
-                plosa->gfxmode=GFX_ROTATE;
-                if(plosa->spin==0){plosa->spin=1;}
-              }else{
-                plosa->spin=0;
-                plosa->gfxmode=GFX_NORMAL;
-              }
-              break;
-            case CP_CLOCK:
-              plosa->texture++;
-              if(plosa->texture==TEXTURES){plosa->texture=0;}
-              break;
+          if(draw_config_enabled==true){
+            switch(plosa->configpos){
+              case CP_ACCEPT:
+                cmode=CM_None;
+                draw_gfx_enabled=true;
+                draw_text_enabled=true;
+                draw_config_enabled=false;
+                hg_enabled = false;
+                break;
+              case CP_IMG:
+                ++plosa->conf_bg;
+                if(plosa->conf_bg==MAX_BG){plosa->conf_bg=0;}
+                break;
+              case CP_CLK:
+                if(plosa->pstyle!=PS_TEXTURE){
+                  plosa->pstyle++;
+                }else{
+                  plosa->pstyle=PS_NORMAL;
+                }
+                break;
+              case CP_ROT:
+                plosa->rotoz = (bool)!plosa->rotoz;
+                if(plosa->rotoz){
+                  plosa->gfxmode=GFX_ROTOZOOM;
+                }else{
+                  plosa->gfxmode=GFX_NORMAL;
+                }
+                break;
+              case CP_ROTA:
+                plosa->rota = (bool)!plosa->rota;
+                if(plosa->rota){
+                  plosa->gfxmode=GFX_ROTATE;
+                  if(plosa->spin==0){plosa->spin=1;}
+                }else{
+                  plosa->spin=0;
+                  plosa->gfxmode=GFX_NORMAL;
+                }
+                break;
+              case CP_CLOCK:
+                plosa->texture++;
+                if(plosa->texture==TEXTURES){plosa->texture=0;}
+                break;
+              case CP_CLOCK1:
+                //printf("CP_CLOCK1 (bender %d)\n",(plosa->bender==true)?1:0);
+                plosa->bender = !plosa->bender;
+                break;
+              case CP_SAFE:
+                dosave();
+                break;
+            }
+          }else if(draw_flagconfig_enabled){
+            if(plosa->configpos >= THEMES){plosa->configpos = 0;}
+            //printf("flag selected: %d\n",plosa->configpos);
+            if((plosa->theme==0 && plosa->configpos>0)||(plosa->configpos==0 && plosa->theme>0)){
+              gdeg_fine += 180;
+            }
+            plosa->theme = plosa->configpos;
 
-            case CP_CLOCK1:
-              printf("CP_CLOCK1 (bender %d)\n",(plosa->bender==true)?1:0);
-              plosa->bender = !plosa->bender;
-              break;
-            case CP_SAFE:
-              dosave();
-              break;
+            draw_gfx_enabled=true;
+            draw_text_enabled=true;
+            draw_flagconfig_enabled=false;
+            draw_flagconfig_enabled=false;
+            hg_enabled = false;
+            cmode=CM_None;
           }
+
           //puts("CM_Changepos");
           //cmode=CM_Changepos;
           //colors[plosa->editpos]=edit_colors[plosa->theme];
@@ -1695,45 +1775,30 @@ int main(void)
             draw_config_enabled=true;
             cmode=CM_Config;
           }
+          if(plosa->editpos==EPOS_CENTER){
+            draw_gfx_enabled= false;
+            draw_text_enabled=false;
+            draw_flagconfig_enabled=true;
+            cmode=CM_Config;
+          }
         }else if(cmode==CM_Editpos){
-          cdeg_fine_adder=0;
-          cdeg_finestopper=0;
-          //puts("CM_None");
           cmode=CM_None;
           colors[plosa->editpos]=dcolors[plosa->editpos];
           rtc_set_datetime(&plosa->dt);
           if(!(plosa->dt.year%4)){last[2]=29;}else{last[2]=28;}
           hg_enabled = false;
-          //if(plosa->editpos==EPOS_CONFIG){
-          //  draw_gfx_enabled=true;
-          //  draw_text_enabled=true;
-          //  draw_config_enabled=false;
-          //
-          //}//puts("CM_Changetheme");
-          //cmode=CM_Changetheme;
-        }
-        //else if(cmode==CM_Changetheme){
-        //  puts("CM_None");
-        //  cmode=CM_None;
-        //}
 
+          if(draw_flagconfig_enabled){
+            //plosa->theme = plosa->configpos;
+            update_pos_matrix();
+            draw_gfx_enabled=true;
+            draw_text_enabled=true;
+            draw_flagconfig_enabled=false;
+          }
+        }
         fire=false;
       }
-      //if(cmode == CM_Config){
-      //  float cx = acc[0]-hgx;
-      //  float cy = acc[1]-hgy;
-      //  float r;
-      //  cx/=1000;
-      //  cy/=1000;
-      //  r = sqrt(cx*cx+cy*cy);
-      //  //printf("cxy: %0.3f %0.3f  r=%0.3f\n",cx,cy,r);
-      //  cx/=r;
-      //  cy/=r;
-      //  //printf("cxy: %0.3f %0.3f\n",cx,cy);
-      //  lcd_line(120,120, 120+cy*110, 120-cx*110, CYAN, 3);
-      //}
       if(cmode==CM_Changepos || cmode==CM_Editpos || cmode==CM_Config){
-        // wrist-control (arm==x-axis)
         int asx = (int)acc[0];
         asx-=hgx;
         asx>>1;asx<<1;
@@ -1809,28 +1874,7 @@ int main(void)
 
       if(cmode==CM_Editpos || cmode==CM_Config){
         bool set=false;
-        #define FACT 50.0f
-        #define EPC_BL 5
-        #define EPC_BH 40
-        #define EPC_BFA 8
-        #define EPC_BXY 5
-        #define FINE_STOP 2
-        int8_t xa = (int8_t)(acc[0]/FACT);
-        int8_t ya = (int8_t)(acc[1]/FACT);
-        //printf("{%d} %d %d -> %d %d / %d %d [%d %d] %d %d",plosa->configpos,xa,ya,hgx,hgy,(int8_t)(hgx/FACT),(int8_t)(hgy/FACT));
-        xa = xa - (int8_t)(hgx/FACT);
-        ya = ya - (int8_t)(hgy/FACT);
-        //printf("%d %d  , %d %d\n",xa,ya,cdeg_fine, cdeg_fine_adder);
-        if(plosa->editpos==EPOS_CONFIG){
-          if(xa> EPC_BXY){ xa=EPC_BXY;}
-          if(xa<-EPC_BXY){xa=-EPC_BXY;}
-          if(ya> EPC_BXY){ ya=EPC_BXY;}
-          if(ya<-EPC_BXY){ya=-EPC_BXY;}
-          if(ya> 2 || cdeg_fine_adder>0){tcw=true;}
-          if(ya<-2 || cdeg_fine_adder<0){tccw=true;}
-        }
         if(tcw){
-          //colors[plosa->editpos]=dcolors[plosa->editpos];
           colors[plosa->editpos]=changecol;
           switch(plosa->editpos){
             case 0: (plosa->dt.dotw==6)?plosa->dt.dotw=0:plosa->dt.dotw++;break;
@@ -1840,37 +1884,11 @@ int main(void)
             case 4: (plosa->dt.hour==23)?plosa->dt.hour=0:plosa->dt.hour++;break;
             case 5: (plosa->dt.min==59)?plosa->dt.min=0:plosa->dt.min++;break;
             case 6: (plosa->dt.sec==59)?plosa->dt.sec=0:plosa->dt.sec++;break;
-            //case EPOS_CONFIG: (plosa->configpos==MAX_CONFIG_POS)?plosa->configpos=0:plosa->configpos++;break;
-            case EPOS_CONFIG:
-              if(cdeg_finestopper==0){
-                if(ya>2||ya<-2){                  cdeg_fine_adder=cdeg_fine_adder+ (int16_t)(ya);                }
-                if(cdeg_fine_adder> EPC_BFA){cdeg_fine_adder= EPC_BFA;}
-                if(cdeg_fine_adder<-EPC_BFA){cdeg_fine_adder=-EPC_BFA;}
-                cdeg_fine+=cdeg_fine_adder;
-                if(cdeg_fine<0){cdeg_fine+=360;}
-                if(cdeg_fine>360){cdeg_fine-=360;}
-                if(cdeg_fine%45>EPC_BH|| cdeg_fine%45<EPC_BL){
-                  if(cdeg_fine_adder!=EPC_BFA && cdeg_fine_adder!=-EPC_BFA){
-                    cdeg_finestopper=FINE_STOP;
-                  }
-                  cdeg_fine_adder=0;
-                  if(cdeg_fine%45>EPC_BH){cdeg_fine+= 45-cdeg_fine%45;}
-                  if(cdeg_fine%45<EPC_BL) {cdeg_fine-=   cdeg_fine%45;}
-                }
-              }else{                --cdeg_finestopper;              }
-              break;
-            case EPOS_CENTER: {
-              (plosa->theme==THEMES-1)?plosa->theme=0:plosa->theme++;
-              update_pos_matrix();
-              set_dcolors();
-              break;
-            }
+            case EPOS_CONFIG: break;
           }
           tcw=false;
-          //set=true;
         }
         if(tccw){
-          //colors[plosa->editpos]=dcolors[plosa->editpos];
           colors[plosa->editpos]=changecol;
           switch(plosa->editpos){
             case 0: (plosa->dt.dotw==0)?plosa->dt.dotw=6:plosa->dt.dotw--;break;
@@ -1880,32 +1898,7 @@ int main(void)
             case 4: (plosa->dt.hour==0)?plosa->dt.hour=23:plosa->dt.hour--;break;
             case 5: (plosa->dt.min==0)?plosa->dt.min=59:plosa->dt.min--;break;
             case 6: (plosa->dt.sec==0)?plosa->dt.sec=59:plosa->dt.sec--;break;
-            //case EPOS_CONFIG: (plosa->configpos==0)?plosa->configpos=MAX_CONFIG_POS:plosa->configpos--;break;
-            case EPOS_CONFIG:
-              if(cdeg_finestopper==0){
-                if(ya>2||ya<-2){                  cdeg_fine_adder=cdeg_fine_adder+(int16_t)(ya);                }
-                if(cdeg_fine_adder> EPC_BFA){cdeg_fine_adder= EPC_BFA;}
-                if(cdeg_fine_adder<-EPC_BFA){cdeg_fine_adder=-EPC_BFA;}
-                cdeg_fine+=cdeg_fine_adder;
-                if(cdeg_fine<0){cdeg_fine+=360;}
-                if(cdeg_fine>360){cdeg_fine-=360;}
-                if(cdeg_fine%45>EPC_BH|| cdeg_fine%45<EPC_BL){
-                  if(cdeg_fine_adder!=EPC_BFA && cdeg_fine_adder!=-EPC_BFA){
-                    cdeg_finestopper=FINE_STOP;
-                  }
-                  cdeg_fine_adder=0;
-                  if(cdeg_fine%45>EPC_BH){cdeg_fine+= 45-cdeg_fine%45;}
-                  if(cdeg_fine%45<EPC_BL) {cdeg_fine-=   cdeg_fine%45;}
-                }
-              }else{                --cdeg_finestopper;              }
-              break;
-            case EPOS_CENTER: {
-              (plosa->theme==0)?plosa->theme=THEMES-1:plosa->theme--;
-              //copy_pos_matrix(plosa->theme);
-              update_pos_matrix();
-              set_dcolors();
-              break;
-            }
+            case EPOS_CONFIG: break;
           }
           tccw=false;
           //set=true;
@@ -1937,11 +1930,20 @@ int main(void)
           int16_t x= (*adoi_config[plosa->theme])->vpos.x+15;
           int16_t y= (*adoi_config[plosa->theme])->vpos.y+16;
           fx_circle(x,y,22,cmode_color,3,xold,yold);
+
           Vec2 dp1 = texsize[plosa->texture];
           draw_clock_hands();
 
         }else if(plosa->editpos==EPOS_CENTER){
-          fx_circle(tpos[plosa->editpos].x,tpos[plosa->editpos].y,19,cmode_color,3,xold,yold);
+          if(cmode==CM_Config){
+            int16_t x= (*adoi_config[plosa->theme])->vpos.x+15;
+            int16_t y= (*adoi_config[plosa->theme])->vpos.y+16;
+            fx_circle(x,y,22,cmode_color,3,xold,yold);
+            Vec2 dp1 = texsize[plosa->texture];
+            draw_clock_hands();
+          }else{
+            fx_circle(tpos[plosa->editpos].x,tpos[plosa->editpos].y,19,cmode_color,3,xold,yold);
+          }
         }else{
           fx_circle(tpos[plosa->editpos].x+12,tpos[plosa->editpos].y+5,20,cmode_color,3,xold,yold);
         }
@@ -1960,24 +1962,34 @@ int main(void)
         if(plosa->spin!=0){
           flagdeg = gdeg(flagdeg+plosa->spin);
         }
-        int16_t cdeg = cdeg_fine;
-        int16_t cdegc;
-        if(plosa->theme==0){
-          cdegc = 360-cdeg_fine-90;
-        }else{
-          cdegc = 360-cdeg_fine-270;
-        }
-        cdeg=chkdeg(cdeg);
-        cdegc=chkdeg(cdegc);
-        plosa->configpos = cdegc/(360/MAX_CONFIG_POS);
-        for(uint16_t i=0;i<MAX_CONFIG_POS;i++){
-          Vec2 cv = gvdl(cdeg,88);
-          lcd_blit(cv.x-16+LCD_W2,cv.y-16+LCD_H2,32,32,BLACK,config_images[i]);
-          cdeg+=(360/MAX_CONFIG_POS);
-          if(cdeg<0){cdeg+=360;}
-          if(cdeg>=360){cdeg-=360;}
+        edeg_fine = draw_getdeg(edeg_fine);
+        int16_t magnet = draw_circmenu(edeg_fine, 8, config_images);
+        if(magnet != 0){
+          int16_t MAG = 10;
+          if(magnet < MAG && magnet >-MAG){
+              if(magnet/2 == 0){ edeg_fine-= magnet; }
+              else{              edeg_fine -= (magnet)/2; }
+          }else{ edeg_fine -= magnet/8; }
         }
       }
+
+      if(draw_flagconfig_enabled){
+        if(plosa->spin!=0){
+          flagdeg = gdeg(flagdeg+plosa->spin);
+        }
+        gdeg_fine = draw_getdeg(gdeg_fine);
+        int16_t magnet = draw_circmenu(gdeg_fine, 4, flags);
+        if(magnet != 0){
+          //printf("magnet = %d\n",magnet);
+          int16_t MAG = 20;
+          if(magnet < MAG && magnet >-MAG){
+              if(magnet/2 == 0){ gdeg_fine-= magnet; }
+              else{              gdeg_fine -= (magnet)/2; }
+          }else{ gdeg_fine -= magnet/8; }
+        }
+      }
+
+
       lcd_display(b0);
       if(SHELL_ENABLED){
         shell();
