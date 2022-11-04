@@ -1620,6 +1620,7 @@ int main(void)
           hgx = (int16_t)acc[0];
           hgy = (int16_t)acc[1];
           hg_enabled = true;
+          printf("hgxy: %d %d\n",hgx,hgy);
           //puts("CM_Changepos");
           cmode=CM_Changepos;
           colors[plosa->editpos]=edit_colors[plosa->theme];
@@ -1656,11 +1657,9 @@ int main(void)
               if(plosa->rota){
                 plosa->gfxmode=GFX_ROTATE;
                 if(plosa->spin==0){plosa->spin=1;}
-                printf("rota enabled (%d)\n",plosa->spin);
               }else{
                 plosa->spin=0;
                 plosa->gfxmode=GFX_NORMAL;
-                printf("rota disabled\n");
               }
               break;
             case CP_CLOCK:
@@ -1669,7 +1668,7 @@ int main(void)
               break;
 
             case CP_CLOCK1:
-              printf("CP_CLOCK1\n");
+              printf("CP_CLOCK1 (bender %d)\n",(plosa->bender==true)?1:0);
               plosa->bender = !plosa->bender;
               break;
             case CP_SAFE:
@@ -1685,6 +1684,7 @@ int main(void)
           hgx = (int16_t)acc[0];
           hgy = (int16_t)acc[1];
           hg_enabled = true;
+          //printf("hgxy: %d %d\n",hgx,hgy);
           tcw = false;
           tccw = false;
           //colors[plosa->editpos]=change_colors[plosa->theme];
@@ -1694,10 +1694,6 @@ int main(void)
             draw_text_enabled=false;
             draw_config_enabled=true;
             cmode=CM_Config;
-            hgx = (int16_t)acc[0];
-            hgy = (int16_t)acc[1];
-            hg_enabled = true;
-
           }
         }else if(cmode==CM_Editpos){
           cdeg_fine_adder=0;
@@ -1746,10 +1742,8 @@ int main(void)
           if(a<0){a=-a;}
           hourglass_x -= a;
           a>>=2;
-          //printf("hgx a: %d\n",a);
           if( hourglass_x <=0 ){
             hourglass_x=HOURGLASS;
-            //if(asx>0){tcw=true;}else{tccw=true;}
             if(asx>0){ dir_y=D_MINUS;tcw=true;}
             if(a==0){dir_y=D_NONE;}
             if(asx<0){ dir_y=D_PLUS;tccw=true;}
@@ -1763,10 +1757,8 @@ int main(void)
           if(a<0){a=-a;}
           hourglass_y -= a;
           a>>=2;
-          //printf("hgy a: %d\n",a);
           if( hourglass_y <=0 ){
             hourglass_y=HOURGLASS;
-            //if(asy>0){tcw=true;}else{tccw=true;}
             if(asy>0){ dir_x=D_PLUS;tcw=true;}
             if(a==0){dir_x=D_NONE;}
             if(asy<0){ dir_x=D_MINUS;tccw=true;}
@@ -1779,7 +1771,6 @@ int main(void)
           if(dir_x==D_PLUS){
             //puts("Dright");
             if(pos_matrix_x<positions[plosa->theme]->dim_x-1)++pos_matrix_x;
-//            if(pos_matrix_x<2)++pos_matrix_x;
           }
           if(dir_x==D_MINUS){
             //puts("Dleft");
@@ -1787,7 +1778,6 @@ int main(void)
           }
 
           if(dir_y==D_PLUS){
-            //if(pos_matrix_y<2)++pos_matrix_y;
             if(pos_matrix_y<positions[plosa->theme]->dim_y-1)++pos_matrix_y;
             //puts("Ddown");
           }
@@ -1825,18 +1815,19 @@ int main(void)
         #define EPC_BFA 8
         #define EPC_BXY 5
         #define FINE_STOP 2
-        int8_t xa = (int8_t)(acc[1]/FACT);
-        int8_t ya = (int8_t)(acc[0]/FACT);
-        //printf("{%d} %d %d -> %d %d [%d %d] %d %d\n",plosa->configpos,xa,ya,xa+(int8_t)(hgx/FACT),ya+(int8_t)(hgy/FACT),(int8_t)(hgx/FACT),(int8_t)(hgy/FACT),cdeg_fine, cdeg_fine_adder);
-        xa = xa + (int8_t)(hgx/FACT);
-        ya = ya + (int8_t)(hgy/FACT);
+        int8_t xa = (int8_t)(acc[0]/FACT);
+        int8_t ya = (int8_t)(acc[1]/FACT);
+        //printf("{%d} %d %d -> %d %d / %d %d [%d %d] %d %d",plosa->configpos,xa,ya,hgx,hgy,(int8_t)(hgx/FACT),(int8_t)(hgy/FACT));
+        xa = xa - (int8_t)(hgx/FACT);
+        ya = ya - (int8_t)(hgy/FACT);
+        //printf("%d %d  , %d %d\n",xa,ya,cdeg_fine, cdeg_fine_adder);
         if(plosa->editpos==EPOS_CONFIG){
           if(xa> EPC_BXY){ xa=EPC_BXY;}
           if(xa<-EPC_BXY){xa=-EPC_BXY;}
           if(ya> EPC_BXY){ ya=EPC_BXY;}
           if(ya<-EPC_BXY){ya=-EPC_BXY;}
-          if(xa> 2 || cdeg_fine_adder>0){tcw=true;}
-          if(xa<-2 || cdeg_fine_adder<0){tccw=true;}
+          if(ya> 2 || cdeg_fine_adder>0){tcw=true;}
+          if(ya<-2 || cdeg_fine_adder<0){tccw=true;}
         }
         if(tcw){
           //colors[plosa->editpos]=dcolors[plosa->editpos];
@@ -1852,7 +1843,7 @@ int main(void)
             //case EPOS_CONFIG: (plosa->configpos==MAX_CONFIG_POS)?plosa->configpos=0:plosa->configpos++;break;
             case EPOS_CONFIG:
               if(cdeg_finestopper==0){
-                if(xa>2||xa<-2){                  cdeg_fine_adder=cdeg_fine_adder+ (int16_t)(xa);                }
+                if(ya>2||ya<-2){                  cdeg_fine_adder=cdeg_fine_adder+ (int16_t)(ya);                }
                 if(cdeg_fine_adder> EPC_BFA){cdeg_fine_adder= EPC_BFA;}
                 if(cdeg_fine_adder<-EPC_BFA){cdeg_fine_adder=-EPC_BFA;}
                 cdeg_fine+=cdeg_fine_adder;
@@ -1892,7 +1883,7 @@ int main(void)
             //case EPOS_CONFIG: (plosa->configpos==0)?plosa->configpos=MAX_CONFIG_POS:plosa->configpos--;break;
             case EPOS_CONFIG:
               if(cdeg_finestopper==0){
-                if(xa>2||xa<-2){                  cdeg_fine_adder=cdeg_fine_adder+(int16_t)(xa);                }
+                if(ya>2||ya<-2){                  cdeg_fine_adder=cdeg_fine_adder+(int16_t)(ya);                }
                 if(cdeg_fine_adder> EPC_BFA){cdeg_fine_adder= EPC_BFA;}
                 if(cdeg_fine_adder<-EPC_BFA){cdeg_fine_adder=-EPC_BFA;}
                 cdeg_fine+=cdeg_fine_adder;
@@ -1936,13 +1927,9 @@ int main(void)
             lcd_frame(POS_CNDOW_X-6,POS_CNDOW_Y,POS_CNDOW_X+CNFONT.w+3,POS_CNDOW_Y+CNFONT.h*3+1,cmode_color,3);
           }else{
             fx_circle(tpos[plosa->editpos].x+18,tpos[plosa->editpos].y+8,25,cmode_color,3,xold,yold);
-            //if(plosa->DYNAMIC_CIRCLES){lcd_bez3circ(tpos[plosa->editpos].x+18,tpos[plosa->editpos].y+8,25,cmode_color,3,xold,yold);}
-            //else{lcd_circle(tpos[plosa->editpos].x+18,tpos[plosa->editpos].y+8,25,cmode_color,3,0);}
           }
         }else if(plosa->editpos==3){
           fx_circle(tpos[plosa->editpos].x+12,tpos[plosa->editpos].y+5,30,cmode_color,3,xold,yold);
-          //if(plosa->DYNAMIC_CIRCLES){lcd_bez3circ(tpos[plosa->editpos].x+12,tpos[plosa->editpos].y+5,30,cmode_color,3,xold,yold);}
-          //else{lcd_circle(tpos[plosa->editpos].x+12,tpos[plosa->editpos].y+5,30,cmode_color,3,0);}
         }else if(plosa->editpos==EPOS_CONFIG){
           if(cmode==CM_Changepos){
             draw_doimage(*adoi_config[plosa->theme]);
@@ -1955,12 +1942,8 @@ int main(void)
 
         }else if(plosa->editpos==EPOS_CENTER){
           fx_circle(tpos[plosa->editpos].x,tpos[plosa->editpos].y,19,cmode_color,3,xold,yold);
-          //if(plosa->DYNAMIC_CIRCLES){lcd_bez3circ(tpos[plosa->editpos].x,tpos[plosa->editpos].y,19,cmode_color,3,xold,yold);}
-          //else{lcd_circle(tpos[plosa->editpos].x,tpos[plosa->editpos].y,19,cmode_color,3,0);}
         }else{
           fx_circle(tpos[plosa->editpos].x+12,tpos[plosa->editpos].y+5,20,cmode_color,3,xold,yold);
-          //if(plosa->DYNAMIC_CIRCLES){lcd_bez3circ(tpos[plosa->editpos].x+12,tpos[plosa->editpos].y+5,20,cmode_color,3,xold,yold);}
-          //else{lcd_circle(tpos[plosa->editpos].x+12,tpos[plosa->editpos].y+5,20,cmode_color,3,0);}
         }
       }
 
