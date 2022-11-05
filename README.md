@@ -40,6 +40,7 @@ Find the '--address' with:
 `cd picoclock;mkdir build;cd build;cmake ..;make`
 
 ### News
+- added new icons
 - added config (next to center, opposite dotw)
 - added more textures
 - removed pointerdemo
@@ -111,6 +112,6 @@ Find the '--address' with:
 - added bez2/3 curves
 - added dynamic circles
 - also added a few testing functions for bezier curves [they show all the lines, bigger dots]
-- icons from icons8
+- icons from openiconlibrary [https://sourceforge.net/projects/openiconlibrary]
 - textures from opengameart.org (most of them)
 - images from wikimedia.org
