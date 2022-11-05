@@ -48,13 +48,15 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "img/tr16.h"
 
 #include "img/config.h"
-#include "img/conf_accept.h"
-#include "img/conf_img.h"
-#include "img/conf_clk.h"
-#include "img/conf_rot.h"
-#include "img/conf_rota.h"
-#include "img/conf_safe.h"
+//#include "img/conf_accept.h"
+#include "img/conf_exit.h"
+#include "img/conf_background.h"
+#include "img/conf_handstyle.h"
+#include "img/conf_rotozoom.h"
+#include "img/conf_rotate.h"
+#include "img/conf_save.h"
 #include "img/conf_clock.h"
+#include "img/conf_bender.h"
 
 //textures
 #include "img/w2.h"
@@ -464,7 +466,7 @@ typedef enum {
   CP_CLOCK1,
 } CONF_POS;
 
-const uint8_t* config_images[MAX_CONF+1] = {conf_accept,conf_img,conf_rot,conf_rota,conf_safe,conf_clk,conf_clock,conf_clock};
+const uint8_t* config_images[MAX_CONF+1] = {conf_exit,conf_background,conf_rotozoom,conf_rotate,conf_save,conf_handstyle,conf_clock,conf_bender};
 
 void update_pos_matrix(){
   if(pos_matrix_x>=positions[plosa->theme]->dim_x){
@@ -1026,7 +1028,10 @@ void command(char* c){
       if(strstr(left,"high")){ plosa->highpointer = (bool)atoi(right);}
       if(strstr(left,"alpha")){ plosa->alphapointer = (bool)atoi(right);}
       if(strstr(left,"pstyle")){ plosa->pstyle = (int16_t)atoi(right);}
-      if(strstr(left,"texture")){ plosa->texture = (int16_t)atoi(right);}
+      if(strstr(left,"texture")){
+        plosa->texture = (int16_t)atoi(right);
+        if(plosa->texture>=TEXTURES){plosa->texture=TEXTURES-1;}
+      }
       if(strstr(left,"spin")){ plosa->spin = (int16_t)atoi(right);}
       if(strstr(left,"clock")){ plosa->clock = (bool)atoi(right);}
       if(strstr(left,"pointerdemo")){ plosa->pointerdemo = (bool)atoi(right);}
