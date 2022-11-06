@@ -455,15 +455,16 @@ ColorTheme_t* colt[THEMES];
 #define MAX_CONFD (360/MAX_CONF)
 #define MAX_FCONF 4
 #define MAX_FCONFD (360/MAX_CONF)
+
 typedef enum {
-  CP_ACCEPT,
-  CP_IMG,
-  CP_ROT,
-  CP_ROTA,
-  CP_SAFE,
-  CP_CLK,
-  CP_CLOCK,
-  CP_CLOCK1,
+  CP_EXIT=0,
+  CP_BACKGROUND,
+  CP_ROTOZOOM,
+  CP_ROTATION,
+  CP_SAVE,
+  CP_PENSTYLE,
+  CP_WAND,
+  CP_PENCIL=7,
 } CONF_POS;
 
 const uint8_t* config_images[MAX_CONF+1] = {conf_exit,conf_background,conf_rotozoom,conf_rotate,conf_save,conf_handstyle,conf_clock,conf_bender};
@@ -1082,7 +1083,7 @@ void command(char* c){
       printf("\n- STATUS -\n\nmode[8]: %s\n",plosa->mode);
       printf("dt: %02d:%02d:%04d\n",plosa->dt.day,plosa->dt.month,plosa->dt.year);
       printf("dt: %s %02d:%02d:%02d\n",week[plosa->theme][plosa->dt.dotw],plosa->dt.hour,plosa->dt.min,plosa->dt.sec);
-      printf("bat: %s %fmA [%d] %fmax %fmin\n", plosa->bat.mode,plosa->bat.mA,(plosa->bat.load)?1:0,plosa->bat.max,plosa->bat.min);
+      printf("bat: %s %fmA [%d] %fmax %fmin %fread\n", plosa->bat.mode,plosa->bat.mA,(plosa->bat.load)?1:0,plosa->bat.max,plosa->bat.min,plosa->bat.read);
       printf("editpos: %d\n",plosa->editpos);
       printf("theme: %d\n",plosa->theme);
       printf("BRIGHTNESS : %d\n",plosa->BRIGHTNESS);
@@ -1230,13 +1231,13 @@ void draw_clock_hands(){
 
 
   tu=(int16_t)plosa->dt.sec*6;
-  if(!analog_seconds){
+  //if(!analog_seconds){
     // 'jump' seconds
     xi = (int8_t)(tcos[plosa->dt.sec*6]*114);
     yi = (int8_t)(tsin[plosa->dt.sec*6]*114);
     x1 = (uint8_t)x0+xi;
     y1 = (uint8_t)y0+yi;
-    if(plosa->bender){
+    if(plosa->bender==true){
         int16_t xit=x1;
         int16_t yit=y1;
         xi = (int8_t)(tcos[plosa->dt.sec*6]*106);
@@ -1255,7 +1256,7 @@ void draw_clock_hands(){
       draw_pointer_mode(dp0,dp0,tu, colt[plosa->theme]->col_s,textures[plosa->texture],BLACK,PS_NORMAL);
     }
     lcd_blit((int)(x0-8+tcos[plosa->dt.sec*6]*100),(int)(y0-8+tsin[plosa->dt.sec*6]*100),16,16,colt[plosa->theme]->alpha,stars[plosa->theme]);
-  }
+  //}
 }
 
 
@@ -1696,25 +1697,25 @@ int main(void)
         }else if(cmode==CM_Config){
           if(draw_config_enabled==true){
             switch(plosa->configpos){
-              case CP_ACCEPT:
+              case CP_EXIT:
                 cmode=CM_None;
                 draw_gfx_enabled=true;
                 draw_text_enabled=true;
                 draw_config_enabled=false;
                 hg_enabled = false;
                 break;
-              case CP_IMG:
+              case CP_BACKGROUND:
                 ++plosa->conf_bg;
                 if(plosa->conf_bg==MAX_BG){plosa->conf_bg=0;}
                 break;
-              case CP_CLK:
+              case CP_PENSTYLE:
                 if(plosa->pstyle!=PS_TEXTURE){
                   plosa->pstyle++;
                 }else{
                   plosa->pstyle=PS_NORMAL;
                 }
                 break;
-              case CP_ROT:
+              case CP_ROTOZOOM:
                 plosa->rotoz = (bool)!plosa->rotoz;
                 if(plosa->rotoz){
                   plosa->gfxmode=GFX_ROTOZOOM;
@@ -1722,7 +1723,7 @@ int main(void)
                   plosa->gfxmode=GFX_NORMAL;
                 }
                 break;
-              case CP_ROTA:
+              case CP_ROTATION:
                 plosa->rota = (bool)!plosa->rota;
                 if(plosa->rota){
                   plosa->gfxmode=GFX_ROTATE;
@@ -1732,15 +1733,14 @@ int main(void)
                   plosa->gfxmode=GFX_NORMAL;
                 }
                 break;
-              case CP_CLOCK:
+              case CP_WAND:
                 plosa->texture++;
                 if(plosa->texture==TEXTURES){plosa->texture=0;}
                 break;
-              case CP_CLOCK1:
-                //printf("CP_CLOCK1 (bender %d)\n",(plosa->bender==true)?1:0);
-                plosa->bender = !plosa->bender;
+              case CP_PENCIL:
+                plosa->bender=!plosa->bender;
                 break;
-              case CP_SAFE:
+              case CP_SAVE:
                 dosave();
                 break;
             }
