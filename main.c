@@ -14,6 +14,7 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "hardware/watchdog.h"
 #include "hardware/flash.h"
 #include "hardware/sync.h"
+#include "hardware/clocks.h"
 #include "pico/binary_info.h"
 #include <float.h>
 #include "pico/types.h"
@@ -67,7 +68,6 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 
 typedef enum {
   GFX_NORMAL,
-  GFX_DYNABG,
   GFX_ROTOZOOM,
   GFX_ROTATE,
 } GFX_MODE;
@@ -94,8 +94,8 @@ typedef struct {
   uint8_t editpos;
   uint8_t BRIGHTNESS;
 
-  bool SENSORS;
-  bool GYROCROSS;
+  bool sensors;
+  bool gyrocross;
   bool bender;
   bool SMOOTH_BACKGROUND;
   bool INSOMNIA;
@@ -116,10 +116,13 @@ typedef struct {
   uint8_t conf_bg;
   uint8_t conf_phour;
   uint8_t conf_pmin;
+  uint8_t dummy;
+  uint8_t save_crc;
 } LOSA_t;
 
 static LOSA_t* plosa=(LOSA_t*)losabuf;
 
+#define LOSASIZE (&plosa->dummy - &plosa->theme)
 
 datetime_t default_time = {
   .year  = 2022,
@@ -155,7 +158,7 @@ int16_t gdeg_fine=0;
 // NO_POS_MODE 1 : gyroscope+button control
 #define NO_POS_MODE 1
 #define SHELL_ENABLED 1
-// NO_SENSORS 1 : don't show sensor values [gyro,acc,bat]
+// NO_sensors 1 : don't show sensor values [gyro,acc,bat]
 
 // DEEPSLEEP : increases sleep_frame by SLEEP_FRAME_ADD till SLEEP_FRAME_END
 // so at max, pico is only able to awake every 10th second
@@ -171,6 +174,7 @@ Battery_t bat1 = {"GOOD\0",1100.0f, 4.19f, 3.346729f, 4.189453f, 0.0f, 0.0f}; //
 // change the XX below to your value when the battery is loading [the least one]
 // set bat_default = &bat2;
 //Battery_t bat2 = {"GOOD\0",1100.0f, 4.XXf, 0.0f, 5.55f, 0.0f, 0.0f};
+
 
 Battery_t* bat_default= &bat0;
 
@@ -200,6 +204,9 @@ float resultminmaxmid(){
   return (min+max)/2.0f;
 }
 
+
+//forward decs
+uint8_t crc(uint8_t *addr, uint32_t len);
 void dosave();
 //void draw_pointer(Vec2 vs, Vec2 vts, int16_t tu, uint16_t color, const uint8_t* sr, uint16_t alpha);
 //void draw_pointer_mode(Vec2 vs, Vec2 vts, int16_t tu, uint16_t color, const uint8_t* sr, uint16_t alpha, PSTYLE cps);
@@ -630,7 +637,8 @@ char cn_buffer[32] = {0};
 bool do_reset = false;
 bool force_no_load = false;
 bool is_flashed = false;
-
+char crcstatus[32] = {"\0"};
+char flashstatus[32] = {"\0"};
 
 
 //objdump -x main.elf | grep binary_info_end
@@ -638,14 +646,14 @@ bool is_flashed = false;
 // 0x90000 == xip_offset (must be bigger then the above value from objdump)
 
 void __no_inline_not_in_flash_func(flash_data_load)(){
-	uint32_t xip_offset = 0x90000;
+	uint32_t xip_offset = 0xb0000;
 	char *p = (char *)XIP_BASE+xip_offset;
 	for(size_t i=0;i<FLASH_SECTOR_SIZE;i++){ losabuf[i]=p[i];	}
 }
 
 void __no_inline_not_in_flash_func(flash_data)(){
 	printf("FLASHING SAVE (c%d)\n",get_core_num());
-	uint32_t xip_offset = 0x90000;
+	uint32_t xip_offset = 0xb0000;
 	char *p = (char *)XIP_BASE+xip_offset;
 	uint32_t ints = save_and_disable_interrupts();
 	flash_range_erase (xip_offset, FLASH_SECTOR_SIZE);
@@ -656,6 +664,10 @@ void __no_inline_not_in_flash_func(flash_data)(){
 }
 
 void check_save_data(){
+
+  uint8_t acrc = crc(&plosa->theme, LOSASIZE);
+  bool crc_status = (acrc==plosa->save_crc);
+  sprintf(crcstatus,"CRC: [%02x][%02x] %s\n\0",acrc,plosa->save_crc,(crc_status)?"OK":"ERR");
   if(strstr((char*)plosa->bat.mode,"GOOD")!=plosa->bat.mode){
     plosa->bat.mA = bat_default->mA;
     plosa->bat.load = bat_default->load;
@@ -690,6 +702,10 @@ void check_save_data(){
     plosa->conf_phour = 0;
     plosa->rota = false;
     plosa->rotoz = false;
+    plosa->gfxmode = GFX_NORMAL;
+    plosa->sensors = false;
+    plosa->gyrocross = true;
+    plosa->DYNAMIC_CIRCLES = false;
     sprintf(plosa->mode,"LOAD\0");
     printf("settings reset to defaults");
   }else{ // do a few sanity checks
@@ -702,7 +718,12 @@ void check_save_data(){
     if(plosa->dt.sec   > 59) {plosa->dt.sec   = default_time.sec  ;}
     if(plosa->theme>=THEMES){plosa->theme=0;}
     if(plosa->editpos>EDITPOSITIONS){plosa->editpos=EDITPOSITIONS;}
-    if(plosa->conf_bg>=MAX_BG){plosa->conf_bg = 0;}
+    if(plosa->conf_bg>=MAX_BG){plosa->conf_bg=0;}
+    if(plosa->gfxmode>GFX_ROTATE){plosa->gfxmode=GFX_NORMAL;}
+    if(plosa->spin>5){plosa->spin=5;}
+    if(plosa->texture>=TEXTURES){plosa->texture=0;}
+    if(plosa->configpos>=MAX_CONF){plosa->configpos = 0;}
+    if(plosa->pstyle>=PS_TEXTURE){plosa->pstyle = PS_TEXTURE;}
     //plosa->pointerdemo = false;
     //plosa->pstyle = PS_NORMAL;
     //plosa->clock = true;
@@ -713,17 +734,34 @@ void check_save_data(){
     //plosa->conf_phour = 0;
     //plosa->rota = false;
     //plosa->rotoz = false;
-    rtc_set_datetime(&plosa->dt);
-    printf("mode reset to defaults='%s'\n",plosa->mode);
+    //rtc_set_datetime(&plosa->dt);
+    printf("MODE:='%s'\n",plosa->mode);
   }
 
 
 
 }
 
+uint8_t crc(uint8_t *addr, uint32_t len){
+    uint8_t crc = 0;
+    while (len != 0){
+        uint8_t i;
+        uint8_t in_byte = *addr++;
+        for (i = 8; i != 0; i--){
+            uint8_t carry = (crc ^ in_byte ) & 0x80;        /* set carry */
+            crc <<= 1;                                      /* left shift 1 */
+            if (carry != 0){                crc ^= 0x7;            }
+            in_byte <<= 1;                                  /* left shift 1 */
+        }
+        len--;                                              /* len-- */
+  }
+  return crc;                                               /* return crc */
+}
+
 
 void empty_deinit(){
   //printf("REBOOTING...\n");
+  plosa->save_crc = crc(&plosa->theme,LOSASIZE);
 }
 
 void doreset(){
@@ -1018,8 +1056,8 @@ void command(char* c){
       char* space = strstr(left," ");
       space[0] = 0;
       char* right = space+1;
-      if(strstr(left,"sensors")){   plosa->SENSORS = (bool)atoi(right);}
-      if(strstr(left,"gyro")){ plosa->GYROCROSS = (bool)atoi(right);}
+      if(strstr(left,"sensors")){   plosa->sensors = (bool)atoi(right);}
+      if(strstr(left,"gyro")){ plosa->gyrocross = (bool)atoi(right);}
       if(strstr(left,"bender")){    plosa->bender = (bool)atoi(right);}
       if(strstr(left,"smooth")){  plosa->SMOOTH_BACKGROUND = (bool)atoi(right);}
       if(strstr(left,"insomnia")){  plosa->INSOMNIA = (bool)atoi(right);}
@@ -1089,14 +1127,16 @@ void command(char* c){
       printf("BRIGHTNESS : %d\n",plosa->BRIGHTNESS);
 
       printf("is_sleeping: %s\n",(plosa->is_sleeping)?"1":"0");
-      printf("SENSORS: %s\n",plosa->SENSORS?"1":"0");
-      printf("GYROCROSS: %s\n",plosa->GYROCROSS?"1":"0");
+      printf("sensors: %s\n",plosa->sensors?"1":"0");
+      printf("gyrocross: %s\n",plosa->gyrocross?"1":"0");
       printf("bender: %s\n",plosa->bender?"1":"0");
       printf("SMOOTH_BACKGROUND: %s\n",plosa->SMOOTH_BACKGROUND?"1":"0");
       printf("INSOMNIA : %s\n",plosa->INSOMNIA?"1":"0");
       printf("DYNAMIC_CIRCLES: %s\n",plosa->DYNAMIC_CIRCLES?"1":"0");
       printf("DEEPSLEEP: %s\n",plosa->DEEPSLEEP?"1":"0");
       printf("HIGHPOINTER: %s\n",plosa->highpointer?"1":"0");
+      printf("%s\n",crcstatus);
+      printf("%s\n",flashstatus);
     }
     if(strstr(left,"SNAPSHOT")){
       //printf("-----------------------> CUT HERE <---------------------\n\nuint8_t imagedata[138+  240*240*2] = {\n");
@@ -1291,7 +1331,7 @@ void draw_gfx(){
   }
   lcd_str(94, 12, dbuf, &Font12, level_color, BLACK);
 
-  if(plosa->SENSORS){
+  if(plosa->sensors){
     if((plosa->dt.sec==0||plosa->dt.sec==30)&&(!temp_read)){
       temperature = QMI8658_readTemp();
       temp_read=true;
@@ -1335,7 +1375,7 @@ void draw_gfx(){
     flagdeg2b = gdeg(flagdeg2b+plosa->spin*7);
   }
   // graphical view of x/y gyroscope
-  if(plosa->GYROCROSS){
+  if(plosa->gyrocross){
     #define GSPX 120
     #define GSPY 200
     #define GSPS 4
@@ -1384,7 +1424,7 @@ void draw_gfx(){
 
 void draw_text(){
   if(!draw_text_enabled){return;}
-  if(plosa->SENSORS){
+  if(plosa->sensors){
     lcd_str(POS_ACC_X, POS_ACC_Y+  1, "GYR_X =", &Font12, WHITE, BLACK);
     lcd_str(POS_ACC_X, POS_ACC_Y+ 15, "GYR_Y =", &Font12, WHITE, BLACK);
     lcd_str(POS_ACC_X, POS_ACC_Y+ 48, "GYR_Z =", &Font12, WHITE, BLACK);
@@ -1413,7 +1453,7 @@ void draw_text(){
   }
   uint8_t yoff_date = POS_DATE_Y;
   uint8_t yoff_time = POS_TIME_Y;
-  if(plosa->SENSORS){
+  if(plosa->sensors){
     //yoff_date+=20;
     //yoff_time-=20;
   }
@@ -1437,14 +1477,20 @@ void draw_text(){
 }
 
 int main(void)
+
 {
+    plosa->dummy=0;
     if(strstr((char*)plosa->mode,"SAVE")){
     		sprintf((char*)plosa->mode,"LOAD");
-    		flash_data();
+        plosa->save_crc = crc(&plosa->theme,LOSASIZE);
+        flash_data();
+        sprintf(flashstatus,"flash: saved\0");
     }else{
     		if(!force_no_load && !strstr((char*)plosa->mode,"LOAD")){
     			flash_data_load();
+          sprintf(flashstatus,"flash: loaded\0");
     		}else{
+          sprintf(flashstatus,"flash: normal\0");
     			//plosa->rules[0]=0;
           //if(!force_no_load){
           //  save_config();
@@ -1455,10 +1501,10 @@ int main(void)
     }
     stdio_init_all();
 
-    check_save_data(); // init
     //bool init=false;
     //bool fixed=false;
     sleep_ms(400);  // reboot takes about 1.6 sec. -> increase time by 2sec, wait 0.4sec
+    check_save_data(); // init
     //plosa->spin=1;
     //plosa->gfxmode=GFX_ROTATE;
     plosa->pointerdemo=false;
@@ -1480,7 +1526,9 @@ int main(void)
     puts("lcd init");
     printf("%02d-%02d-%04d %02d:%02d:%02d [%d]\n",plosa->dt.day,plosa->dt.month,plosa->dt.year,plosa->dt.hour,plosa->dt.min,plosa->dt.sec,plosa->dt.dotw);
     printf("mode='%s'\n",plosa->mode);
-
+    printf("%s\n",crcstatus);
+    printf("%s\n",flashstatus);
+    printf("LOSASIZE=%d\n",LOSASIZE);
     b0 = malloc(LCD_SZ);
     if(b0==0){printf("b0==0!\n");}
     uint32_t o = 0;
@@ -1537,8 +1585,8 @@ int main(void)
     acc[0]=0.0f;
     acc[1]=0.0f;
     acc[2]=0.0f;
-
     command("stat");
+
     bool qmis = false;
     while(true){
       qmis = !qmis;
@@ -1994,20 +2042,22 @@ int main(void)
         }
       }
 
-
       lcd_display(b0);
+
       if(SHELL_ENABLED){
         shell();
       }
       //Vec2 vs = {120,120};
       //Vec2 ve = {32,32};
       //lcd_blit_deg(vs,ve,deg,usa32);
+      plosa->save_crc=crc(&plosa->theme,LOSASIZE);
       //uint32_t atime = time_us_32();
       //uint32_t wtime = ((atime-last_wait)/100000);
       //last_wait = atime;
       ////printf("wt= %d [%d]\n",wtime,FRAME_DELAY-wtime);
-      //if(wtime>=FRAME_DELAY){wtime=FRAME_DELAY-1;}
-      //sleep_ms(FRAME_DELAY-wtime);
+      //if(wtime>=frame_delay){wtime=frame_delay-1;}
+      //sleep_ms(frame_delay-wtime);
+
     }
     return 0;
 }
