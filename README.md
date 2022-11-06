@@ -40,6 +40,7 @@ Find the '--address' with:
 `cd picoclock;mkdir build;cd build;cmake ..;make`
 
 ### News
+- load/save flash fixed. [restore save ram from flash now works]
 - added new icons
 - added config (next to center, opposite dotw)
 - added more textures
