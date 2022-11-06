@@ -60,7 +60,7 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 
 //textures
 #include "img/w2.h"
-#include "img/mo1.h"
+#include "img/tiles_blue.h"
 #include "img/flow.h"
 #include "img/l3.h"
 #include "img/gt.h"
@@ -430,9 +430,9 @@ const uint8_t* stars[THEMES] = {cn16,usa16,ger16,tr16};
 #define MAX_BG 5
 #define TEXTURES 5
 uint16_t pd_tex = 0;
-const char* textures[TEXTURES] ={w2,flow,mo1,l3,gt};
-Vec2 texsize[TEXTURES] = {128,20, 128,20, 128,20, 128,25, 120,26 };
-Vec2 psize_h[TEXTURES] = {75,20,   75,20,  75,20,  80,25,  75,20  };
+const char* textures[TEXTURES] ={w2,flow,tiles_blue,l3,gt};
+Vec2 texsize[TEXTURES] = {128,20, 128,20, 128,19, 128,25, 120,26 };
+Vec2 psize_h[TEXTURES] = {75,20,   75,20,  75,19,  80,25,  75,20  };
 Vec2 psize_m[TEXTURES] = {102,16,  102,10, 102,10, 118,25, 102,10 };
 const char* backgrounds[MAX_BG] = {earth190,irisa190,bega,col1,sand};
 const int16_t bg_size[MAX_BG] = {190,190,240,240,240};
