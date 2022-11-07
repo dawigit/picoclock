@@ -2,15 +2,17 @@
 ### for use with WAVESHARE RP2040-LCD-1.28
 ### RP2040 LCD 1.28
 ![s_configicon](https://github.com/dawigit/picoclock/blob/main/img/s_configicon.png) ![s_configmenu](https://github.com/dawigit/picoclock/blob/main/img/s_configmenu.png)
-![s_conf](https://github.com/dawigit/picoclock/blob/main/img/s_conf.png) ![s_conf1](https://github.com/dawigit/picoclock/blob/main/img/s_conf1.png)
-![s_conf2](https://github.com/dawigit/picoclock/blob/main/img/s_conf2.png) ![s_conf3](https://github.com/dawigit/picoclock/blob/main/img/s_conf3.png)
-![pwood](https://github.com/dawigit/picoclock/blob/main/img/pwood.png) ![pointerdemo](https://github.com/dawigit/picoclock/blob/main/img/pointerdemo.png)
-![rotoz](https://github.com/dawigit/picoclock/blob/main/img/rotoz.png) ![rotoz1](https://github.com/dawigit/picoclock/blob/main/img/rotoz1.png)
-![s_us](https://github.com/dawigit/picoclock/blob/main/img/s_us.png) ![s_us1](https://github.com/dawigit/picoclock/blob/main/img/s_us1.png)
-![s_cn](https://github.com/dawigit/picoclock/blob/main/img/s_cn.png) ![s_cn1](https://github.com/dawigit/picoclock/blob/main/img/s_cn1.png)
-![s_de](https://github.com/dawigit/picoclock/blob/main/img/s_de.png) ![s_tr](https://github.com/dawigit/picoclock/blob/main/img/s_tr.png)
-![gyrocross](https://github.com/dawigit/picoclock/blob/main/img/gyrocross.png) ![gyrocrosscn](https://github.com/dawigit/picoclock/blob/main/img/gyrocrosscn.png)
+![s_flag](https://github.com/dawigit/picoclock/blob/main/img/s_flag.png)
 
+#### config (clock wise)
+![conf_exit](https://github.com/dawigit/picoclock/blob/main/img/conf_exit.png)  exit config
+![conf_background](https://github.com/dawigit/picoclock/blob/main/img/conf_background.png)	change background
+![conf_rotozoom](https://github.com/dawigit/picoclock/blob/main/img/conf_rotozoom.png)  enable rotozoom
+![conf_rotate](https://github.com/dawigit/picoclock/blob/main/img/conf_rotate.png)  rotate background [earth, eye]
+![conf_save](https://github.com/dawigit/picoclock/blob/main/img/conf_save.png)  save config to flash
+![conf_handstyle](https://github.com/dawigit/picoclock/blob/main/img/conf_handstyle.png)  change clock hand style [normal, alpha, textured]
+![conf_clock](https://github.com/dawigit/picoclock/blob/main/img/conf_clock.png)  change clock hand texture
+![conf_bender](https://github.com/dawigit/picoclock/blob/main/img/conf_bender.png)  dis-/enable second bender 
 
 
 ![uscn1](https://user-images.githubusercontent.com/26333559/196231673-cdbe89fb-14fd-46a9-b566-e3241b16d3c8.png)

@@ -438,7 +438,7 @@ const uint8_t* stars[THEMES] = {cn16,usa16,ger16,tr16};
 #define TEXTURES 5
 uint16_t pd_tex = 0;
 const char* textures[TEXTURES] ={w2,flow,tiles_blue,l3,gt};
-Vec2 texsize[TEXTURES] = {128,20, 128,20, 128,19, 128,25, 120,26 };
+Vec2 texsize[TEXTURES] = {128,20, 128,20, 128,19, 128,25, 120,26  };
 Vec2 psize_h[TEXTURES] = {75,20,   75,20,  75,19,  80,25,  75,20  };
 Vec2 psize_m[TEXTURES] = {102,16,  102,10, 102,10, 118,25, 102,10 };
 const char* backgrounds[MAX_BG] = {earth190,irisa190,bega,col1,sand};
