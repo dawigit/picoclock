@@ -1,0 +1,8 @@
+![s_conf](https://github.com/dawigit/picoclock/blob/main/img/ancestral/s_conf.png) ![s_conf1](https://github.com/dawigit/picoclock/blob/main/img/ancestral/s_conf1.png)
+![s_conf2](https://github.com/dawigit/picoclock/blob/main/img/ancestral/s_conf2.png) ![s_conf3](https://github.com/dawigit/picoclock/blob/main/img/ancestral/s_conf3.png)
+![pwood](https://github.com/dawigit/picoclock/blob/main/img/ancestral/pwood.png) ![pointerdemo](https://github.com/dawigit/picoclock/blob/main/img/ancestral/pointerdemo.png)
+![rotoz](https://github.com/dawigit/picoclock/blob/main/img/ancestral/rotoz.png) ![rotoz1](https://github.com/dawigit/picoclock/blob/main/img/ancestral/rotoz1.png)
+![s_us](https://github.com/dawigit/picoclock/blob/main/img/ancestral/s_us.png) ![s_us1](https://github.com/dawigit/picoclock/blob/main/img/ancestral/s_us1.png)
+![s_cn](https://github.com/dawigit/picoclock/blob/main/img/ancestral/s_cn.png) ![s_cn1](https://github.com/dawigit/picoclock/blob/main/img/ancestral/s_cn1.png)
+![s_de](https://github.com/dawigit/picoclock/blob/main/img/ancestral/s_de.png) ![s_tr](https://github.com/dawigit/picoclock/blob/main/img/ancestral/s_tr.png)
+![gyrocross](https://github.com/dawigit/picoclock/blob/main/img/ancestral/gyrocross.png) ![gyrocrosscn](https://github.com/dawigit/picoclock/blob/main/img/ancestral/gyrocrosscn.png)
