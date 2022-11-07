@@ -5,14 +5,14 @@
 ![s_flag](https://github.com/dawigit/picoclock/blob/main/img/s_flag.png)
 
 #### config (clock wise)
-![conf_exit](https://github.com/dawigit/picoclock/blob/main/img/conf_exit.png)  exit config
-![conf_background](https://github.com/dawigit/picoclock/blob/main/img/conf_background.png)	change background
-![conf_rotozoom](https://github.com/dawigit/picoclock/blob/main/img/conf_rotozoom.png)  enable rotozoom
-![conf_rotate](https://github.com/dawigit/picoclock/blob/main/img/conf_rotate.png)  rotate background [earth, eye]
-![conf_save](https://github.com/dawigit/picoclock/blob/main/img/conf_save.png)  save config to flash
-![conf_handstyle](https://github.com/dawigit/picoclock/blob/main/img/conf_handstyle.png)  change clock hand style [normal, alpha, textured]
-![conf_clock](https://github.com/dawigit/picoclock/blob/main/img/conf_clock.png)  change clock hand texture
-![conf_bender](https://github.com/dawigit/picoclock/blob/main/img/conf_bender.png)  dis-/enable second bender 
+- ![conf_exit](https://github.com/dawigit/picoclock/blob/main/img/conf_exit.png)  exit config
+- ![conf_background](https://github.com/dawigit/picoclock/blob/main/img/conf_background.png)	change background
+- ![conf_rotozoom](https://github.com/dawigit/picoclock/blob/main/img/conf_rotozoom.png)  enable rotozoom
+- ![conf_rotate](https://github.com/dawigit/picoclock/blob/main/img/conf_rotate.png)  rotate background [earth, eye]
+- ![conf_save](https://github.com/dawigit/picoclock/blob/main/img/conf_save.png)  save config to flash
+- ![conf_handstyle](https://github.com/dawigit/picoclock/blob/main/img/conf_handstyle.png)  change clock hand style [normal, alpha, textured]
+- ![conf_clock](https://github.com/dawigit/picoclock/blob/main/img/conf_clock.png)  change clock hand texture
+- ![conf_bender](https://github.com/dawigit/picoclock/blob/main/img/conf_bender.png)  dis-/enable second bender 
 
 
 ![uscn1](https://user-images.githubusercontent.com/26333559/196231673-cdbe89fb-14fd-46a9-b566-e3241b16d3c8.png)
