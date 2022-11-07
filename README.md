@@ -4,6 +4,8 @@
 ![s_configicon](https://github.com/dawigit/picoclock/blob/main/img/s_configicon.png) ![s_configmenu](https://github.com/dawigit/picoclock/blob/main/img/s_configmenu.png)
 ![s_flag](https://github.com/dawigit/picoclock/blob/main/img/s_flag.png)
 
+https://github.com/dawigit/picoclock/tree/main/img/ancestral#readme old images 
+
 #### config (clock wise)
 - ![conf_exit](https://github.com/dawigit/picoclock/blob/main/img/conf_exit.png)  exit config
 - ![conf_background](https://github.com/dawigit/picoclock/blob/main/img/conf_background.png)	change background
