@@ -40,6 +40,7 @@ Find the '--address' with:
 `cd picoclock;mkdir build;cd build;cmake ..;make`
 
 ### News
+- 'editpos' command added [0-8]
 - load/save flash fixed. [restore save ram from flash now works]
 - added new icons
 - added config (next to center, opposite dotw)
@@ -94,6 +95,7 @@ Find the '--address' with:
 - 'spin'		[set degrees (-359,0,359) +/- when 'rota' is eanbled]
 - 'deg'			[set the degree when (0-359) 'rota' is enabled]
 - 'cpst'    [set clock pointer style (0-2) normal,alpha,texture]
+- 'editpos'		[set editposition (0-8)]
 
 #### no args
 - 'cir0'		[dynamic circle off]

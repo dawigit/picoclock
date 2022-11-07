@@ -366,6 +366,7 @@ typedef struct ThemePos_t{
   uint8_t pos_matrix_x=1; // start in center
   uint8_t pos_matrix_y=1; // start in center
 
+
 /* Position Matrices
 it's like a gear shifter
 [ | / \] : up/down movement ways
@@ -411,7 +412,6 @@ H  - M - S - DOW
 
   PosMat_t p_us = {3,3,pos_matrix_US};
   PosMat_t p_cn = {4,3,pos_matrix_CN};
-
 
 #define USA_Old_Glory_Red  0xB0C8 //0xB31942
 #define USA_Old_Glory_Blue 0x098C //0x0A3161
@@ -482,6 +482,18 @@ void update_pos_matrix(){
   }
   if(pos_matrix_y>=positions[plosa->theme]->dim_y){
     pos_matrix_y=positions[plosa->theme]->dim_y-1;
+  }
+}
+
+void repos(uint8_t id){
+  for(uint8_t j=0;j<positions[plosa->theme]->dim_y;j++){
+    for(uint8_t i=0;i<positions[plosa->theme]->dim_x;i++){
+      if(id == positions[plosa->theme]->pos[j*(positions[plosa->theme]->dim_x)+i]){
+        pos_matrix_x = i;
+        pos_matrix_y = j;
+        break;
+      }
+    }
   }
 }
 
@@ -848,7 +860,7 @@ void print_font_table(){
   uint32_t sti=0;
   char ftc[5] = {0};
   uint8_t cbu[5];
-  puts("TESTING...");
+  printf("TESTING...");
   printf("symcheck\n");
   char* pc;
   for(int i=0;i<7;i++){
@@ -1000,8 +1012,8 @@ void gpio_callback(uint gpio, uint32_t events) {
       if(gpio==CSW){        osw=true;      }
       if(gpio==CCLK){        gch='c';      }
       if(gpio==CDT){        gch='d';      }
-      if(gpio==CBUT0){ceasefire=true;fire_pressed=false;rebootcounter=0;} // puts("erise");
-      if(gpio==CBUT1){ceasefire=true;fire_pressed=false;rebootcounter=0;} // puts("erise");
+      if(gpio==CBUT0){ceasefire=true;fire_pressed=false;rebootcounter=0;}
+      if(gpio==CBUT1){ceasefire=true;fire_pressed=false;rebootcounter=0;}
 
       gbuf[0]=gbuf[1];
       gbuf[1]=gch;
@@ -1015,8 +1027,8 @@ void gpio_callback(uint gpio, uint32_t events) {
       //  printf("tus: %d\n",time_us_32());
       //  printf("b0t: %d\n",button0_time);
       //}
-      if(gpio==CBUT0 && !fire && (((time_us_32()-button0_time)/MS)>=BUTD)){ceasefire=false;fire=true;button0_time = time_us_32();fire_pressed=true;} // puts("efall");
-      if(gpio==CBUT1 && !fire && (((time_us_32()-button1_time)/MS)>=BUTD)){ceasefire=false;fire=true;button1_time = time_us_32();fire_pressed=true;} // puts("efall");
+      if(gpio==CBUT0 && !fire && (((time_us_32()-button0_time)/MS)>=BUTD)){ceasefire=false;fire=true;button0_time = time_us_32();fire_pressed=true;}
+      if(gpio==CBUT1 && !fire && (((time_us_32()-button1_time)/MS)>=BUTD)){ceasefire=false;fire=true;button1_time = time_us_32();fire_pressed=true;}
       gbuf[0]=gbuf[1];
       gbuf[1]=gch;
     }
@@ -1066,10 +1078,15 @@ void command(char* c){
       if(strstr(left,"deep")){ plosa->DEEPSLEEP = (bool)atoi(right);}
       if(strstr(left,"high")){ plosa->highpointer = (bool)atoi(right);}
       if(strstr(left,"alpha")){ plosa->alphapointer = (bool)atoi(right);}
-      if(strstr(left,"pstyle")){ plosa->pstyle = (int16_t)atoi(right);}
+      if(strstr(left,"pstyle")){ plosa->pstyle = (PSTYLE)atoi(right);}
       if(strstr(left,"texture")){
-        plosa->texture = (int16_t)atoi(right);
+        plosa->texture = (uint8_t)atoi(right);
         if(plosa->texture>=TEXTURES){plosa->texture=TEXTURES-1;}
+      }
+      if(strstr(left,"editpos")){
+        plosa->editpos = (uint8_t)atoi(right);
+        if(plosa->editpos>EDITPOSITIONS){plosa->editpos=EDITPOSITIONS;}
+        repos(plosa->editpos);
       }
       if(strstr(left,"spin")){ plosa->spin = (int16_t)atoi(right);}
       if(strstr(left,"clock")){ plosa->clock = (bool)atoi(right);}
@@ -1362,7 +1379,6 @@ void draw_gfx(){
 
   draw_clock_hands();
 
-
   lcd_blit(120-16,120-16,32,32,colt[plosa->theme]->alpha, flags[plosa->theme]); // center
 
   if(plosa->spin!=0){
@@ -1421,7 +1437,6 @@ void draw_gfx(){
   }
 }
 
-
 void draw_text(){
   if(!draw_text_enabled){return;}
   if(plosa->sensors){
@@ -1477,7 +1492,6 @@ void draw_text(){
 }
 
 int main(void)
-
 {
     plosa->dummy=0;
     if(strstr((char*)plosa->mode,"SAVE")){
@@ -1511,19 +1525,13 @@ int main(void)
     //plosa->pstyle=2;
     //plosa->theme=0;
     //plosa->texture=1;
-    if(plosa->theme==0){
-      edeg_fine = 270;
-    }else{
-      edeg_fine = 90;
-    }
+    if(plosa->theme==0){ edeg_fine = 270;
+    }else{               edeg_fine = 90; }
 
     lcd_init();
     lcd_make_cosin();
     draw_init();
-    //printf("sin0=%f\n",gcosin(0));
-    puts("stdio init");
     lcd_set_brightness(plosa->BRIGHTNESS);
-    puts("lcd init");
     printf("%02d-%02d-%04d %02d:%02d:%02d [%d]\n",plosa->dt.day,plosa->dt.month,plosa->dt.year,plosa->dt.hour,plosa->dt.min,plosa->dt.sec,plosa->dt.dotw);
     printf("mode='%s'\n",plosa->mode);
     printf("%s\n",crcstatus);
@@ -1733,13 +1741,9 @@ int main(void)
         dir_y = D_NONE;
 
         if(cmode==CM_None){
-          //puts("CM_Config");
-          //cmode=CM_Config;
           hgx = (int16_t)acc[0];
           hgy = (int16_t)acc[1];
           hg_enabled = true;
-          //printf("hgxy: %d %d\n",hgx,hgy);
-          //puts("CM_Changepos");
           cmode=CM_Changepos;
           colors[plosa->editpos]=edit_colors[plosa->theme];
         }else if(cmode==CM_Config){
@@ -1797,6 +1801,7 @@ int main(void)
             //printf("flag selected: %d\n",plosa->configpos);
             if((plosa->theme==0 && plosa->configpos>0)||(plosa->configpos==0 && plosa->theme>0)){
               gdeg_fine += 180;
+              edeg_fine += 180;
             }
             plosa->theme = plosa->configpos;
 
@@ -1807,12 +1812,7 @@ int main(void)
             hg_enabled = false;
             cmode=CM_None;
           }
-
-          //puts("CM_Changepos");
-          //cmode=CM_Changepos;
-          //colors[plosa->editpos]=edit_colors[plosa->theme];
         }else if(cmode==CM_Changepos){
-          //puts("CM_Editpos");
           cmode=CM_Editpos;
           hgx = (int16_t)acc[0];
           hgy = (int16_t)acc[1];
@@ -1820,7 +1820,6 @@ int main(void)
           //printf("hgxy: %d %d\n",hgx,hgy);
           tcw = false;
           tccw = false;
-          //colors[plosa->editpos]=change_colors[plosa->theme];
           colors[plosa->editpos]=changecol;
           if(plosa->editpos==EPOS_CONFIG){
             draw_gfx_enabled= false;
@@ -1842,7 +1841,6 @@ int main(void)
           hg_enabled = false;
 
           if(draw_flagconfig_enabled){
-            //plosa->theme = plosa->configpos;
             update_pos_matrix();
             draw_gfx_enabled=true;
             draw_text_enabled=true;
@@ -1886,26 +1884,12 @@ int main(void)
 
       if(cmode==CM_Changepos){
         if(NO_POS_MODE){
-          if(dir_x==D_PLUS){
-            //puts("Dright");
-            if(pos_matrix_x<positions[plosa->theme]->dim_x-1)++pos_matrix_x;
-          }
-          if(dir_x==D_MINUS){
-            //puts("Dleft");
-            if(pos_matrix_x>0)--pos_matrix_x;
-          }
-
-          if(dir_y==D_PLUS){
-            if(pos_matrix_y<positions[plosa->theme]->dim_y-1)++pos_matrix_y;
-            //puts("Ddown");
-          }
-          if(dir_y==D_MINUS){
-            //puts("Dup");
-            if(pos_matrix_y>0)--pos_matrix_y;
-          }
+          if(dir_x==D_PLUS){  if(pos_matrix_x<positions[plosa->theme]->dim_x-1)++pos_matrix_x;          }
+          if(dir_x==D_MINUS){ if(pos_matrix_x>0)--pos_matrix_x;          }
+          if(dir_y==D_PLUS){  if(pos_matrix_y<positions[plosa->theme]->dim_y-1)++pos_matrix_y;          }
+          if(dir_y==D_MINUS){ if(pos_matrix_y>0)--pos_matrix_y; }
           colors[plosa->editpos]=dcolors[plosa->editpos];
           plosa->editpos=positions[plosa->theme]->pos[pos_matrix_y*(positions[plosa->theme]->dim_x)+pos_matrix_x];
-          //printf("posM: %d %d [%d]\n",pos_matrix_x, pos_matrix_y, pos_matrix[pos_matrix_y*3+pos_matrix_x]);
           dir_x = D_NONE;
           dir_y = D_NONE;
 
