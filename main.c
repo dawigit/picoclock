@@ -1505,12 +1505,6 @@ int main(void)
           sprintf(flashstatus,"flash: loaded\0");
     		}else{
           sprintf(flashstatus,"flash: normal\0");
-    			//plosa->rules[0]=0;
-          //if(!force_no_load){
-          //  save_config();
-          //  sprintf((char*)plosa->mode,"LOAD");
-          //  flash_data();
-          //}
         }
     }
     stdio_init_all();
