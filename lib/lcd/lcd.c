@@ -98,8 +98,14 @@ void lcd_module_init(){
 
 
 void lcd_setatt(uint8_t scandir){
+
   uint8_t MemoryAccessReg=0x08;
-  MemoryAccessReg = (scandir == HORIZONTAL)?0xc8:0x68;
+  switch(scandir){
+    case 0: MemoryAccessReg=0x08;break;
+    case 1: MemoryAccessReg=0x68;break;
+    case 2: MemoryAccessReg=0xc8;break;
+    case 3: MemoryAccessReg=0xa8;break;
+  }
   lcd_cmd(0x36); //MX, MY, RGB mode
   lcd_data(MemoryAccessReg);	//0x08 set RGB
 }

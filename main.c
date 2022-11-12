@@ -116,6 +116,7 @@ typedef struct {
   uint8_t conf_bg;
   uint8_t conf_phour;
   uint8_t conf_pmin;
+  uint8_t scandir;
   uint8_t dummy;
   uint8_t save_crc;
 } LOSA_t;
@@ -1068,6 +1069,7 @@ void command(char* c){
       char* space = strstr(left," ");
       space[0] = 0;
       char* right = space+1;
+      if(strstr(left,"scandir")){   plosa->scandir = ((uint8_t)atoi(right))&0x03;lcd_setatt(plosa->scandir);}
       if(strstr(left,"sensors")){   plosa->sensors = (bool)atoi(right);}
       if(strstr(left,"gyro")){ plosa->gyrocross = (bool)atoi(right);}
       if(strstr(left,"bender")){    plosa->bender = (bool)atoi(right);}
@@ -1199,13 +1201,38 @@ void shell(){
   }
 }
 
+int16_t get_acc02f(float f0, float f1, float FACT){
+  switch(plosa->scandir){
+    case 0: return (int16_t)(f0/FACT);break;
+    case 1: return (int16_t)(f1/FACT);break;
+    case 2: return (int16_t)(f0/-FACT);break;
+    case 3: return (int16_t)(f1/-FACT);break;
+  }
+}
+
+int16_t get_acc12f(float f0, float f1, float FACT){
+  switch(plosa->scandir){
+    case 0: return (int16_t)(f1/FACT);break;
+    case 1: return (int16_t)(f0/-FACT);break;
+    case 2: return (int16_t)(f1/-FACT);break;
+    case 3: return (int16_t)(f0/FACT);break;
+  }
+}
+
+int16_t get_acc02(float f0, float f1){return get_acc02f(f0,f1,25.0f);}
+int16_t get_acc12(float f0, float f1){return get_acc12f(f0,f1,25.0f);}
+
+int16_t get_acc0(){return get_acc02(acc[0],acc[1]);}
+int16_t get_acc1(){return get_acc12(acc[0],acc[1]);}
 
 int16_t draw_getdeg(int16_t deg){
   float   FACT      = 25.0f;
   int16_t EPC_BXY   = 30;
   int16_t FINE_STOP = 2;
-  int8_t xa = (int8_t)(acc[0]/FACT);
-  int8_t ya = (int8_t)(acc[1]/FACT);
+  //int8_t xa = (int8_t)(acc[0]/FACT);
+  //int8_t ya = (int8_t)(acc[1]/FACT);
+  int8_t xa = (int8_t)get_acc0();
+  int8_t ya = (int8_t)get_acc1();
   //printf("{%d} %d %d -> %d %d / %d %d [%d %d] %d %d",plosa->configpos,xa,ya,hgx,hgy,(int8_t)(hgx/FACT),(int8_t)(hgy/FACT));
   xa = xa - (int8_t)(hgx/FACT);
   ya = ya - (int8_t)(hgy/FACT);
@@ -1303,7 +1330,8 @@ void draw_clock_hands(){
         y1 = (uint8_t)y0+yi;
         Vec2 v1={x1,y1};
         lcd_alpha_on();
-        lcd_bez2curve(0,0,(int8_t)(xi/2)+(int8_t)(acc[1]/25.0f),(int8_t)(yi/2)-(int8_t)(acc[0]/25.0f),xi,yi,114,colt[plosa->theme]->col_s,2);
+        //lcd_bez2curve(0,0,(int8_t)(xi/2)+(int8_t)(acc[1]/25.0f),(int8_t)(yi/2)-(int8_t)(acc[0]/25.0f),xi,yi,114,colt[plosa->theme]->col_s,2);
+        lcd_bez2curve(0,0,(int8_t)(xi/2)+(int8_t)get_acc1(),(int8_t)(yi/2)-(int8_t)get_acc0(),xi,yi,114,colt[plosa->theme]->col_s,2);
         lcd_alpha_off();
         if(plosa->pstyle == PS_ALPHA){          lcd_alpha_line_deg(v1, tu, 7, colt[plosa->theme]->col_s, 1);
         }else{          lcd_line_deg(v1, tu, 7, colt[plosa->theme]->col_s, 1);        }
@@ -1399,12 +1427,14 @@ void draw_gfx(){
 
     lcd_frame(GSPX-GSPS , GSPY-GSPSZ, GSPX+GSPS, GSPY+GSPSZ,WHITE,1); //vert |
     lcd_frame(GSPX-GSPSZ, GSPY-GSPS, GSPX+GSPSZ,GSPY+GSPS, WHITE,1); //horz –
-    float fx = (acc[1]/25.0f); // -20 – 20
-    float fy = (acc[0]/25.0f);
+//    float fx = (acc[1]/25.0f); // -20 – 20
+//    float fy = (acc[0]/25.0f);
+    float fy = get_acc0();
+    float fx = get_acc1();
 
     if(hg_enabled){
-      fy -= (int8_t)(hgx/25.0f);
-      fx -= (int8_t)(hgy/25.0f);
+      fy -= (int8_t)get_acc02(hgx,hgy);
+      fx -= (int8_t)get_acc12(hgx,hgy);
     }
     //printf("gxy: %f %f\n",fx,fy);
     int8_t gx = (int8_t)fx;
@@ -1421,8 +1451,8 @@ void draw_gfx(){
     lcd_pixel_rawps(GSPX,gdy,gcoly,GSPS);
     lcd_pixel_rawps(gdx,GSPY,gcolx,GSPS);
     if(hg_enabled){
-      gy = (int8_t)(hgx/25.0f);
-      gx = (int8_t)(hgy/25.0f);
+      gy = (int8_t)get_acc02(hgx,hgy); //(hgx/25.0f);
+      gx = (int8_t)get_acc12(hgx,hgy); //(hgy/25.0f);
       if(gx>  (GSPSZ-GSPS)){ gx= (GSPSZ-GSPS); }
       if(gx< -(GSPSZ-GSPS)){ gx=-(GSPSZ-GSPS); }
       if(gy>  (GSPSZ-GSPS)){ gy= (GSPSZ-GSPS); }
@@ -1523,6 +1553,7 @@ int main(void)
     }else{               edeg_fine = 90; }
 
     lcd_init();
+    lcd_setatt(plosa->scandir&0x03);
     lcd_make_cosin();
     draw_init();
     lcd_set_brightness(plosa->BRIGHTNESS);
@@ -1668,8 +1699,10 @@ int main(void)
 
       if(plosa->gfxmode==GFX_NORMAL||plosa->gfxmode==GFX_ROTATE){
         if(bg_dynamic[plosa->conf_bg]){ // dynamic background
-          int8_t xa = (int8_t)(acc[1]/50.0f);
-          int8_t ya = (int8_t)(acc[0]/50.0f);
+//          int8_t xa = (int8_t)(acc[1]/50.0f);
+//          int8_t ya = (int8_t)(acc[0]/50.0f);
+          int8_t ya = (int8_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
+          int8_t xa = (int8_t)get_acc12f(acc[0],acc[1],50.0f); //(acc[0]/50.0f);
           if(xa>EYE_MAX){xa=EYE_MAX;}
           if(xa<-EYE_MAX){xa=-EYE_MAX;}
           if(ya>EYE_MAX){ya=EYE_MAX;}
@@ -1735,8 +1768,8 @@ int main(void)
         dir_y = D_NONE;
 
         if(cmode==CM_None){
-          hgx = (int16_t)acc[0];
-          hgy = (int16_t)acc[1];
+          hgx = (int16_t)get_acc02f(acc[0],acc[1],1.0f);
+          hgy = (int16_t)get_acc12f(acc[0],acc[1],1.0f);
           hg_enabled = true;
           cmode=CM_Changepos;
           colors[plosa->editpos]=edit_colors[plosa->theme];
@@ -1808,8 +1841,8 @@ int main(void)
           }
         }else if(cmode==CM_Changepos){
           cmode=CM_Editpos;
-          hgx = (int16_t)acc[0];
-          hgy = (int16_t)acc[1];
+          hgx = (int16_t)get_acc02f(acc[0],acc[1],1.0f); //acc[0];
+          hgy = (int16_t)get_acc12f(acc[0],acc[1],1.0f); //acc[1];
           hg_enabled = true;
           //printf("hgxy: %d %d\n",hgx,hgy);
           tcw = false;
@@ -1844,11 +1877,13 @@ int main(void)
         fire=false;
       }
       if(cmode==CM_Changepos || cmode==CM_Editpos || cmode==CM_Config){
-        int asx = (int)acc[0];
+        int16_t asx = get_acc02f(acc[0],acc[1],1.0f);
+        int16_t asy = get_acc12f(acc[0],acc[1],1.0f);
+        //int asx = (int)acc[0];
         asx-=hgx;
         asx>>1;asx<<1;
         if( asx > HOURGLASSBORDER || asx < -HOURGLASSBORDER ){
-          int a = asx;
+          int16_t a = asx;
           if(a<0){a=-a;}
           hourglass_x -= a;
           a>>=2;
@@ -1859,11 +1894,11 @@ int main(void)
             if(asx<0){ dir_y=D_PLUS;tccw=true;}
           }
         }
-        int asy = (int)acc[1];
+        //int asy = (int)acc[1];
         asy-=hgy;
         asy>>1;asy<<1;
         if( asy > HOURGLASSBORDER || asy < -HOURGLASSBORDER ){
-          int a = asy;
+          int16_t a = asy;
           if(a<0){a=-a;}
           hourglass_y -= a;
           a>>=2;
@@ -1886,7 +1921,6 @@ int main(void)
           plosa->editpos=positions[plosa->theme]->pos[pos_matrix_y*(positions[plosa->theme]->dim_x)+pos_matrix_x];
           dir_x = D_NONE;
           dir_y = D_NONE;
-
         }else{
           // change editposition (l/r or u/d) [ur+](tcw) [dl-](tccw)
           if(tcw){

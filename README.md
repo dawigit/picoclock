@@ -44,6 +44,7 @@ Find the '--address' with:
 `cd picoclock;mkdir build;cd build;cmake ..;make`
 
 ### News
+- 'scandir' command added [0-3] (hardware) rotate display by 90° 
 - 'editpos' command added [0-8]
 - load/save flash fixed. [restore save ram from flash now works]
 - added new icons
