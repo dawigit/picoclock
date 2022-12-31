@@ -64,13 +64,14 @@
 #define PI 3.14159265
 #define PIdi (3.14159265/180)
 
-#define DEGS 360
+#define DEGS 1024
+#define QDEG DEGS/4
 #define mdeg (DEGS/60)
 #define sdeg (DEGS/60)
 #define hdeg (DEGS/12)
 
-#define to_rad(angleInDegrees) ((angleInDegrees) * M_PI / 180.0)
-#define to_deg(angleInRadians) ((angleInRadians) * 180.0 / M_PI)
+#define to_rad(angleInDegrees) ((angleInDegrees) * M_PI / 180.0f)
+#define to_deg(angleInRadians) ((angleInRadians) * 180.0f / M_PI)
 
 
 typedef struct _tFont
@@ -148,6 +149,7 @@ void lcd_sleepon();
 void lcd_sleepoff();
 
 void lcd_pixel_raw(uint16_t x, uint16_t y, uint16_t c); // no bswap color
+void lcd_pixel_raw_save(uint16_t x, uint16_t y, uint16_t c);
 void lcd_pixel_rawps(uint16_t x, uint16_t y, uint16_t c, uint16_t ps); //no swap with pointstrength
 void lcd_circle(uint16_t X_Center, uint16_t Y_Center, uint16_t Radius, uint16_t Color, uint16_t ps, bool fill);
 void lcd_frame(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t color, uint8_t ps);
@@ -196,14 +198,20 @@ void fxyd(float* x, float* y, int16_t deg);
 
 Vec2 vadd(Vec2 a, Vec2 b);
 Vec2 vsub(Vec2 a, Vec2 b);
+Vec2 vval(Vec2 a);
 Vec2 vrot(Vec2 v, int16_t deg);
+void vrotv(Vec2* v, int16_t deg);
 Vec2 vset(int16_t x, int16_t y);
-
 void lcd_roto(const uint8_t* src, int16_t w, int16_t h);
 void lcd_rotoa();
 void lcd_blit_deg(Vec2 vs, Vec2 ve, Vec2 vts, int16_t deg, const uint8_t* src, uint16_t alpha,bool centric);
 int16_t chkdeg(int16_t d);
-
+void lcd_dither(uint16_t x, uint16_t y, uint16_t sz);
+void lcd_magnify(uint8_t sx, uint8_t sy, uint8_t sz, uint8_t mx, uint8_t my, uint8_t mf);
+//void lcd_blit_deg2(Vec2 vs, Vec2 ve, Vec2 vts, Vec2 pos, int16_t deg, const uint8_t* src, uint16_t alpha);
+// origin , uv-size, texture-size
+void lcd_blit_deg2(Vec2 vo, Vec2 vuv, Vec2 vs, int16_t deg, const uint8_t* src, uint16_t alpha, bool centric);
+Vec2* lcd_linev2list2(Vec2 vs, Vec2 ve, int16_t* rsret);
 extern uint8_t slice_num;
-
+uint16_t drawlines;
 #endif //__GC9A01_H

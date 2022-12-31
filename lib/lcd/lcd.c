@@ -5,9 +5,12 @@ static const uint8_t PIXEL_SIZE = 2;
 static uint16_t angle;
 
 
+uint16_t drawlines = 1;
+
 uint16_t* img=NULL;
 uint8_t slice_num;
-
+int16_t Xadd=0;
+int16_t Yadd=0;
 bool lcd_alpha=false;
 bool test_init = true;
 uint16_t test_color;
@@ -42,8 +45,8 @@ int16_t test_y;
 uint16_t pbuf[64*64*2];
 char cbuf[32];
 
-float tcos[360] = {0};
-float tsin[360] = {0};
+float tcos[DEGS] = {0};
+float tsin[DEGS] = {0};
 
 void lcd_init(){
   lcd_module_init();
@@ -560,10 +563,10 @@ void lcd_sleepon(){  lcd_cmd(0x10);}
 void lcd_sleepoff(){  lcd_cmd(0x11);}
 
 inline uint16_t lcd_darker(uint16_t c){
-    uint16_t cr=c&0xf800;
-    uint16_t cg=c&0x07e0;
-    uint16_t cb=c&0x001f;
-    return (((cr>>1)&0xf800) | ((cg>>1)&0x07e0) | ((cb>>1)&0x001f));
+    c=__builtin_bswap16(c);
+    c&=0b1111011111011110;
+    c>>=1;
+    return __builtin_bswap16(c);
 }
 inline uint16_t lcd_lighter(uint16_t c){
   uint16_t cr=(c&0xf800)|0x1800;
@@ -582,6 +585,12 @@ inline void lcd_apixel_raw(uint16_t x, uint16_t y, uint16_t c){
 
 inline void lcd_pixel_raw(uint16_t x, uint16_t y, uint16_t c){
   img[LCD_W*y+x] = c;
+}
+
+inline void lcd_pixel_raw_save(uint16_t x, uint16_t y, uint16_t c){
+  if(x<240&&y<240){
+    img[LCD_W*y+x] = c;
+  }
 }
 
 
@@ -1026,7 +1035,7 @@ void lcd_roto(const uint8_t* src, int16_t w, int16_t h)
 void lcd_rotoa()
 {
     angle+=3;
-    if(angle>=360){angle-=360;}
+    if(angle>=DEGS){angle-=DEGS;}
 }
 //from hagl [https://github.com/tuupola/hagl]
 
@@ -1087,8 +1096,8 @@ void lcd_line_deg(Vec2 vs, int16_t deg, int16_t l, uint16_t color, int16_t ps){
 void lcd_linev2(Vec2 vs, Vec2 ve, uint16_t color, int16_t ps){
   int16_t px=vs.x;
   int16_t py=vs.y;
-  int16_t dx = (int16_t)ve.x - (int16_t)vs.x >= 0 ? ve.x - vs.x : vs.x - ve.x;
-  int16_t dy = (int16_t)ve.y - (int16_t)vs.y <= 0 ? ve.y - vs.y : vs.y - ve.y;
+  int16_t dx = ve.x - vs.x >= 0 ? ve.x - vs.x : vs.x - ve.x;
+  int16_t dy = ve.y - vs.y <= 0 ? ve.y - vs.y : vs.y - ve.y;
   int16_t XAddway = vs.x < ve.x ? 1 : -1;
   int16_t YAddway = vs.y < ve.y ? 1 : -1;
   int16_t esp = dx + dy;
@@ -1108,11 +1117,13 @@ void lcd_linev2(Vec2 vs, Vec2 ve, uint16_t color, int16_t ps){
 
 
 void lcd_make_cosin(){
-    //float e = 360/1024;
-    //for(int16_t d=0;d<1024;d++){    cosin[d] = sinf(PIdi*(d-90)*e);  }
-    for(int16_t d=0;d<360;d++){
-      tsin[d] = sinf(to_rad(d));
-      tcos[d] = sinf(to_rad(d-90));
+    float d=0;
+    uint16_t i;
+    while(i<DEGS){
+      tsin[i] = sinf( to_rad(-d-90) );
+      tcos[i] = sinf( to_rad(-d-180) );
+      d+=(360.0f/DEGS);
+      ++i;
     }
 }
 //float gcosin(uint16_t d){
@@ -1131,8 +1142,8 @@ inline void fxyd(float* x, float* y, int16_t deg){
 
 inline Vec2 gvdl(int16_t deg, int16_t l){
   Vec2 v;
-  if(deg>=360){deg-=360;}
-  if(deg<0){deg+=360;}
+  if(deg>=DEGS){deg-=DEGS;}
+  if(deg<0){deg+=DEGS;}
   v.x = (int16_t)(tcos[deg]*l);
   v.y = (int16_t)(tsin[deg]*l);
   //printf("gvdl %d %d %d %d\n",v.x,v.y,deg,l);
@@ -1140,8 +1151,8 @@ inline Vec2 gvdl(int16_t deg, int16_t l){
 }
 
 inline int16_t gdeg(int16_t d){
-  if(d<0) return d+360;
-  if(d>359)return d-360;
+  if(d<0) return d+DEGS;
+  if(d>=DEGS)return d-DEGS;
 }
 
 inline Vec2 vadd(Vec2 a, Vec2 b){
@@ -1154,15 +1165,31 @@ inline Vec2 vsub(Vec2 a, Vec2 b){
   a.y-=b.y;
   return a;
 }
+
+inline Vec2 vval(Vec2 a){
+  if(a.x<0)a.x*=-1;
+  if(a.y<0)a.y*=-1;
+  return a;
+}
+
 inline void vprint(Vec2 v){
   printf("%d %d\n",v.x,v.y);
 }
 
 inline Vec2 vrot(Vec2 v, int16_t deg){
-  Vec2 vr = { (int16_t)(v.x * tcos[deg] - v.y * tsin[deg]) ,
-              (int16_t)(v.y * tsin[deg] + v.x * tcos[deg]) };
+  uint16_t d=(uint16_t)deg;
+  Vec2 vr = { (int16_t)(v.x * tcos[d] - v.y * tsin[d]), (int16_t)(v.x * tsin[d] + v.y * tcos[d]) };
   return vr;
 }
+
+inline void vrotv(Vec2* v, int16_t deg){
+  uint16_t d=(uint16_t)deg;
+  int16_t x = (int16_t)(v->x * tcos[d] - v->y * tsin[d]);
+  int16_t y = (int16_t)(v->x * tsin[d] + v->y * tcos[d]);
+  v->x=x;
+  v->y=y;
+}
+
 
 inline Vec2 vset(int16_t x,int16_t y){
   Vec2 r ={x,y};
@@ -1197,15 +1224,15 @@ void lcd_alpha_line(uint8_t xs, uint8_t ys, uint8_t xe, uint8_t ye, uint16_t col
 }
 
 
-Vec2* lcd_linev2list(Vec2 ve, int16_t* rsret){
+Vec2* lcd_linev2list2(Vec2 vs, Vec2 ve, int16_t* rsret){
   Vec2* pv;
   int16_t rs=0;
-  int16_t px=0;
-  int16_t py=0;
-  int16_t XAddway = ve.x > 0 ? 1 : -1;
-  int16_t YAddway = ve.y > 0 ? 1 : -1;
-  int16_t dx = (ve.x < 0) ? -ve.x:ve.x;
-  int16_t dy = (ve.y > 0) ? -ve.y:ve.y;
+  int16_t px=vs.x;
+  int16_t py=vs.y;
+  int16_t XAddway = vs.x < ve.x ? 1 : -1;
+  int16_t YAddway = vs.y < ve.y ? 1 : -1;
+  int16_t dx = (ve.x - vs.x >= 0 )? ve.x - vs.x : vs.x - ve.x;
+  int16_t dy = (ve.y - vs.y <= 0 )? ve.y - vs.y : vs.y - ve.y;
   int32_t esp = dx + dy;
   int16_t ax = dx>=0?dx:-dx;
   int16_t ay = dy>=0?dy:-dy;
@@ -1218,6 +1245,7 @@ Vec2* lcd_linev2list(Vec2 ve, int16_t* rsret){
   while(true){
     pv[i].x=px;
     pv[i].y=py;
+    //printf("lv2l: %d %d\n",px,py);
     i++;
     if(2*esp >= dy) {
       if (px==ve.x){break;}
@@ -1232,11 +1260,55 @@ Vec2* lcd_linev2list(Vec2 ve, int16_t* rsret){
     pv[i].x=px;
     pv[i].y=py;
   }
-  //printf("vr[%d] ={ %d %d }\n",i,px,py);
+  //printf("v2l: { %d %d }\n",pv[118].x,pv[118].y);
 
   *rsret = rs;
   return pv;
 }
+
+
+
+Vec2* lcd_linev2list(Vec2 ve, int16_t* rsret){
+  Vec2* pv;
+  int16_t rs=0;
+  int16_t px=0;
+  int16_t py=0;
+  int16_t XAddway = ve.x > 0 ? 1 : -1;
+  int16_t YAddway = ve.y > 0 ? 1 : -1;
+  int16_t dx = (ve.x < 0) ? -ve.x:ve.x;
+  int16_t dy = (ve.y > 0) ? -ve.y:ve.y;
+  int16_t esp = dx + dy;
+  int16_t ax = dx>=0?dx:-dx;
+  int16_t ay = dy>=0?dy:-dy;
+  if(ax>ay){ rs = ax+1; }
+  else{      rs = ay+1; }
+  pv = (Vec2*)malloc(sizeof(Vec2) * rs);
+  //printf("v2l: dx%d dy%d ax%d ay%d : rs %d [%d %d]\n",dx,dy,ax,ay,rs,ve.x,ve.y);
+  uint16_t i=0;
+  uint16_t scape=0;
+  while(true){
+    pv[i].x=px;
+    pv[i].y=py;
+    //printf("lv2l: %d %d\n",px,py);
+    i++;
+    if(2*esp >= dy) {
+      if (px==ve.x){break;}
+      esp += dy;      px += XAddway;
+    }
+    if(2*esp <= dx) {
+      if (py==ve.y){break;}
+      esp += dx;      py += YAddway;
+    }
+  }
+  if(i<rs){
+    pv[i].x=px;
+    pv[i].y=py;
+  }
+
+  *rsret = rs;
+  return pv;
+}
+
 
 
 void lcd_blit_deg(Vec2 vs, Vec2 ve, Vec2 vts, int16_t deg, const uint8_t* src, uint16_t alpha,bool centric){
@@ -1250,7 +1322,7 @@ void lcd_blit_deg(Vec2 vs, Vec2 ve, Vec2 vts, int16_t deg, const uint8_t* src, u
 
   Vec2 vx = gvdl(deg,ve.x);
   Vec2* pvx = lcd_linev2list(vx,&lenx);
-  Vec2 vy = gvdl(deg+90,ve.y);
+  Vec2 vy = gvdl(deg+QDEG,ve.y);
   Vec2* pvy = lcd_linev2list(vy,&leny);
   if(lenx>ve.x)lenx=ve.x;
   if(leny>ve.y)leny=ve.y;
@@ -1347,7 +1419,7 @@ void lcd_blit_deg(Vec2 vs, Vec2 ve, Vec2 vts, int16_t deg, const uint8_t* src, u
         int16_t ay=pvx[0].y+py;
         uint16_t c = ps[vtab[y]*vts.x + utab[x]];
         if(c!=alpha){
-          lcd_pixel_raw(ax ,  ay   ,c);        lcd_pixel_raw(ax+1 ,ay   ,c);        lcd_pixel_raw(ax+1 ,ay+1 ,c);        lcd_pixel_raw(ax ,  ay+1 ,c);
+          lcd_pixel_raw(ax ,  ay   ,c);       lcd_pixel_raw(ax+1 ,ay   ,c);        lcd_pixel_raw(ax+1 ,ay+1 ,c);        lcd_pixel_raw(ax ,  ay+1 ,c);
 //          lcd_pixel_raw(px+ax ,  py+ay   ,c);        lcd_pixel_raw(px+ax+1 ,py+ay   ,c);        lcd_pixel_raw(px+ax+1 ,py+ay+1 ,c);        lcd_pixel_raw(px+ax ,  py+ay+1 ,c);
         }
       }
@@ -1373,7 +1445,141 @@ void lcd_blit_deg(Vec2 vs, Vec2 ve, Vec2 vts, int16_t deg, const uint8_t* src, u
 
 
 inline int16_t chkdeg(int16_t d){
-  if(d<0)     {d+=360;}
-  if(d>=360)  {d-=360;}
+  if(d<0)     {d+=DEGS;}
+  if(d>=DEGS)  {d-=DEGS;}
   return d;
+}
+
+void lcd_dither(uint16_t sx, uint16_t sy, uint16_t sz){
+  uint32_t o=(sy*sz)+(sx<<1);
+  uint32_t i=0;
+  uint16_t c0, c1;
+  uint32_t yo=0;
+  uint16_t dc=0;
+  for(uint16_t y=0;y<sz;y++){
+    for(uint16_t x=0;x<sz;x++){
+      c0 = img[yo+x];
+      c1 = img[yo+x+1];
+      if(c0&&c1){continue;}
+      if( c0==0 && c1>0 ){        img[yo+x]=lcd_darker(c1);x++;dc++;      } //l
+      if( c1==0 && c0>0 ){        img[yo+x+1]=lcd_darker(c0);x++;dc++;      } //r
+    }
+    yo+=LCD_W;
+  }
+  printf("dc=%d\n",dc);
+}
+
+
+void lcd_magnify(uint8_t sx, uint8_t sy, uint8_t sz, uint8_t mx, uint8_t my, uint8_t mf){
+  uint32_t yos = sy*LCD_W;
+  //uint32_t yod = my*LCD_W;
+  uint16_t c;
+  for(uint8_t y=0;y<sz;y++){
+    for(uint8_t x=0;x<sz;x++){
+      c = img[yos+sx+x];
+      lcd_pixel_rawps(mx+x*mf,my+y*mf,c,mf);
+    }
+    yos+=LCD_W;
+//    yod+=(LCD_W<<mf);
+  }
+}
+
+
+void lcd_blit_deg2(Vec2 vo, Vec2 vuv, Vec2 vs, int16_t deg, const uint8_t* src, uint16_t alpha, bool centric){
+//  printf("lcd_blit_deg2\n");
+  uint16_t pslx[256];
+  uint16_t psly[256];
+  Vec2 vrs,vre,vcs,vce;
+  if(centric){
+    vrs.x = -(vuv.x/2);
+    vrs.y = 0;
+    vre.x = vuv.x/2;
+    vre.y = 0;
+    vcs.x = 0;
+    vcs.y = -(vuv.y/2);
+    vce.x = 0;
+    vce.y = vuv.y/2;
+  }else{
+    vrs.x=0;      vrs.y=0;
+    vre.x=vuv.x;  vre.y=0;
+    vcs.x=0;      vcs.y=-(vs.y/2);
+    vce.x=0;      vce.y=vuv.y-(vs.y/2);
+  }
+  uint16_t* ps = (uint16_t*)src;
+  vrotv(&vrs,deg);
+  vrotv(&vre,deg);
+  int16_t l0,l1;
+  uint16_t i=0;
+  Vec2* pvx = lcd_linev2list2(vrs,vre,&l0);
+  vrotv(&vcs,deg);
+  vrotv(&vce,deg);
+  Vec2* pvy = lcd_linev2list2(vcs,vce,&l1);
+  l0--;
+  l1--;
+  Vec2 p;
+  bool l0one = (l0==1);
+  bool l1one = (l1==1);
+  if(l0one){l0=l1;}
+  if(l1one){l1=l0;}
+  int16_t ll = l0-1;
+  float difx = (float)vs.x/(float)(l0);
+  float dx = 0.0f;
+  i=0;
+  while(i < l0){
+    pslx[i]=(uint16_t)(dx);
+    dx+=difx;
+    ++i;
+  }
+  float dify = (float)vs.y/(float)(l1);
+  float dy = 0.0f;
+  ll = l1-1;
+  i=0;
+  while(i < l1){
+    psly[i]=(uint16_t)(dy);
+    dy +=dify;
+    ++i;
+  }
+  uint16_t c = 0;
+  if(l0one){
+    for(uint16_t y=0;y<l1;y++){
+      for(uint16_t x=0;x<l0;x++){
+        c = ps[psly[y]*vs.x + pslx[x]];
+        if(c!=alpha){
+          p.x = pvx[0].x+pvy[y].x+vo.x;
+          p.y = pvx[0].y+pvy[y].y+vo.y;
+          lcd_pixel_raw(p.x ,  p.y   ,c);
+        }
+      }
+    }
+  }else if(l1one){
+    //printf("l1:\n");
+    for(uint16_t y=0;y<l1;y++){
+      p.y=pvy[0].y+y;
+      for(uint16_t x=0;x<l0;x++){
+        c = ps[psly[y]*vs.x + pslx[x]];
+        if(c!=alpha){
+          p.x = pvx[x].x+pvy[0].x+vo.x;
+          p.y = pvx[x].y+pvy[0].y+vo.y;
+          lcd_pixel_raw(p.x ,p.y   ,c);
+        }
+      }
+    }
+  }else{
+    //printf("lX:\n");
+    for(uint16_t y=0;y<l1;y++){
+      p.y = pvy[y].y+vo.y;
+      p.x = pvy[y].x+vo.x;
+      for(uint16_t x=0;x<l0;x++){
+        c = ps[psly[y]*vs.x + pslx[x]];
+        if(c!=alpha){
+          lcd_pixel_raw(p.x+pvx[x].x , p.y+pvx[x].y   ,c);
+          if(x>0&&x<l0-1 && y>0&&y<l1-1){
+            lcd_pixel_raw(p.x+pvx[x].x+1 , p.y+pvx[x].y   ,c);
+          }
+        }
+      }
+    }
+  }
+  free(pvx);
+  free(pvy);
 }

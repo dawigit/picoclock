@@ -47,6 +47,10 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "img/cn16.h"
 #include "img/ger16.h"
 #include "img/tr16.h"
+#include "img/flag_ch16.h"
+#include "img/flag_ch32.h"
+#include "img/flag_gb16.h"
+#include "img/flag_gb32.h"
 
 #include "img/config.h"
 //#include "img/conf_accept.h"
@@ -117,6 +121,7 @@ typedef struct {
   uint8_t conf_phour;
   uint8_t conf_pmin;
   uint8_t scandir;
+  bool dither;
   uint8_t dummy;
   uint8_t save_crc;
 } LOSA_t;
@@ -126,12 +131,12 @@ static LOSA_t* plosa=(LOSA_t*)losabuf;
 #define LOSASIZE (&plosa->dummy - &plosa->theme)
 
 datetime_t default_time = {
-  .year  = 2022,
-  .month = 10,
-  .day   = 22,
-  .dotw  = 6, // 0 is Sunday, so 5 is Friday
-  .hour  = 22,
-  .min   = 55,
+  .year  = 2023,
+  .month = 1,
+  .day   = 1,
+  .dotw  = 0, // 0 is Sunday, so 5 is Friday
+  .hour  = 0,
+  .min   = 40,
   .sec   = 0
 };
 
@@ -142,6 +147,10 @@ int16_t flagdeg1a=30;
 int16_t flagdeg2a=60;
 int16_t flagdeg1b=130;
 int16_t flagdeg2b=260;
+
+int16_t fdegs[7] = {90,30,60,30,60,130,260};
+
+int16_t b2s=75;
 
 //int16_t cdeg_adder=0;
 //int16_t cdeg_fine=270;
@@ -251,7 +260,7 @@ float read_battery(){
 
 
 #define mcpy(d,s,sz) for(int i=0;i<sz;i++){d[i]=s[i];}
-#define THEMES 4
+//#define THEMES 4
 
 #define EYE irisa190
 
@@ -301,7 +310,7 @@ float read_battery(){
 #define EYE_R EYE_SZ/2
 #define EYE_X 120-EYE_R
 #define EYE_Y 120-EYE_R
-#define EYE_MAX 50
+#define EYE_MAX 25-1
 
 
 
@@ -424,16 +433,30 @@ H  - M - S - DOW
 #define GER_Red 0xF800
 
 #define TR_Red 0xF800
-#define THEMES 4
+#define TR_White 0xFFFF
+
+//#define GB_Blue 0x012169
+#define GB_Blue 0x010D
+//#define GB_Red  0xC8102E
+#define GB_Red  0xC885
+#define GB_White 0xFFFF
+
+//#define CH_Red 0xDA291C
+#define CH_Red 0xD943
+#define CH_White 0xFFFF
+
+#define THEMES 6
+
+
 
 CMode cmode = CM_None;
-int8_t xold,xoldt;
-int8_t yold,yoldt;
+int16_t xold,xoldt;
+int16_t yold,yoldt;
 
 //uint8_t theme = DEFAULT_THEME;
-const PosMat_t* positions[THEMES] = {&p_cn,&p_us,&p_us,&p_us};
-const uint8_t* flags[THEMES] = {cn32,usa32,ger32,tr32};
-const uint8_t* stars[THEMES] = {cn16,usa16,ger16,tr16};
+const PosMat_t* positions[THEMES] = {&p_cn,&p_us,&p_us,&p_us,&p_us,&p_us};
+const uint8_t* flags[THEMES] = {cn32,usa32,ger32,tr32,flag_gb32,flag_ch32};
+const uint8_t* stars[THEMES] = {cn16,usa16,ger16,tr16,flag_gb16,flag_ch16};
 
 #define MAX_BG 5
 #define TEXTURES 5
@@ -447,15 +470,17 @@ const int16_t bg_size[MAX_BG] = {190,190,240,240,240};
 
 const bool bg_dynamic[MAX_BG] = {true,true,false,false,false};
 
-const uint16_t edit_colors[THEMES] = {ORANGE,YELLOW,ORANGE,ORANGE};
-const uint16_t change_colors[THEMES] = {YELLOW,YELLOW,YELLOW,YELLOW};
+const uint16_t edit_colors[THEMES] = {ORANGE,YELLOW,ORANGE,ORANGE,ORANGE,ORANGE};
+const uint16_t change_colors[THEMES] = {YELLOW,YELLOW,YELLOW,YELLOW,YELLOW,YELLOW};
 
 uint8_t theme_bg_dynamic_mode = 0;
 
 ColorTheme_t colt1={BLACK,CN_Red,CN_Red,CN_Gold,CN_Red,CN_Gold,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
 ColorTheme_t colt2={BLACK,USA_Old_Glory_Red,USA_Old_Glory_Blue,NWHITE,USA_Old_Glory_Red,WHITE,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
 ColorTheme_t colt3={BLACK,GER_Red,BLACK,GER_Gold,GER_Red,GER_Gold,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
-ColorTheme_t colt4={BLACK,TR_Red,TR_Red,WHITE,NWHITE,TR_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
+ColorTheme_t colt4={BLACK,TR_Red,TR_Red,TR_White,NWHITE,TR_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
+ColorTheme_t colt5={BLACK,GB_Blue,GB_Red,GB_White,NWHITE,GB_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
+ColorTheme_t colt6={BLACK,CH_Red,CH_Red,CH_White,NWHITE,GB_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
 
 ColorTheme_t* colt[THEMES];
 
@@ -605,10 +630,10 @@ int flagsdelay = SWITCH_THEME_DELAY;
 int blink_counter = 0;
 bool bmode = false;
 
-float tsin[360];
-float tcos[360];
-float tfsin[600];
-float tfcos[600];
+extern float tsin[DEGS];
+extern float tcos[DEGS];
+//float tfsin[600];
+//float tfcos[600];
 
 
 bool edittime=false;
@@ -628,7 +653,7 @@ bool draw_flagconfig_enabled = false;
 DOImage* doi_config;
 DOImage* doi_config_cn;
 
-DOImage** adoi_config[THEMES] = {&doi_config_cn,&doi_config,&doi_config,&doi_config};
+DOImage** adoi_config[THEMES] = {&doi_config_cn,&doi_config,&doi_config,&doi_config,&doi_config,&doi_config};
 
 float acc[3], gyro[3];
 unsigned int tim_count = 0;
@@ -638,10 +663,12 @@ uint16_t cn_chars=0;
 char ftst[128*4] = {0};
 
 char* week_usa[7] = {"Sun\0","Mon\0","Tue\0","Wed\0","Thu\0","Fri\0","Sat\0"};
+char* week_gb[7] = {"Sun\0","Mon\0","Tue\0","Wed\0","Thu\0","Fri\0","Sat\0"};
 char* week_cn[7] = {"星期日\0","星期一\0","星期二\0","星期三\0","星期四\0","星期五\0","星期六\0"};
 char* week_ger[7] = {"Son\0","Mon\0","Die\0","Mit\0","Don\0","Fre\0","Sam\0"};
+char* week_ch[7] = {"Son\0","Mon\0","Die\0","Mit\0","Don\0","Fre\0","Sam\0"};
 char* week_tr[7] = {"PAZ\0","PZT\0","SAL\0","CAR\0","PER\0","CUM\0","CMT\0"};
-char** week[THEMES] = {week_cn,week_usa,week_ger,week_tr};
+char** week[THEMES] = {week_cn,week_usa,week_ger,week_tr,week_gb,week_ch};
  // dummy month0
 uint8_t last[13] = {0,31,28,31,30,31,30,31,31,30,31,30,31};
 
@@ -1061,7 +1088,9 @@ void gpio_callback(uint gpio, uint32_t events) {
 }
 char C_SET[4]="set ";
 char C_GET[4]="get ";
-
+extern uint16_t drawlines;
+extern int16_t Xadd;
+extern int16_t Yadd;
 void command(char* c){
     bool tc=false;  // time changed
     char* left=c;
@@ -1069,7 +1098,12 @@ void command(char* c){
       char* space = strstr(left," ");
       space[0] = 0;
       char* right = space+1;
+      if(strstr(left,"b2s")){   b2s = (int16_t)atoi(right);}
+      if(strstr(left,"xa")){   Xadd = (int16_t)atoi(right);}
+      if(strstr(left,"ya")){   Yadd = (int16_t)atoi(right);}
+      if(strstr(left,"dither")){   plosa->dither = (bool)atoi(right);}
       if(strstr(left,"scandir")){   plosa->scandir = ((uint8_t)atoi(right))&0x03;lcd_setatt(plosa->scandir);}
+      if(strstr(left,"ori")){   plosa->scandir = ((uint8_t)atoi(right))&0x03;lcd_setatt(plosa->scandir);}
       if(strstr(left,"sensors")){   plosa->sensors = (bool)atoi(right);}
       if(strstr(left,"gyro")){ plosa->gyrocross = (bool)atoi(right);}
       if(strstr(left,"bender")){    plosa->bender = (bool)atoi(right);}
@@ -1093,6 +1127,7 @@ void command(char* c){
       if(strstr(left,"spin")){ plosa->spin = (int16_t)atoi(right);}
       if(strstr(left,"clock")){ plosa->clock = (bool)atoi(right);}
       if(strstr(left,"pointerdemo")){ plosa->pointerdemo = (bool)atoi(right);}
+      if(strstr(left,"pd")){ plosa->pointerdemo = (bool)atoi(right);}
       if(strstr(left,"bg")){ plosa->conf_bg = (uint8_t)atoi(right);
         if(plosa->conf_bg >= MAX_BG){plosa->conf_bg=0;}
       }
@@ -1127,6 +1162,9 @@ void command(char* c){
     if(strstr(left,"batmax")){ printf("BATMAX: %f\n", plosa->bat.max); return; }
     if(strstr(left,"batmin")){ printf("BATMIN: %f\n", plosa->bat.min); return; }
     if(strstr(left,"save")){ dosave(); }
+    if(strstr(left,"deg+")){ flagdeg++; }
+    if(strstr(left,"deg-")){ flagdeg--; }
+
     //if(strstr(left,"read")){ uint8_t data[4]; i2c_read((uint8_t*)&data); }
     //if(strstr(left,"scan")){ i2c_scan(); }
     if(strstr(left,"rota")){ plosa->gfxmode=GFX_ROTATE;}
@@ -1227,7 +1265,7 @@ int16_t get_acc1(){return get_acc12(acc[0],acc[1]);}
 
 int16_t draw_getdeg(int16_t deg){
   float   FACT      = 25.0f;
-  int16_t EPC_BXY   = 30;
+  int16_t EPC_BXY   = 50;
   int16_t FINE_STOP = 2;
   //int8_t xa = (int8_t)(acc[0]/FACT);
   //int8_t ya = (int8_t)(acc[1]/FACT);
@@ -1261,15 +1299,17 @@ void fx_circle(uint16_t x, uint16_t y, uint16_t r, uint16_t c, uint16_t ps, uint
   }
 }
 
+#define CIRCMENU_RADIUS 88
+
 int16_t draw_circmenu(int16_t cdf, uint8_t num_items, const uint8_t** src_menuitems){
   int16_t cdeg_fine=cdf;
   int16_t cdeg = cdeg_fine;
   int16_t cdegc;
-  int16_t maxcd = (int16_t)(360/num_items);
+  int16_t maxcd = (int16_t)(DEGS/num_items);
   if(plosa->theme==0){
-    cdegc = 360-cdeg_fine-90;
+    cdegc = DEGS-cdeg_fine-QDEG;
   }else{
-    cdegc = 360-cdeg_fine-270;
+    cdegc = DEGS-cdeg_fine-3*QDEG;
   }
   cdeg=chkdeg(cdeg);
   cdegc=chkdeg(cdegc);
@@ -1278,7 +1318,7 @@ int16_t draw_circmenu(int16_t cdf, uint8_t num_items, const uint8_t** src_menuit
   if(cdegd > (maxcd/2)){++plosa->configpos;}
   //printf("configpos=%d cdegd=%d\n",plosa->configpos,cdegd);
   for(uint16_t i=0;i<num_items;i++){
-    Vec2 cv = gvdl(cdeg,88);
+    Vec2 cv = gvdl(cdeg,CIRCMENU_RADIUS);
     lcd_blit(cv.x-16+LCD_W2,cv.y-16+LCD_H2,32,32,BLACK,src_menuitems[i]);
     cdeg=chkdeg(cdeg+maxcd);
   }
@@ -1296,8 +1336,9 @@ void draw_clock_hands(){
   int xi,yi;
   uint8_t x0=120;
   uint8_t y0=120;
+  float mindeg = 1024.0f/60.0f;
   Vec2 dp1 = texsize[plosa->texture];
-  int16_t tu=plosa->dt.min*6;
+  int16_t tu=(int16_t)plosa->dt.min*mindeg;
   Vec2 dp0 = {102,10};
   dp0 = psize_m[plosa->texture];
   if(plosa->pstyle==PS_NORMAL){    dp0 = vset(102,3);
@@ -1305,27 +1346,27 @@ void draw_clock_hands(){
   draw_pointer_mode(dp0,dp1,tu,colt[plosa->theme]->col_m,textures[plosa->texture],BLACK,plosa->pstyle);
   tu=(int16_t)plosa->dt.hour;
   if(tu>=12){tu-=12;}
-  tu*=30;
-  tu+=(int16_t)(plosa->dt.min>>1);
+  tu=(int16_t)(tu*mindeg*5);
+  tu+=(int16_t)((float)256/3/60*plosa->dt.min);
   dp0=vset(75, 20);
   dp0 = psize_h[plosa->texture];
   if(plosa->pstyle==PS_NORMAL){    dp0 = vset(65,6);
   }else if(plosa->pstyle==PS_ALPHA){    dp0 = vset(65,6);  }
   draw_pointer_mode(dp0,dp1,tu, colt[plosa->theme]->col_h,textures[plosa->texture],BLACK,plosa->pstyle);
 
-
-  tu=(int16_t)plosa->dt.sec*6;
+  tu=(int16_t)(plosa->dt.sec*mindeg);
   //if(!analog_seconds){
     // 'jump' seconds
-    xi = (int8_t)(tcos[plosa->dt.sec*6]*114);
-    yi = (int8_t)(tsin[plosa->dt.sec*6]*114);
+    int16_t seci = ((int16_t)plosa->dt.sec*mindeg);
+    xi = (int8_t)(tcos[seci]*114);
+    yi = (int8_t)(tsin[seci]*114);
     x1 = (uint8_t)x0+xi;
     y1 = (uint8_t)y0+yi;
     if(plosa->bender==true){
         int16_t xit=x1;
         int16_t yit=y1;
-        xi = (int8_t)(tcos[plosa->dt.sec*6]*106);
-        yi = (int8_t)(tsin[plosa->dt.sec*6]*106);
+        xi = (int8_t)(tcos[seci]*106);
+        yi = (int8_t)(tsin[seci]*106);
         x1 = (uint8_t)x0+xi;
         y1 = (uint8_t)y0+yi;
         Vec2 v1={x1,y1};
@@ -1340,7 +1381,7 @@ void draw_clock_hands(){
       dp0.y=1;
       draw_pointer_mode(dp0,dp0,tu, colt[plosa->theme]->col_s,textures[plosa->texture],BLACK,PS_NORMAL);
     }
-    lcd_blit((int)(x0-8+tcos[plosa->dt.sec*6]*100),(int)(y0-8+tsin[plosa->dt.sec*6]*100),16,16,colt[plosa->theme]->alpha,stars[plosa->theme]);
+    lcd_blit((int)(x0-8+tcos[seci]*100),(int)(y0-8+tsin[seci]*100),16,16,colt[plosa->theme]->alpha,stars[plosa->theme]);
   //}
 }
 
@@ -1384,30 +1425,46 @@ void draw_gfx(){
       temp_read=false;
     }
   }
+  //sprintf(dbuf,"%d",flagdeg%90);
+  //lcd_str(114, 42, dbuf, &Font20, YELLOW, BLACK);
   //printf("acc_x   = %4.3fmg , acc_y  = %4.3fmg , acc_z  = %4.3fmg\r\n", acc[0], acc[1], acc[2]);
   //printf("gyro_x  = %4.3fdps, gyro_y = %4.3fdps, gyro_z = %4.3fdps\r\n", gyro[0], gyro[1], gyro[2]);
   //printf("tim_count = %d\r\n", tim_count);
   int xi,yi;
   Vec2 vc_s,vc_e;
+  float scf = DEGS/360.0f;
+  float mindeg = 1024.0f/60.0f;
   for(int16_t i=0;i<60;i++){
-    vc_e = gvdl(i*6,119);
+    vc_e = gvdl((int16_t)i*mindeg,119);
     vc_e = vadd(vc_e,vO);
     if(!(i%5)){
-      vc_s = gvdl(i*6,110);
+      vc_s = gvdl((int16_t)i*mindeg,110);
       vc_s = vadd(vc_s,vO);
       lcd_linev2(vc_s,vc_e, colt[plosa->theme]->col_cs, 1);
-
     }else{
-      vc_s = gvdl(i*6,115);
+      vc_s = gvdl((int16_t)i*mindeg,115);
       vc_s = vadd(vc_s,vO);
       lcd_linev2(vc_s,vc_e, colt[plosa->theme]->col_cs5, 1);
-
     }
   }
 
   draw_clock_hands();
+  if(plosa->pointerdemo){
+    for(uint16_t i=0;i<7;i++){
+      Vec2 vo = {120,120};
+      uint16_t it=i;
+      if(it>=TEXTURES){it-=TEXTURES;}
+      if(i&1){
+        lcd_blit_deg2(vo,psize_h[it],texsize[it],fdegs[i],textures[it],BLACK,false);
+      }else{
+        lcd_blit_deg2(vo,psize_m[it],texsize[it],fdegs[i],textures[it],BLACK,false);
+      }
 
-  lcd_blit(120-16,120-16,32,32,colt[plosa->theme]->alpha, flags[plosa->theme]); // center
+    }
+  }else{
+    lcd_blit(120-16,120-16,32,32,colt[plosa->theme]->alpha, flags[plosa->theme]); // center
+  }
+
 
   if(plosa->spin!=0){
     flagdeg = gdeg(flagdeg+plosa->spin);
@@ -1417,6 +1474,15 @@ void draw_gfx(){
     flagdeg2a = gdeg(flagdeg2a+plosa->spin*5);
     flagdeg1b = gdeg(flagdeg1b-plosa->spin);
     flagdeg2b = gdeg(flagdeg2b+plosa->spin*7);
+    int i=0;
+    fdegs[i]= gdeg(fdegs[i]+plosa->spin);++i;
+    fdegs[i]= gdeg(fdegs[i]+plosa->spin*9+(gyrox>>3));++i;
+    fdegs[i]= gdeg(fdegs[i]-plosa->spin*7);++i;
+    fdegs[i]= gdeg(fdegs[i]-plosa->spin*2);++i;
+    fdegs[i]= gdeg(fdegs[i]+plosa->spin*5);++i;
+    fdegs[i]= gdeg(fdegs[i]-plosa->spin*3);++i;
+    fdegs[i]= gdeg(fdegs[i]+plosa->spin*7);++i;
+
   }
   // graphical view of x/y gyroscope
   if(plosa->gyrocross){
@@ -1538,7 +1604,6 @@ int main(void)
         }
     }
     stdio_init_all();
-
     //bool init=false;
     //bool fixed=false;
     sleep_ms(400);  // reboot takes about 1.6 sec. -> increase time by 2sec, wait 0.4sec
@@ -1572,6 +1637,8 @@ int main(void)
     colt[1]=&colt2;
     colt[2]=&colt3;
     colt[3]=&colt4;
+    colt[4]=&colt5;
+    colt[5]=&colt6;
 
     bool o_clk;
     bool o_dt;
@@ -1605,15 +1672,15 @@ int main(void)
     //command("scan");
     //command("stat");
 
-    for(uint16_t i=0;i<360;i++){
-      float f = (float)i;
-      sincosf(to_rad(f-90),&tsin[i],&tcos[i]);
-    }
-    float ff=0.0f;
-    for(int i=0;i<600;++i){
-      sincosf(to_rad(ff-90),&tfsin[i],&tfcos[i]);
-      ff+=0.6f;
-    }
+    //for(uint16_t i=0;i<360;i++){
+    //  float f = (float)i;
+    //  sincosf(to_rad(f-90),&tsin[i],&tcos[i]);
+    //}
+    //float ff=0.0f;
+    //for(int i=0;i<600;++i){
+    //  sincosf(to_rad(ff-90),&tfsin[i],&tfcos[i]);
+    //  ff+=0.6f;
+    //}
     print_font_table();
     acc[0]=0.0f;
     acc[1]=0.0f;
@@ -1701,8 +1768,8 @@ int main(void)
         if(bg_dynamic[plosa->conf_bg]){ // dynamic background
 //          int8_t xa = (int8_t)(acc[1]/50.0f);
 //          int8_t ya = (int8_t)(acc[0]/50.0f);
-          int8_t ya = (int8_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
-          int8_t xa = (int8_t)get_acc12f(acc[0],acc[1],50.0f); //(acc[0]/50.0f);
+          int16_t ya = (int16_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
+          int16_t xa = (int16_t)get_acc12f(acc[0],acc[1],50.0f); //(acc[0]/50.0f);
           if(xa>EYE_MAX){xa=EYE_MAX;}
           if(xa<-EYE_MAX){xa=-EYE_MAX;}
           if(ya>EYE_MAX){ya=EYE_MAX;}
@@ -1717,20 +1784,27 @@ int main(void)
             xold = xoldt;
             yold = yoldt;
           }
-          if(xa >18){xa= 18;}
-          if(ya >18){ya= 18;}
-          if(xa<-18){xa=-18;}
-          if(ya<-18){ya=-18;}
+          if(xa >15){xa= 15;}
+          if(ya >15){ya= 15;}
+          if(xa<-15){xa=-15;}
+          if(ya<-15){ya=-15;}
           gyrox=xa;
           gyroy=ya;
-          //printf("xya: %d %d\n",xa,ya);
           if(plosa->gfxmode==GFX_ROTATE){
+            //printf("xya: %d %d\n",xa,ya);
             //printf("XAYA: %d %d\n",xa,ya);
-            Vec2 vbs = {120-95+xa,120-95-ya};
+            Vec2 vbo = {120+xa,120-ya};
             //Vec2 vbs = {0,0};
+            Vec2 vbsz = {190,190};
+            //lcd_blit_deg(vbs,vbe,vbe,flagdeg,backgrounds[plosa->conf_bg],colt[plosa->theme]->alpha,true);
+            Vec2 vbuv = {190,190};
+            lcd_blit_deg2(vbo,vbuv,vbsz,flagdeg,backgrounds[plosa->conf_bg],colt[plosa->theme]->alpha,true);
 
-            Vec2 vbe = {190,190};
-            lcd_blit_deg(vbs,vbe,vbe,flagdeg,backgrounds[plosa->conf_bg],colt[plosa->theme]->alpha,true);
+            //Vec2 vbs_b= {180+xa,70-ya};
+            //vbs2.x = -35;
+            //vbe2.x =  25;
+            //lcd_blit_deg2(vbs2,vbe2,vbe,vbs_b,flagdeg,backgrounds[0],colt[plosa->theme]->alpha);
+            //if(plosa->dither==1){              lcd_dither(EYE_X+xa,EYE_Y-ya,EYE_SZ);            }
           }else{
             lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,backgrounds[plosa->conf_bg]);
           }
@@ -2037,13 +2111,22 @@ int main(void)
           }else{ edeg_fine -= magnet/8; }
         }
       }
+      #define magx 35
+      #define magy 90
+      #define mags 20
+      #define magy2 magy+mags+20
+      #define magx2 magx-10
+      #define magf 2
+      //lcd_magnify(magx,magy,mags,magx2,magy2,magf);
+      //lcd_frame(magx,magy,magx+mags,magy+mags,RED,1);
+      //lcd_frame(magx2,magy2,magx2+mags*magf,magy2+mags*magf,RED,1);
 
       if(draw_flagconfig_enabled){
         if(plosa->spin!=0){
           flagdeg = gdeg(flagdeg+plosa->spin);
         }
         gdeg_fine = draw_getdeg(gdeg_fine);
-        int16_t magnet = draw_circmenu(gdeg_fine, 4, flags);
+        int16_t magnet = draw_circmenu(gdeg_fine, THEMES, flags);
         if(magnet != 0){
           //printf("magnet = %d\n",magnet);
           int16_t MAG = 20;
