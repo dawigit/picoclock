@@ -1,6 +1,7 @@
 # picoclock
 ### for use with WAVESHARE RP2040-LCD-1.28
 ### RP2040 LCD 1.28
+![s_gb](https://github.com/dawigit/picoclock/blob/main/img/s_gb.png) ![s_ch](https://github.com/dawigit/picoclock/blob/main/img/s_ch.png)  
 ![s_configicon](https://github.com/dawigit/picoclock/blob/main/img/s_configicon.png) ![s_configmenu](https://github.com/dawigit/picoclock/blob/main/img/s_configmenu.png)
 ![s_flag](https://github.com/dawigit/picoclock/blob/main/img/s_flag.png)
 
