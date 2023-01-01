@@ -16,6 +16,7 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "hardware/sync.h"
 #include "hardware/clocks.h"
 #include "pico/binary_info.h"
+#include "pico/bootrom.h"
 #include <float.h>
 #include "pico/types.h"
 #include "pico/bootrom/sf_table.h"
@@ -635,7 +636,6 @@ extern float tcos[DEGS];
 //float tfsin[600];
 //float tfcos[600];
 
-
 bool edittime=false;
 bool changetime=false;
 char dbuf[8];
@@ -679,7 +679,6 @@ bool force_no_load = false;
 bool is_flashed = false;
 char crcstatus[32] = {"\0"};
 char flashstatus[32] = {"\0"};
-
 
 //objdump -x main.elf | grep binary_info_end
 //1006f7d8 g       .binary_info   00000000 __binary_info_end
@@ -1176,25 +1175,27 @@ void command(char* c){
       if(plosa->dt.dotw>6){plosa->dt.dotw=0;}
 
       printf("\n- STATUS -\n\nmode[8]: %s\n",plosa->mode);
-      printf("dt: %02d:%02d:%04d\n",plosa->dt.day,plosa->dt.month,plosa->dt.year);
-      printf("dt: %s %02d:%02d:%02d\n",week[plosa->theme][plosa->dt.dotw],plosa->dt.hour,plosa->dt.min,plosa->dt.sec);
-      printf("bat: %s %fmA [%d] %fmax %fmin %fread\n", plosa->bat.mode,plosa->bat.mA,(plosa->bat.load)?1:0,plosa->bat.max,plosa->bat.min,plosa->bat.read);
-      printf("editpos: %d\n",plosa->editpos);
-      printf("theme: %d\n",plosa->theme);
-      printf("BRIGHTNESS : %d\n",plosa->BRIGHTNESS);
+      printf("dt: %02d:%02d:%04d\r\n",plosa->dt.day,plosa->dt.month,plosa->dt.year);
+      printf("dt: %s %02d:%02d:%02d\r\n",week[plosa->theme][plosa->dt.dotw],plosa->dt.hour,plosa->dt.min,plosa->dt.sec);
+      printf("bat: %s %fmA [%d] %fmax %fmin %fread\r\n", plosa->bat.mode,plosa->bat.mA,(plosa->bat.load)?1:0,plosa->bat.max,plosa->bat.min,plosa->bat.read);
+      printf("editpos: %d\r\n",plosa->editpos);
+      printf("theme: %d\r\n",plosa->theme);
+      printf("BRIGHTNESS : %d\r\n",plosa->BRIGHTNESS);
 
-      printf("is_sleeping: %s\n",(plosa->is_sleeping)?"1":"0");
-      printf("sensors: %s\n",plosa->sensors?"1":"0");
-      printf("gyrocross: %s\n",plosa->gyrocross?"1":"0");
-      printf("bender: %s\n",plosa->bender?"1":"0");
-      printf("SMOOTH_BACKGROUND: %s\n",plosa->SMOOTH_BACKGROUND?"1":"0");
-      printf("INSOMNIA : %s\n",plosa->INSOMNIA?"1":"0");
-      printf("DYNAMIC_CIRCLES: %s\n",plosa->DYNAMIC_CIRCLES?"1":"0");
-      printf("DEEPSLEEP: %s\n",plosa->DEEPSLEEP?"1":"0");
-      printf("HIGHPOINTER: %s\n",plosa->highpointer?"1":"0");
-      printf("%s\n",crcstatus);
-      printf("%s\n",flashstatus);
+      printf("is_sleeping: %s\r\n",(plosa->is_sleeping)?"1":"0");
+      printf("sensors: %s\r\n",plosa->sensors?"1":"0");
+      printf("gyrocross: %s\r\n",plosa->gyrocross?"1":"0");
+      printf("bender: %s\r\n",plosa->bender?"1":"0");
+      printf("SMOOTH_BACKGROUND: %s\r\n",plosa->SMOOTH_BACKGROUND?"1":"0");
+      printf("INSOMNIA : %s\r\n",plosa->INSOMNIA?"1":"0");
+      printf("DYNAMIC_CIRCLES: %s\r\n",plosa->DYNAMIC_CIRCLES?"1":"0");
+      printf("DEEPSLEEP: %s\r\n",plosa->DEEPSLEEP?"1":"0");
+      printf("HIGHPOINTER: %s\r\n",plosa->highpointer?"1":"0");
+      printf("%s\r\n",crcstatus);
+      printf("%s\r\n",flashstatus);
     }
+
+    if(strstr(left,"reboot")){reset_usb_boot(0,0);}
     if(strstr(left,"SNAPSHOT")){
       //printf("-----------------------> CUT HERE <---------------------\n\nuint8_t imagedata[138+  240*240*2] = {\n");
       if(b0==NULL){return;}
@@ -1322,7 +1323,7 @@ int16_t draw_circmenu(int16_t cdf, uint8_t num_items, const uint8_t** src_menuit
     lcd_blit(cv.x-16+LCD_W2,cv.y-16+LCD_H2,32,32,BLACK,src_menuitems[i]);
     cdeg=chkdeg(cdeg+maxcd);
   }
-  int16_t d = cdeg%maxcd;
+  int16_t d = (cdeg+90)%maxcd;
   if(d!=0){
     if(d>(maxcd/2)){  return d-maxcd;
     }else{            return d;    }
@@ -2061,10 +2062,10 @@ int main(void)
             fx_circle(tpos[plosa->editpos].x+18,tpos[plosa->editpos].y+8,25,cmode_color,3,xold,yold);
           }
         }else if(plosa->editpos==3){
-          fx_circle(tpos[plosa->editpos].x+12,tpos[plosa->editpos].y+5,30,cmode_color,3,xold,yold);
+          fx_circle(tpos[plosa->editpos].x+12,tpos[plosa->editpos].y+5,28,cmode_color,3,xold,yold);
         }else if(plosa->editpos==EPOS_CONFIG){
           if(cmode==CM_Changepos){
-            draw_doimage(*adoi_config[plosa->theme]);
+                draw_doimage(*adoi_config[plosa->theme]);
           }
           int16_t x= (*adoi_config[plosa->theme])->vpos.x+15;
           int16_t y= (*adoi_config[plosa->theme])->vpos.y+16;
@@ -2129,7 +2130,7 @@ int main(void)
         int16_t magnet = draw_circmenu(gdeg_fine, THEMES, flags);
         if(magnet != 0){
           //printf("magnet = %d\n",magnet);
-          int16_t MAG = 20;
+          int16_t MAG = 15;
           if(magnet < MAG && magnet >-MAG){
               if(magnet/2 == 0){ gdeg_fine-= magnet; }
               else{              gdeg_fine -= (magnet)/2; }
