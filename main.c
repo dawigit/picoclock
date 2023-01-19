@@ -141,6 +141,8 @@ datetime_t default_time = {
   .sec   = 0
 };
 
+
+bool deepsleep=false;
 int16_t flagdeg=90;
 int16_t flagdeg1=30;
 int16_t flagdeg2=60;
@@ -267,15 +269,17 @@ float read_battery(){
 
 
 #define FRAME_DELAY 50
-#define LOOPWAIT 50
+#define LOOPWAIT 10
 
 #define DRAW_GFX_FIRST true //1 == text floating above clock
 #define HOURGLASSBORDER 200 // minimum rise/fall of acc_x
 #define HOURGLASS 1000*(100/LOOPWAIT)  // rise/fall of acc_x border till switch (cw/ccw)
 #define BUTTONGLASSC 300
 #define BUTTONGLASS 1400
-#define SCRSAV 15*(100/LOOPWAIT)
-#define SCRSAV2 SCRSAV*2
+// 1st screensaver
+#define SCRSAV 100
+// 2nd screensaver
+#define SCRSAV2 50
 #define BRIGHTD 20
 #define SWITCH_THEME_DELAY 10
 #define THRS 12
@@ -1042,7 +1046,7 @@ void gpio_callback(uint gpio, uint32_t events) {
       if(gpio==CDT){        gch='d';      }
       if(gpio==CBUT0){ceasefire=true;fire_pressed=false;rebootcounter=0;}
       if(gpio==CBUT1){ceasefire=true;fire_pressed=false;rebootcounter=0;}
-      if(gpio==QMIINT1){printf("QMIINT1\n");}
+      if(gpio==QMIINT1){printf("QMIINT1\n");deepsleep=false;}
       gbuf[0]=gbuf[1];
       gbuf[1]=gch;
     }
@@ -1198,6 +1202,7 @@ void command(char* c){
 
     if(strstr(left,"reboot")){reset_usb_boot(0,0);}
     if(strstr(left,"narkose")){QMI8658_enableWakeOnMotion();}
+    if(strstr(left,"scrs")){printf("SCRS: %d [%d]\n",screensaver,theme_bg_dynamic_mode);}
     if(strstr(left,"SNAPSHOT")){
       //printf("-----------------------> CUT HERE <---------------------\n\nuint8_t imagedata[138+  240*240*2] = {\n");
       if(b0==NULL){return;}
@@ -1649,20 +1654,17 @@ int main(void)
 
     //uint32_t bm = 0b00000000000010110000000000000000;
     gpio_set_dir(QMIINT1,GPIO_IN);
-    gpio_pull_up(QMIINT1);
-    //gpio_set_irq_enabled(CBUT0, GPIO_IRQ_LEVEL_LOW, true);
+    //gpio_pull_up(QMIINT1);
     gpio_set_dir(CBUT0,GPIO_IN);
     gpio_pull_up(CBUT0);
-    //gpio_set_irq_enabled(CBUT0, GPIO_IRQ_LEVEL_LOW, true);
     gpio_set_dir(CBUT1,GPIO_IN);
     gpio_pull_up(CBUT1);
-    //gpio_set_irq_enabled(CBUT1, GPIO_IRQ_LEVEL_LOW, true);
-    gpio_set_irq_enabled_with_callback(CCLK, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
+    gpio_set_irq_enabled_with_callback(QMIINT1, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
     gpio_set_irq_enabled(CDT, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     gpio_set_irq_enabled(CSW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     gpio_set_irq_enabled(CBUT0, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     gpio_set_irq_enabled(CBUT1, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
-    gpio_set_irq_enabled(QMIINT1, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
+    gpio_set_irq_enabled(CCLK, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     //gpio_pull_up(CBUT);
     //i2c_scan();
     rtc_init();
@@ -1743,13 +1745,21 @@ int main(void)
           sleep_frame=SLEEP_FRAME_START;
         }
         if(theme_bg_dynamic_mode){theme_bg_dynamic_mode--;}
+
+
       }
 
       if(plosa->is_sleeping){
         sleep_ms(sleep_frame);
 
         if(plosa->DEEPSLEEP){
+          deepsleep=true;
           QMI8658_enableWakeOnMotion();
+          while(1){
+            if(!deepsleep){break;}
+            sleep_ms(250);
+          }
+          QMI8658_disableWakeOnMotion();
           screensaver=SCRSAV;
           plosa->is_sleeping=false;
           theme_bg_dynamic_mode = 0;

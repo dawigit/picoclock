@@ -539,14 +539,15 @@ void QMI8658_enableWakeOnMotion(void)
 	QMI8658_write_reg(QMI8658Register_Ctrl9, QMI8658_Ctrl9_Cmd_WoM_Setting);
 	QMI8658_enableSensors(QMI8658_CTRL7_ACC_ENABLE);
 	printf("WOM enabled\n");
-	while(1){
-		QMI8658_read_reg(QMI8658Register_Status1,&womCmd[0],1);
-		if(womCmd[0]&QMI8658_STATUS1_WAKEUP_EVENT){ break; }
-		sleep_ms(1);
-	}
-	QMI8658_disableWakeOnMotion();
-	printf("MOTION!\n");
-	printf("WOM disabled\n");
+	// instead of reading register
+	// IRQ GPIO23 / gpio_callback()
+	//while(1){
+	//	QMI8658_read_reg(QMI8658Register_Status1,&womCmd[0],1);
+	//	if(womCmd[0]&QMI8658_STATUS1_WAKEUP_EVENT){ break; }
+	//	sleep_ms(100);
+	//}
+	//QMI8658_disableWakeOnMotion();
+
 }
 
 void QMI8658_disableWakeOnMotion(void)
@@ -554,6 +555,7 @@ void QMI8658_disableWakeOnMotion(void)
 	QMI8658_enableSensors(QMI8658_CTRL7_DISABLE_ALL);
 	QMI8658_write_reg(QMI8658Register_Cal1_L, 0);
 	QMI8658_write_reg(QMI8658Register_Ctrl9, QMI8658_Ctrl9_Cmd_WoM_Setting);
+	printf("WOM disabled\n");
 }
 
 void QMI8658_enableSensors(unsigned char enableFlags)
