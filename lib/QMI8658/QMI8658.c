@@ -529,31 +529,31 @@ void QMI8658_enableWakeOnMotion(void)
 	enum QMI8658_WakeOnMotionThreshold threshold = QMI8658WomThreshold_low;
 	unsigned char blankingTime = 0x00;
 	const unsigned char blankingTimeMask = 0x3F;
-
 	QMI8658_enableSensors(QMI8658_CTRL7_DISABLE_ALL);
 	QMI8658_config_acc(QMI8658AccRange_2g, QMI8658AccOdr_LowPower_21Hz, QMI8658Lpf_Disable, QMI8658St_Disable);
-
 	womCmd[0] = QMI8658Register_Cal1_L; // WoM Threshold: absolute value in mg (with 1mg/LSB resolution)
 	womCmd[1] = threshold;
 	womCmd[2] = (unsigned char)interrupt | (unsigned char)initialState | (blankingTime & blankingTimeMask);
 	QMI8658_write_reg(QMI8658Register_Cal1_L, womCmd[1]);
 	QMI8658_write_reg(QMI8658Register_Cal1_H, womCmd[2]);
-
-	// QMI8658_doCtrl9Command(Ctrl9_ConfigureWakeOnMotion);
+	QMI8658_write_reg(QMI8658Register_Ctrl9, QMI8658_Ctrl9_Cmd_WoM_Setting);
 	QMI8658_enableSensors(QMI8658_CTRL7_ACC_ENABLE);
-	// while(1)
-	//{
-	//	QMI8658_read_reg(QMI8658Register_Status1,&womCmd[0],1);
-	//	if(womCmd[0]&0x01)
-	//		break;
-	// }
+	printf("WOM enabled\n");
+	while(1){
+		QMI8658_read_reg(QMI8658Register_Status1,&womCmd[0],1);
+		if(womCmd[0]&0x04){ break; }
+		sleep_ms(1);
+	}
+	QMI8658_disableWakeOnMotion();
+	printf("MOTION!\n");
+	printf("WOM disabled\n");
 }
 
 void QMI8658_disableWakeOnMotion(void)
 {
 	QMI8658_enableSensors(QMI8658_CTRL7_DISABLE_ALL);
 	QMI8658_write_reg(QMI8658Register_Cal1_L, 0);
-	// QMI8658_doCtrl9Command(Ctrl9_ConfigureWakeOnMotion);
+	QMI8658_write_reg(QMI8658Register_Ctrl9, QMI8658_Ctrl9_Cmd_WoM_Setting);
 }
 
 void QMI8658_enableSensors(unsigned char enableFlags)

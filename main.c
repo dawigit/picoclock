@@ -1196,6 +1196,7 @@ void command(char* c){
     }
 
     if(strstr(left,"reboot")){reset_usb_boot(0,0);}
+    if(strstr(left,"narkose")){QMI8658_enableWakeOnMotion();}
     if(strstr(left,"SNAPSHOT")){
       //printf("-----------------------> CUT HERE <---------------------\n\nuint8_t imagedata[138+  240*240*2] = {\n");
       if(b0==NULL){return;}
@@ -1741,8 +1742,15 @@ int main(void)
 
       if(plosa->is_sleeping){
         sleep_ms(sleep_frame);
+
         if(plosa->DEEPSLEEP){
-          if(sleep_frame<SLEEP_FRAME_END){sleep_frame+=SLEEP_FRAME_ADD;}
+          QMI8658_enableWakeOnMotion();
+          screensaver=SCRSAV;
+          plosa->is_sleeping=false;
+          theme_bg_dynamic_mode = 0;
+          lcd_set_brightness(plosa->BRIGHTNESS);
+          lcd_sleepoff();
+        //  if(sleep_frame<SLEEP_FRAME_END){sleep_frame+=SLEEP_FRAME_ADD;}
         }
         continue;
       }
