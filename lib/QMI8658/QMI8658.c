@@ -541,7 +541,7 @@ void QMI8658_enableWakeOnMotion(void)
 	printf("WOM enabled\n");
 	while(1){
 		QMI8658_read_reg(QMI8658Register_Status1,&womCmd[0],1);
-		if(womCmd[0]&0x04){ break; }
+		if(womCmd[0]&QMI8658_STATUS1_WAKEUP_EVENT){ break; }
 		sleep_ms(1);
 	}
 	QMI8658_disableWakeOnMotion();

@@ -599,6 +599,7 @@ int16_t tpor = 22;
 #define CSW 19
 
 //one button /
+#define QMIINT1 23
 #define CBUT0 22
 #define CBUT1 3
 uint32_t nopvar;
@@ -1041,7 +1042,7 @@ void gpio_callback(uint gpio, uint32_t events) {
       if(gpio==CDT){        gch='d';      }
       if(gpio==CBUT0){ceasefire=true;fire_pressed=false;rebootcounter=0;}
       if(gpio==CBUT1){ceasefire=true;fire_pressed=false;rebootcounter=0;}
-
+      if(gpio==QMIINT1){printf("QMIINT1\n");}
       gbuf[0]=gbuf[1];
       gbuf[1]=gch;
     }
@@ -1647,6 +1648,9 @@ int main(void)
     bool o_sw;
 
     //uint32_t bm = 0b00000000000010110000000000000000;
+    gpio_set_dir(QMIINT1,GPIO_IN);
+    gpio_pull_up(QMIINT1);
+    //gpio_set_irq_enabled(CBUT0, GPIO_IRQ_LEVEL_LOW, true);
     gpio_set_dir(CBUT0,GPIO_IN);
     gpio_pull_up(CBUT0);
     //gpio_set_irq_enabled(CBUT0, GPIO_IRQ_LEVEL_LOW, true);
@@ -1658,6 +1662,7 @@ int main(void)
     gpio_set_irq_enabled(CSW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     gpio_set_irq_enabled(CBUT0, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     gpio_set_irq_enabled(CBUT1, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
+    gpio_set_irq_enabled(QMIINT1, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     //gpio_pull_up(CBUT);
     //i2c_scan();
     rtc_init();
