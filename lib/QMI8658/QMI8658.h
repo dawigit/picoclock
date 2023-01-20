@@ -505,8 +505,9 @@ enum QMI8658_WakeOnMotionThreshold
 
 extern unsigned char QMI8658_write_reg(unsigned char reg, unsigned char value);
 extern unsigned char QMI8658_read_reg(unsigned char reg, unsigned char *buf, unsigned short len);
-extern unsigned char QMI8658_init(void);
+extern unsigned char QMI8658_init();
 extern unsigned char QMI8658_reset(void);
+extern void QMI8658_reenable();
 extern void QMI8658_Config_apply(struct QMI8658Config const *config);
 extern void QMI8658_enableSensors(unsigned char enableFlags);
 extern void QMI8658_read_acc_xyz(float acc_xyz[3]);

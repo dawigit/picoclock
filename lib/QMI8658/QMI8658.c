@@ -527,23 +527,33 @@ void QMI8658_enableWakeOnMotion(void)
 	enum QMI8658_Interrupt interrupt = QMI8658_Int1;
 	enum QMI8658_InterruptState initialState = QMI8658State_low;
 	enum QMI8658_WakeOnMotionThreshold threshold = QMI8658WomThreshold_low;
-	unsigned char blankingTime = 0x00;
+	unsigned char blankingTime = 0x04;
 	const unsigned char blankingTimeMask = 0x3F;
 	QMI8658_enableSensors(QMI8658_CTRL7_DISABLE_ALL);
 	QMI8658_config_acc(QMI8658AccRange_2g, QMI8658AccOdr_LowPower_21Hz, QMI8658Lpf_Disable, QMI8658St_Disable);
+	//QMI8658_config_acc(QMI8658AccRange_2g, QMI8658AccOdr_LowPower_3Hz, QMI8658Lpf_Disable, QMI8658St_Disable);
 	womCmd[0] = QMI8658Register_Cal1_L; // WoM Threshold: absolute value in mg (with 1mg/LSB resolution)
 	womCmd[1] = threshold;
 	womCmd[2] = (unsigned char)interrupt | (unsigned char)initialState | (blankingTime & blankingTimeMask);
 	QMI8658_write_reg(QMI8658Register_Cal1_L, womCmd[1]);
 	QMI8658_write_reg(QMI8658Register_Cal1_H, womCmd[2]);
 	QMI8658_write_reg(QMI8658Register_Ctrl9, QMI8658_Ctrl9_Cmd_WoM_Setting);
-	QMI8658_enableSensors(QMI8658_CTRL7_ACC_ENABLE);
+	sleep_ms(5);
+	//QMI8658_read_reg(QMI8658Register_Status1,&womCmd[0],1);	printf("%02x\n",womCmd[0]);
+	//QMI8658_read_reg(QMI8658Register_Status1,&womCmd[0],1);	printf("%02x\n",womCmd[0]);
+	//sleep_ms(1);
 	printf("WOM enabled\n");
+	QMI8658_enableSensors(QMI8658_CTRL7_ACC_ENABLE);
+	//QMI8658_read_reg(QMI8658Register_Status1,&womCmd[0],1);
 	// instead of reading register
+
+
 	// IRQ GPIO23 / gpio_callback()
 	//while(1){
 	//	QMI8658_read_reg(QMI8658Register_Status1,&womCmd[0],1);
+	//	printf("%02x\n",womCmd[0]);
 	//	if(womCmd[0]&QMI8658_STATUS1_WAKEUP_EVENT){ break; }
+	//	//if(womCmd[0]&0x01){ break; }
 	//	sleep_ms(100);
 	//}
 	//QMI8658_disableWakeOnMotion();
@@ -556,6 +566,28 @@ void QMI8658_disableWakeOnMotion(void)
 	QMI8658_write_reg(QMI8658Register_Cal1_L, 0);
 	QMI8658_write_reg(QMI8658Register_Ctrl9, QMI8658_Ctrl9_Cmd_WoM_Setting);
 	printf("WOM disabled\n");
+	//uint8_t b;
+	//QMI8658_read_reg(QMI8658Register_Status1,&b,1);
+	//printf("%02x\n",b);
+	//sleep_ms(10);
+	//QMI8658_enableSensors(QMI8658_CONFIG_AE_ENABLE);
+	//QMI8658_reenable();
+	//QMI8658_init();
+
+}
+
+void QMI8658_reenable(){
+	QMI8658_write_reg(QMI8658Register_Ctrl1, 0x60);
+	QMI8658_config.inputSelection = QMI8658_CONFIG_ACCGYR_ENABLE; // QMI8658_CONFIG_ACCGYR_ENABLE;
+	QMI8658_config.accRange = QMI8658AccRange_8g;
+	QMI8658_config.accOdr = QMI8658AccOdr_1000Hz;
+	QMI8658_config.gyrRange = QMI8658GyrRange_512dps; // QMI8658GyrRange_2048dps   QMI8658GyrRange_1024dps
+	QMI8658_config.gyrOdr = QMI8658GyrOdr_1000Hz;
+	QMI8658_config.magOdr = QMI8658MagOdr_125Hz;
+	QMI8658_config.magDev = MagDev_AKM09918;
+	QMI8658_config.aeOdr = QMI8658AeOdr_128Hz;
+	QMI8658_Config_apply(&QMI8658_config);
+	printf("QMI8658 reenabled\n");
 }
 
 void QMI8658_enableSensors(unsigned char enableFlags)
@@ -564,7 +596,6 @@ void QMI8658_enableSensors(unsigned char enableFlags)
 	{
 		enableFlags |= QMI8658_CTRL7_ACC_ENABLE | QMI8658_CTRL7_GYR_ENABLE;
 	}
-
 	QMI8658_write_reg(QMI8658Register_Ctrl7, enableFlags & QMI8658_CTRL7_ENABLE_MASK);
 }
 
@@ -599,7 +630,7 @@ unsigned char QMI8658_reset(void){
 	QMI8658_write_reg(QMI8658_Reset, 0x01);
 }
 
-unsigned char QMI8658_init(void)
+unsigned char QMI8658_init()
 {
 	QMI8658_reset();
 	sleep_ms(100);

@@ -956,78 +956,6 @@ void print_font_table(){
 }
 
 
-bool reserved_addr(uint8_t addr) {
-  return (addr & 0x78) == 0 || (addr & 0x78) == 0x78;
-}
-
-#define AHT15 0x38
-#define I2C0 i2c0
-#define I2C_SDA 4
-#define I2C_SCL 5
-
-
-void i2c_scan(){
-
-  i2c_init(I2C0, 100 * 1000);
-	gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
-	gpio_set_function(I2C_SCL, GPIO_FUNC_I2C);
-	gpio_pull_up(I2C_SDA);
-	gpio_pull_up(I2C_SCL);
-  bi_decl(bi_2pins_with_func(I2C_SDA, I2C_SCL, GPIO_FUNC_I2C));
-	printf("\nI2C Bus Scan\n");
-	printf("   0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\n");
-	for (int addr = 0; addr < (1 << 7); ++addr) {
-			if (addr % 16 == 0) {					printf("%02x ", addr);			}
-			int ret;
-			uint8_t rxdata=0;
-			if (reserved_addr(addr))
-					ret = PICO_ERROR_GENERIC;
-			else
-					ret = i2c_read_blocking(I2C0, addr, &rxdata, 1, false);
-
-			printf(ret < 0 ? "." : "@");
-			printf(addr % 16 == 15 ? "\n" : "  ");
-			//if(ret>=0 && addr==HIH71){has_hih=true;}
-	}
-}
-
-void i2c_read(){
-  uint8_t cmd=0;
-  uint8_t data[6];
-
-  //cmd = 0b11100001; // init
-  cmd = 0xE1; // reset
-  i2c_write_blocking(I2C0, AHT15, &cmd,1, true);
-  sleep_ms(100);
-
-  //cmd = 0b10101100; // read
-  cmd = 0xAC;
-  i2c_write_blocking(I2C0, AHT15, &cmd,1, true);
-  sleep_ms(100);
-  i2c_read_blocking( I2C0, AHT15, &data[0],6, false);
-  printf("0x%02x 0x%02x\n",data[0],data[1]);
-  printf("0x%02x 0x%02x\n",data[2],data[3]);
-  printf("0x%02x 0x%02x\n",data[4],data[5]);
-
-  //uint32_t humidity   = data[1];                          //20-bit raw humidity data
-  //         humidity <<= 8;
-  //         humidity  |= data[2];
-  //         humidity <<= 4;
-  //         humidity  |= data[3] >> 4;
-  //if (humidity > 0x100000) {humidity = 0x100000;}             //check if RH>100, no need to check for RH<0 since "humidity" is "uint"
-  //float hum = ((float)humidity / 0x100000) * 100;
-
-  //uint32_t temperature   = data[3] & 0x0F;                //20-bit raw temperature data
-  //         temperature <<= 8;
-  //         temperature  |= data[4];
-  //         temperature <<= 8;
-  //         temperature  |= data[5];
-
-  //float tem = ((float)temperature / 0x100000) * 200 - 50;
-  //printf("%f %f\n",hum,tem);
-
-}
-
 #define MS 1000
 #define US 1000000
 #define BUTD 500  // delay between possible button presses (default: 500, half of a second)
@@ -1169,8 +1097,6 @@ void command(char* c){
     if(strstr(left,"deg+")){ flagdeg++; }
     if(strstr(left,"deg-")){ flagdeg--; }
 
-    //if(strstr(left,"read")){ uint8_t data[4]; i2c_read((uint8_t*)&data); }
-    //if(strstr(left,"scan")){ i2c_scan(); }
     if(strstr(left,"rota")){ plosa->gfxmode=GFX_ROTATE;}
     if(strstr(left,"roto")){ plosa->gfxmode=GFX_ROTOZOOM;}
     if(strstr(left,"norm")){ plosa->gfxmode=GFX_NORMAL;}
@@ -1202,7 +1128,7 @@ void command(char* c){
 
     if(strstr(left,"reboot")){reset_usb_boot(0,0);}
     if(strstr(left,"narkose")){QMI8658_enableWakeOnMotion();}
-    if(strstr(left,"scrs")){printf("SCRS: %d [%d]\n",screensaver,theme_bg_dynamic_mode);}
+    if(strstr(left,"scrs")){printf("SCRS: %d [%d] {%d}\n",screensaver,theme_bg_dynamic_mode,plosa->is_sleeping);}
     if(strstr(left,"SNAPSHOT")){
       //printf("-----------------------> CUT HERE <---------------------\n\nuint8_t imagedata[138+  240*240*2] = {\n");
       if(b0==NULL){return;}
@@ -1653,6 +1579,7 @@ int main(void)
     bool o_sw;
 
     //uint32_t bm = 0b00000000000010110000000000000000;
+    //gpio_init(QMIINT1);
     gpio_set_dir(QMIINT1,GPIO_IN);
     //gpio_pull_up(QMIINT1);
     gpio_set_dir(CBUT0,GPIO_IN);
@@ -1665,8 +1592,7 @@ int main(void)
     gpio_set_irq_enabled(CBUT0, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     gpio_set_irq_enabled(CBUT1, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     gpio_set_irq_enabled(CCLK, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
-    //gpio_pull_up(CBUT);
-    //i2c_scan();
+
     rtc_init();
     printf("init realtime clock\n");
     rtc_set_datetime(&plosa->dt);
@@ -1722,7 +1648,8 @@ int main(void)
       //if((acc[2]>0&&last_z<0)||(acc[2]<0&&last_z>0)){no_moveshake=true;}  // coin-flipped
       last_z=acc[2];
       if(no_moveshake){
-        if(!plosa->is_sleeping && cmode==CM_None && !(usb_loading|plosa->INSOMNIA)){
+        if(!plosa->is_sleeping && cmode==CM_None && !(plosa->INSOMNIA)){
+        //if(!plosa->is_sleeping && cmode==CM_None && !(usb_loading|plosa->INSOMNIA)){
           screensaver--;
           if(screensaver<=0){
             if(bg_dynamic[plosa->conf_bg]){
@@ -1756,10 +1683,18 @@ int main(void)
           deepsleep=true;
           QMI8658_enableWakeOnMotion();
           while(1){
-            if(!deepsleep){break;}
+            if(!deepsleep){
+              uint8_t b;
+            	QMI8658_read_reg(QMI8658Register_Status1,&b,1);
+              if(b!=0x04){deepsleep=true;continue;}
+              break;
+            }
             sleep_ms(250);
           }
           QMI8658_disableWakeOnMotion();
+          sleep_ms(10);
+          QMI8658_reenable();
+          //QMI8658_enableSensors(QMI8658_CONFIG_AE_ENABLE);
           screensaver=SCRSAV;
           plosa->is_sleeping=false;
           theme_bg_dynamic_mode = 0;
@@ -1769,7 +1704,6 @@ int main(void)
         }
         continue;
       }
-
 
       if(fire_pressed){
         uint32_t t = time_us_32();
