@@ -531,7 +531,6 @@ void QMI8658_enableWakeOnMotion(void)
 	const unsigned char blankingTimeMask = 0x3F;
 	QMI8658_enableSensors(QMI8658_CTRL7_DISABLE_ALL);
 	QMI8658_config_acc(QMI8658AccRange_2g, QMI8658AccOdr_LowPower_21Hz, QMI8658Lpf_Disable, QMI8658St_Disable);
-	//QMI8658_config_acc(QMI8658AccRange_2g, QMI8658AccOdr_LowPower_3Hz, QMI8658Lpf_Disable, QMI8658St_Disable);
 	womCmd[0] = QMI8658Register_Cal1_L; // WoM Threshold: absolute value in mg (with 1mg/LSB resolution)
 	womCmd[1] = threshold;
 	womCmd[2] = (unsigned char)interrupt | (unsigned char)initialState | (blankingTime & blankingTimeMask);
@@ -539,13 +538,12 @@ void QMI8658_enableWakeOnMotion(void)
 	QMI8658_write_reg(QMI8658Register_Cal1_H, womCmd[2]);
 	QMI8658_write_reg(QMI8658Register_Ctrl9, QMI8658_Ctrl9_Cmd_WoM_Setting);
 	sleep_ms(5);
-	//QMI8658_read_reg(QMI8658Register_Status1,&womCmd[0],1);	printf("%02x\n",womCmd[0]);
-	//QMI8658_read_reg(QMI8658Register_Status1,&womCmd[0],1);	printf("%02x\n",womCmd[0]);
-	//sleep_ms(1);
 	printf("WOM enabled\n");
 	QMI8658_enableSensors(QMI8658_CTRL7_ACC_ENABLE);
-	//QMI8658_read_reg(QMI8658Register_Status1,&womCmd[0],1);
-	// instead of reading register
+	sleep_ms(100);
+	//uint8_t r;
+	//QMI8658_read_reg(QMI8658Register_Status1,&r,1);
+	//printf("Status1: %02x\n",r);
 
 
 	// IRQ GPIO23 / gpio_callback()
@@ -553,7 +551,6 @@ void QMI8658_enableWakeOnMotion(void)
 	//	QMI8658_read_reg(QMI8658Register_Status1,&womCmd[0],1);
 	//	printf("%02x\n",womCmd[0]);
 	//	if(womCmd[0]&QMI8658_STATUS1_WAKEUP_EVENT){ break; }
-	//	//if(womCmd[0]&0x01){ break; }
 	//	sleep_ms(100);
 	//}
 	//QMI8658_disableWakeOnMotion();
@@ -573,10 +570,10 @@ void QMI8658_disableWakeOnMotion(void)
 	//QMI8658_enableSensors(QMI8658_CONFIG_AE_ENABLE);
 	//QMI8658_reenable();
 	//QMI8658_init();
-
 }
 
-void QMI8658_reenable(){
+void QMI8658_reenable()
+{
 	QMI8658_write_reg(QMI8658Register_Ctrl1, 0x60);
 	QMI8658_config.inputSelection = QMI8658_CONFIG_ACCGYR_ENABLE; // QMI8658_CONFIG_ACCGYR_ENABLE;
 	QMI8658_config.accRange = QMI8658AccRange_8g;
@@ -592,8 +589,7 @@ void QMI8658_reenable(){
 
 void QMI8658_enableSensors(unsigned char enableFlags)
 {
-	if (enableFlags & QMI8658_CONFIG_AE_ENABLE)
-	{
+	if (enableFlags & QMI8658_CONFIG_AE_ENABLE){
 		enableFlags |= QMI8658_CTRL7_ACC_ENABLE | QMI8658_CTRL7_GYR_ENABLE;
 	}
 	QMI8658_write_reg(QMI8658Register_Ctrl7, enableFlags & QMI8658_CTRL7_ENABLE_MASK);

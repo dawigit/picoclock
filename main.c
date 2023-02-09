@@ -165,6 +165,7 @@ int16_t edeg_fine=270;
 int16_t gdeg_fine=0;
 //int16_t gdeg_fine_adder=0;
 //int16_t gdeg_finestopper=3;
+bool no_moveshake = false;
 
 
 #define DEFAULT_THEME 0
@@ -172,13 +173,6 @@ int16_t gdeg_fine=0;
 #define NO_POS_MODE 1
 #define SHELL_ENABLED 1
 // NO_sensors 1 : don't show sensor values [gyro,acc,bat]
-
-// DEEPSLEEP : increases sleep_frame by SLEEP_FRAME_ADD till SLEEP_FRAME_END
-// so at max, pico is only able to awake every 10th second
-//#define DEEPSLEEP 0
-#define SLEEP_FRAME_START 1000
-#define SLEEP_FRAME_END   30000
-#define SLEEP_FRAME_ADD   100
 
 Battery_t bat0 = {"GOOD\0", 150.0f, 4.16f, 3.325781f, 4.158838f, 0.0f, 0.0f}; // 150mA
 Battery_t bat1 = {"GOOD\0",1100.0f, 4.19f, 3.346729f, 4.189453f, 0.0f, 0.0f}; //1100ma
@@ -310,16 +304,12 @@ float read_battery(){
 
 #define TFW 14
 
-// eye dimensions
+// eye dimensions (dynamic backgrounds)
 #define EYE_SZ 190
 #define EYE_R EYE_SZ/2
 #define EYE_X 120-EYE_R
 #define EYE_Y 120-EYE_R
 #define EYE_MAX 25-1
-
-
-
-void sincosf(float,float*,float*);
 
 typedef enum CMode {
   CM_None = 0,
@@ -532,8 +522,6 @@ extern Vec2 vO;
 extern Vec2 v32;
 //Vec2 v0 = {0,0};
 
-
-
 uint16_t dcol = WHITE;
 uint16_t editcol = YELLOW;
 uint16_t changecol = YELLOW;
@@ -558,7 +546,8 @@ uint8_t no_pos_y=0;
 int16_t gyrox=0;
 int16_t gyroy=0;
 
-uint32_t sleep_frame = SLEEP_FRAME_START;
+#define SLEEP_FRAME 250
+uint32_t sleep_frame = SLEEP_FRAME;
 
 char timebuffer[16] = {0};
 char* ptimebuffer=timebuffer;
@@ -750,6 +739,8 @@ void check_save_data(){
     plosa->sensors = false;
     plosa->gyrocross = true;
     plosa->DYNAMIC_CIRCLES = false;
+    plosa->DEEPSLEEP = true;
+    plosa->INSOMNIA = false;
     sprintf(plosa->mode,"LOAD\0");
     printf("settings reset to defaults");
   }else{ // do a few sanity checks
@@ -768,6 +759,7 @@ void check_save_data(){
     if(plosa->texture>=TEXTURES){plosa->texture=0;}
     if(plosa->configpos>=MAX_CONF){plosa->configpos = 0;}
     if(plosa->pstyle>=PS_TEXTURE){plosa->pstyle = PS_TEXTURE;}
+
     //plosa->pointerdemo = false;
     //plosa->pstyle = PS_NORMAL;
     //plosa->clock = true;
@@ -974,7 +966,7 @@ void gpio_callback(uint gpio, uint32_t events) {
       if(gpio==CDT){        gch='d';      }
       if(gpio==CBUT0){ceasefire=true;fire_pressed=false;rebootcounter=0;}
       if(gpio==CBUT1){ceasefire=true;fire_pressed=false;rebootcounter=0;}
-      if(gpio==QMIINT1){printf("QMIINT1\n");deepsleep=false;}
+      if(gpio==QMIINT1){ printf("QMIINT1\n");deepsleep=false; }
       gbuf[0]=gbuf[1];
       gbuf[1]=gch;
     }
@@ -1128,6 +1120,8 @@ void command(char* c){
 
     if(strstr(left,"reboot")){reset_usb_boot(0,0);}
     if(strstr(left,"narkose")){QMI8658_enableWakeOnMotion();}
+    if(strstr(left,"qmiinit")){QMI8658_init();}
+    if(strstr(left,"qmireset")){QMI8658_reset();}
     if(strstr(left,"scrs")){printf("SCRS: %d [%d] {%d}\n",screensaver,theme_bg_dynamic_mode,plosa->is_sleeping);}
     if(strstr(left,"SNAPSHOT")){
       //printf("-----------------------> CUT HERE <---------------------\n\nuint8_t imagedata[138+  240*240*2] = {\n");
@@ -1383,6 +1377,7 @@ void draw_gfx(){
   }
 
   draw_clock_hands();
+
   if(plosa->pointerdemo){
     for(uint16_t i=0;i<7;i++){
       Vec2 vo = {120,120};
@@ -1393,7 +1388,6 @@ void draw_gfx(){
       }else{
         lcd_blit_deg2(vo,psize_m[it],texsize[it],fdegs[i],textures[it],BLACK,false);
       }
-
     }
   }else{
     lcd_blit(120-16,120-16,32,32,colt[plosa->theme]->alpha, flags[plosa->theme]); // center
@@ -1427,8 +1421,7 @@ void draw_gfx(){
 
     lcd_frame(GSPX-GSPS , GSPY-GSPSZ, GSPX+GSPS, GSPY+GSPSZ,WHITE,1); //vert |
     lcd_frame(GSPX-GSPSZ, GSPY-GSPS, GSPX+GSPSZ,GSPY+GSPS, WHITE,1); //horz –
-//    float fx = (acc[1]/25.0f); // -20 – 20
-//    float fy = (acc[0]/25.0f);
+
     float fy = get_acc0();
     float fx = get_acc1();
 
@@ -1498,10 +1491,7 @@ void draw_text(){
   }
   uint8_t yoff_date = POS_DATE_Y;
   uint8_t yoff_time = POS_TIME_Y;
-  if(plosa->sensors){
-    //yoff_date+=20;
-    //yoff_time-=20;
-  }
+
   sprintf(dbuf,"%02d",plosa->dt.day);
   lcd_str(POS_DATE_X+0*TFW, yoff_date, dbuf, &TFONT, colors[1], BLACK);
   lcd_str(POS_DATE_X+2*TFW, yoff_date, ".", &TFONT, WHITE, BLACK);
@@ -1538,10 +1528,8 @@ int main(void)
         }
     }
     stdio_init_all();
-    //bool init=false;
-    //bool fixed=false;
-    sleep_ms(400);  // reboot takes about 1.6 sec. -> increase time by 2sec, wait 0.4sec
-    check_save_data(); // init
+    check_save_data(); // init, increase time by 1 second
+    sleep_ms(400);  // reboot takes about 0.6 sec. -> wait 0.4sec
     //plosa->spin=1;
     //plosa->gfxmode=GFX_ROTATE;
     plosa->pointerdemo=false;
@@ -1578,8 +1566,7 @@ int main(void)
     bool o_dt;
     bool o_sw;
 
-    //uint32_t bm = 0b00000000000010110000000000000000;
-    //gpio_init(QMIINT1);
+    gpio_init(QMIINT1);
     gpio_set_dir(QMIINT1,GPIO_IN);
     //gpio_pull_up(QMIINT1);
     gpio_set_dir(CBUT0,GPIO_IN);
@@ -1600,22 +1587,6 @@ int main(void)
     if(!(plosa->dt.year%4)){last[2]=29;}else{last[2]=28;}
     QMI8658_init();
     printf("QMI8658_init\r\n");
-
-    //set_colt_colors();
-    //set_dcolors(); // are set from dcolors so set em first
-    //copy_pos_matrix(theme);
-    //command("scan");
-    //command("stat");
-
-    //for(uint16_t i=0;i<360;i++){
-    //  float f = (float)i;
-    //  sincosf(to_rad(f-90),&tsin[i],&tcos[i]);
-    //}
-    //float ff=0.0f;
-    //for(int i=0;i<600;++i){
-    //  sincosf(to_rad(ff-90),&tfsin[i],&tfcos[i]);
-    //  ff+=0.6f;
-    //}
     print_font_table();
     acc[0]=0.0f;
     acc[1]=0.0f;
@@ -1631,7 +1602,7 @@ int main(void)
       //check if not moving
       #define GYRMAX 300.0f
       #define ACCMAX 500.0f
-      bool no_moveshake = false;
+      no_moveshake = false;
       if(theme_bg_dynamic_mode==1){
         if((gyro[0]>-ACCMAX&&gyro[0]<ACCMAX)&&(gyro[1]>-ACCMAX&&gyro[1]<ACCMAX)&&(gyro[2]>-ACCMAX&&gyro[2]<ACCMAX)){            no_moveshake = true;          }
       }else{
@@ -1669,16 +1640,15 @@ int main(void)
           plosa->is_sleeping=false;
           lcd_set_brightness(plosa->BRIGHTNESS);
           lcd_sleepoff();
-          sleep_frame=SLEEP_FRAME_START;
+          sleep_frame=SLEEP_FRAME;
         }
         if(theme_bg_dynamic_mode){theme_bg_dynamic_mode--;}
-
-
       }
 
+
+      // SLEEP/DEEPSLEEP
       if(plosa->is_sleeping){
         sleep_ms(sleep_frame);
-
         if(plosa->DEEPSLEEP){
           deepsleep=true;
           QMI8658_enableWakeOnMotion();
@@ -1686,21 +1656,20 @@ int main(void)
             if(!deepsleep){
               uint8_t b;
             	QMI8658_read_reg(QMI8658Register_Status1,&b,1);
-              if(b!=0x04){deepsleep=true;continue;}
+              //printf("%02x\n",b);
+              if(b!=QMI8658_STATUS1_WAKEUP_EVENT){ deepsleep=true; continue; }
               break;
             }
-            sleep_ms(250);
+            sleep_ms(SLEEP_FRAME);
           }
           QMI8658_disableWakeOnMotion();
           sleep_ms(10);
           QMI8658_reenable();
-          //QMI8658_enableSensors(QMI8658_CONFIG_AE_ENABLE);
           screensaver=SCRSAV;
           plosa->is_sleeping=false;
           theme_bg_dynamic_mode = 0;
           lcd_set_brightness(plosa->BRIGHTNESS);
           lcd_sleepoff();
-        //  if(sleep_frame<SLEEP_FRAME_END){sleep_frame+=SLEEP_FRAME_ADD;}
         }
         continue;
       }
@@ -1724,8 +1693,6 @@ int main(void)
 
       if(plosa->gfxmode==GFX_NORMAL||plosa->gfxmode==GFX_ROTATE){
         if(bg_dynamic[plosa->conf_bg]){ // dynamic background
-//          int8_t xa = (int8_t)(acc[1]/50.0f);
-//          int8_t ya = (int8_t)(acc[0]/50.0f);
           int16_t ya = (int16_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
           int16_t xa = (int16_t)get_acc12f(acc[0],acc[1],50.0f); //(acc[0]/50.0f);
           if(xa>EYE_MAX){xa=EYE_MAX;}
@@ -1749,20 +1716,10 @@ int main(void)
           gyrox=xa;
           gyroy=ya;
           if(plosa->gfxmode==GFX_ROTATE){
-            //printf("xya: %d %d\n",xa,ya);
-            //printf("XAYA: %d %d\n",xa,ya);
             Vec2 vbo = {120+xa,120-ya};
-            //Vec2 vbs = {0,0};
             Vec2 vbsz = {190,190};
-            //lcd_blit_deg(vbs,vbe,vbe,flagdeg,backgrounds[plosa->conf_bg],colt[plosa->theme]->alpha,true);
             Vec2 vbuv = {190,190};
             lcd_blit_deg2(vbo,vbuv,vbsz,flagdeg,backgrounds[plosa->conf_bg],colt[plosa->theme]->alpha,true);
-
-            //Vec2 vbs_b= {180+xa,70-ya};
-            //vbs2.x = -35;
-            //vbe2.x =  25;
-            //lcd_blit_deg2(vbs2,vbe2,vbe,vbs_b,flagdeg,backgrounds[0],colt[plosa->theme]->alpha);
-            //if(plosa->dither==1){              lcd_dither(EYE_X+xa,EYE_Y-ya,EYE_SZ);            }
           }else{
             lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,backgrounds[plosa->conf_bg]);
           }
@@ -1774,16 +1731,10 @@ int main(void)
         lcd_rotoa();
       }
 
-
-      uint8_t save_sec = plosa->dt.sec;
-      uint8_t save_min = plosa->dt.min;
       if(cmode!=CM_Editpos || plosa->editpos==EPOS_CENTER ){
         rtc_get_datetime(&plosa->dt);
       }
-      //if(!fire && cmode==CM_Editpos && (plosa->editpos==6||plosa->editpos==5)){
-      //  plosa->dt.sec = save_sec;
-      //  plosa->dt.min = save_min;
-      //}
+
       ++resulti;
       resulti&=0x0f;
       result[resulti] = read_battery();
@@ -1793,7 +1744,7 @@ int main(void)
         fire_counter++;
         //printf("fire! [%08x] (%d %d %d) {%d}\n",fire_counter,time_us_32()/MS,button0_time/MS,button1_time/MS,(time_us_32()-button0_time)/MS);
 
-        sleep_frame = SLEEP_FRAME_START;
+        sleep_frame = SLEEP_FRAME;
         plosa->is_sleeping = false;
         theme_bg_dynamic_mode=0;
         dir_x = D_NONE;
@@ -2100,17 +2051,7 @@ int main(void)
       if(SHELL_ENABLED){
         shell();
       }
-      //Vec2 vs = {120,120};
-      //Vec2 ve = {32,32};
-      //lcd_blit_deg(vs,ve,deg,usa32);
       plosa->save_crc=crc(&plosa->theme,LOSASIZE);
-      //uint32_t atime = time_us_32();
-      //uint32_t wtime = ((atime-last_wait)/100000);
-      //last_wait = atime;
-      ////printf("wt= %d [%d]\n",wtime,FRAME_DELAY-wtime);
-      //if(wtime>=frame_delay){wtime=frame_delay-1;}
-      //sleep_ms(frame_delay-wtime);
-
     }
     return 0;
 }

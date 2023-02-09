@@ -213,5 +213,5 @@ void lcd_magnify(uint8_t sx, uint8_t sy, uint8_t sz, uint8_t mx, uint8_t my, uin
 void lcd_blit_deg2(Vec2 vo, Vec2 vuv, Vec2 vs, int16_t deg, const uint8_t* src, uint16_t alpha, bool centric);
 Vec2* lcd_linev2list2(Vec2 vs, Vec2 ve, int16_t* rsret);
 extern uint8_t slice_num;
-uint16_t drawlines;
+//uint16_t drawlines;
 #endif //__GC9A01_H

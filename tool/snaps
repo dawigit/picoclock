@@ -1,5 +1,5 @@
 #!/bin/bash
-(/home/dani/picoclock/tool/mksnap $1 $2)&
+(/home/$USER/picoclock/tool/mksnap $1 $2)&
 sleep 1
 echo " " > /dev/ttyACM$1
 echo "SNAPSHOT" > /dev/ttyACM$1
