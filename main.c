@@ -1012,9 +1012,6 @@ void gpio_callback(uint gpio, uint32_t events) {
 }
 char C_SET[4]="set ";
 char C_GET[4]="get ";
-extern uint16_t drawlines;
-extern int16_t Xadd;
-extern int16_t Yadd;
 void command(char* c){
     bool tc=false;  // time changed
     char* left=c;
@@ -1023,8 +1020,6 @@ void command(char* c){
       space[0] = 0;
       char* right = space+1;
       if(strstr(left,"b2s")){   b2s = (int16_t)atoi(right);}
-      if(strstr(left,"xa")){   Xadd = (int16_t)atoi(right);}
-      if(strstr(left,"ya")){   Yadd = (int16_t)atoi(right);}
       if(strstr(left,"dither")){   plosa->dither = (bool)atoi(right);}
       if(strstr(left,"scandir")){   plosa->scandir = ((uint8_t)atoi(right))&0x03;lcd_setatt(plosa->scandir);}
       if(strstr(left,"ori")){   plosa->scandir = ((uint8_t)atoi(right))&0x03;lcd_setatt(plosa->scandir);}

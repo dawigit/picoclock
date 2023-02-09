@@ -4,13 +4,8 @@ static const uint8_t SPEED = 2;
 static const uint8_t PIXEL_SIZE = 2;
 static uint16_t angle;
 
-
-uint16_t drawlines = 1;
-
 uint16_t* img=NULL;
 uint8_t slice_num;
-int16_t Xadd=0;
-int16_t Yadd=0;
 bool lcd_alpha=false;
 bool test_init = true;
 uint16_t test_color;
