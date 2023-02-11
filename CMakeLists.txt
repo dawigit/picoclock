@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 include(pico_sdk_import.cmake)
-
+set(PICO_BOARD="waveshare_rp2040_lcd_1.28")
 project(picoclock)
 pico_sdk_init()
 
