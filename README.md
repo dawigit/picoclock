@@ -1,6 +1,8 @@
 # picoclock
-### for use with WAVESHARE RP2040-LCD-1.28
-### RP2040 LCD 1.28
+### WAVESHARE RP2040-LCD-1.28 / WAVESHARE RP2040-TOUCH-LCD-1.28
+##### use image uf2/rp2040-tlcd-128-watch.uf2 for WAVESHARE RP2040-TOUCH-LCD-1.28
+##### rp2040-tlcd-128-watch.uf2 can be used for both rp2040-touch-lcd-1.28 and rp2040-lcd-1.28
+
 ![s_gb](https://github.com/dawigit/picoclock/blob/main/img/s_gb.png) ![s_ch](https://github.com/dawigit/picoclock/blob/main/img/s_ch.png)  
 ![s_configicon](https://github.com/dawigit/picoclock/blob/main/img/s_configicon.png) ![s_configmenu](https://github.com/dawigit/picoclock/blob/main/img/s_configmenu.png)
 ![s_flag](https://github.com/dawigit/picoclock/blob/main/img/s_flag.png)
@@ -34,6 +36,11 @@ The file 'img2data.md' contains shell scripts for converting image data and font
 ## To flash the image
 
 `sudo picotool load ./build/main.uf2 -x --bus 1 --address XX`
+
+## To flash the image (touch)
+
+`sudo picotool load ./uf2/rp2040-tlcd-128-watch.uf2 -x --bus 1 --address XX`
+
 
 Find the '--address' with:
 
