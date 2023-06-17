@@ -12,6 +12,7 @@ include_directories(./lib/QMI8658)
 add_executable(main
   main.c
   lib/draw.c
+  CST816S.c
 )
 
 # enable usb output, disable uart output

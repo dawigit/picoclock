@@ -28,6 +28,7 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "lcd.h"
 #include "lib/draw.h"
 #include "QMI8658.h"
+#include "CST816S.h"
 //#include "lib/bme280.h"
 //#include "lib/Fonts/fonts.h"
 #include "img/Font34.h"
@@ -133,10 +134,10 @@ static LOSA_t* plosa=(LOSA_t*)losabuf;
 
 datetime_t default_time = {
   .year  = 2023,
-  .month = 1,
-  .day   = 1,
-  .dotw  = 0, // 0 is Sunday, so 5 is Friday
-  .hour  = 0,
+  .month = 6,
+  .day   = 10,
+  .dotw  = 6, // 0 is Sunday, so 5 is Friday
+  .hour  = 17,
   .min   = 40,
   .sec   = 0
 };
@@ -166,6 +167,24 @@ int16_t gdeg_fine=0;
 //int16_t gdeg_fine_adder=0;
 //int16_t gdeg_finestopper=3;
 bool no_moveshake = false;
+volatile uint8_t flag = 0;
+
+/*
+typedef struct Battery_t {
+  char mode[8];
+  float mA;
+  float load;
+  float max;
+  float min;
+  float dif;
+  float read;
+} Battery_t;
+*/
+
+
+Battery_t bat0 = {"GOOD\0", 150.0f, 4.16f, 3.325781f, 4.158838f, 0.0f, 0.0f}; // 150mA
+Battery_t bat1 = {"GOOD\0",1100.0f, 3.2f, 2.76f, 2.3f, 0.0f, 0.0f}; //1100ma rp2040_tlcd
+Battery_t bat2 = {"GOOD\0",1100.0f, 4.16f, 4.12f, 3.8f, 0.0f, 0.0f}; //1100ma rp2040_lcd
 
 
 #define DEFAULT_THEME 0
@@ -174,16 +193,13 @@ bool no_moveshake = false;
 #define SHELL_ENABLED 1
 // NO_sensors 1 : don't show sensor values [gyro,acc,bat]
 
-Battery_t bat0 = {"GOOD\0", 150.0f, 4.16f, 3.325781f, 4.158838f, 0.0f, 0.0f}; // 150mA
-Battery_t bat1 = {"GOOD\0",1100.0f, 4.19f, 3.346729f, 4.189453f, 0.0f, 0.0f}; //1100ma
-
 // add new battery:
 // change the XX below to your value when the battery is loading [the least one]
 // set bat_default = &bat2;
 //Battery_t bat2 = {"GOOD\0",1100.0f, 4.XXf, 0.0f, 5.55f, 0.0f, 0.0f};
 
 
-Battery_t* bat_default= &bat0;
+Battery_t* bat_default= &bat1;
 
 
 const float conversion_factor = 3.3f / (1 << 12) * 2;
@@ -196,6 +212,7 @@ float resultsum(){
   for(uint8_t i=0;i<BAT_NUMRES;i++){sum+=result[i];}
   return sum;
 }
+
 float resultsummid(){
   float sum=0.0f;
   for(uint8_t i=0;i<BAT_NUMRES;i++){sum+=result[i];}
@@ -218,20 +235,20 @@ void dosave();
 //void draw_pointer(Vec2 vs, Vec2 vts, int16_t tu, uint16_t color, const uint8_t* sr, uint16_t alpha);
 //void draw_pointer_mode(Vec2 vs, Vec2 vts, int16_t tu, uint16_t color, const uint8_t* sr, uint16_t alpha, PSTYLE cps);
 
+
+
+
+
 float read_battery(){
   plosa->bat.read = adc_read()*conversion_factor;
+  //printf("R: %f L: %f\n",plosa->bat.read,plosa->bat.load);
   if(plosa->bat.read<plosa->bat.load){
-    //printf("battery_read: %f\n",plosa->bat.read);
-    if(plosa->bat.read>plosa->bat.max){
-      plosa->bat.max=plosa->bat.read;
-      //printf("battery_max: %f\n",plosa->bat.max);
-    }
     if(plosa->bat.read<plosa->bat.min){
       plosa->bat.min=plosa->bat.read;
       if(plosa->is_sleeping && plosa->BRIGHTNESS==0){
+        //printf("battery_min: %f\n",plosa->bat.min);
         dosave();
       }
-      //printf("battery_min: %f\n",plosa->bat.min);
     }
     if(plosa->bat.dif != (plosa->bat.max-plosa->bat.min)){
       //printf("battery_dif: %f\n",plosa->bat.dif);
@@ -282,6 +299,9 @@ float read_battery(){
 #define POS_CX 120
 #define POS_CY 120
 
+#define POS_CX_S POS_CX-16
+#define POS_CY_S POS_CY-16
+
 #define POS_ACC_X 60
 #define POS_ACC_Y 40
 
@@ -290,9 +310,15 @@ float read_battery(){
 #define POS_BAT_YS 10
 #define POS_BAT_PS 2
 
-
 #define POS_DATE_X 46
 #define POS_DATE_Y 66
+
+#define POS_DAY_X_S POS_DATE_X
+#define POS_DAY_Y_S POS_DATE_Y
+
+#define POS_MONTH_X_S POS_DATE_X+3*
+#define POS_MONTH_Y_S POS_DATE_Y
+
 
 #define POS_DOW_X 20
 #define POS_DOW_Y 111
@@ -346,7 +372,7 @@ typedef struct ThemePos_t{
   PXY_t pos_year;
   PXY_t pos_h;
   PXY_t pos_m;
-  PXY_t pos_s;
+   PXY_t pos_s;
 } ThemePos_t;
 
 
@@ -520,6 +546,8 @@ void repos(uint8_t id){
 
 extern Vec2 vO;
 extern Vec2 v32;
+
+extern uint8_t LCD_RST_PIN;
 //Vec2 v0 = {0,0};
 
 uint16_t dcol = WHITE;
@@ -593,9 +621,10 @@ int16_t tpor = 22;
 
 //one button /
 #define QMIINT1 23
-#define CBUT0 22
-#define CBUT1 3
+#define CBUT_TOUCH 16
 uint32_t nopvar;
+uint8_t CBUT0 = 22;
+bool rp2040_touch = false;
 bool fire_pressed=false;
 bool analog_seconds=false;
 uint32_t fire_counter=0;
@@ -759,7 +788,7 @@ void check_save_data(){
     if(plosa->texture>=TEXTURES){plosa->texture=0;}
     if(plosa->configpos>=MAX_CONF){plosa->configpos = 0;}
     if(plosa->pstyle>=PS_TEXTURE){plosa->pstyle = PS_TEXTURE;}
-
+    if(plosa->scandir>3){plosa->scandir = 0;}
     //plosa->pointerdemo = false;
     //plosa->pstyle = PS_NORMAL;
     //plosa->clock = true;
@@ -794,6 +823,22 @@ uint8_t crc(uint8_t *addr, uint32_t len){
   return crc;                                               /* return crc */
 }
 
+void bat_reinit(){
+  if(rp2040_touch){
+    bat_default = &bat1;  //rp2040_tlcd
+  }else{
+    bat_default = &bat2;  //rp2040_lcd
+  }
+
+  plosa->bat.mA = bat_default->mA;
+  plosa->bat.load = bat_default->load;
+  plosa->bat.max = bat_default->max;
+  plosa->bat.min = bat_default->min;
+  plosa->bat.dif = bat_default->dif;
+  plosa->bat.read = bat_default->read;
+  sprintf(plosa->bat.mode,"GOOD\0");
+  printf("bat mode reset to defaults[%d]='%s'\n",rp2040_touch?1:0,plosa->bat.mode);
+}
 
 void empty_deinit(){
   //printf("REBOOTING...\n");
@@ -815,6 +860,32 @@ void draw_pointer(Vec2 vs, Vec2 vts, int16_t tu, uint16_t color, const uint8_t* 
   draw_pointer_mode(vs,vts,tu,color,sr,alpha,plosa->pstyle);
 }
 
+bool reserved_addr(uint8_t addr) {
+  return (addr & 0x78) == 0 || (addr & 0x78) == 0x78;
+}
+
+void i2c_scan(){
+  printf("\nI2C Bus Scan \n");
+	printf("   0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\n");
+	for (int addr = 0; addr < (1 << 7); ++addr) {
+			if (addr % 16 == 0) {					printf("%02x ", addr);			}
+			int ret;
+			uint8_t rxdata;
+			if (reserved_addr(addr))
+					ret = PICO_ERROR_GENERIC;
+			else
+					ret = i2c_read_blocking(I2C_PORT, addr, &rxdata, 1, false);
+
+      if(ret >= 0 && addr == CST816_ADDR){
+        rp2040_touch = true;
+        CBUT0 = CBUT_TOUCH;
+        LCD_RST_PIN = 13;
+      }
+			printf(ret < 0 ? "." : "@");
+
+			printf(addr % 16 == 15 ? "\n" : "  ");
+	}
+}
 
 uint16_t to_rgb565(uint8_t r,uint8_t g,uint8_t b){
   r>>=3;
@@ -965,24 +1036,33 @@ void gpio_callback(uint gpio, uint32_t events) {
       if(gpio==CCLK){        gch='c';      }
       if(gpio==CDT){        gch='d';      }
       if(gpio==CBUT0){ceasefire=true;fire_pressed=false;rebootcounter=0;}
-      if(gpio==CBUT1){ceasefire=true;fire_pressed=false;rebootcounter=0;}
-      if(gpio==QMIINT1){ printf("QMIINT1\n");deepsleep=false; }
+      //if(gpio==CBUT1){ceasefire=true;fire_pressed=false;rebootcounter=0;}
+      if(gpio==QMIINT1){
+        //printf("QMIINT1\n");
+        deepsleep=false;
+      }
+      if(rp2040_touch){
+        if(gpio==Touch_INT_PIN){
+          deepsleep=false;
+          flag = 1;
+        }
+      }
       gbuf[0]=gbuf[1];
       gbuf[1]=gch;
     }
 
     if(events&GPIO_IRQ_EDGE_FALL){
-      if(gpio==CSW){        sw=true;      }
-      if(gpio==CCLK){        gch='C';      }
-      if(gpio==CDT) {        gch='D';      }
-      //if(gpio==CBUT0){
-      //  printf("tus: %d\n",time_us_32());
-      //  printf("b0t: %d\n",button0_time);
-      //}
+//      if(gpio==CSW){        sw=true;      }
+//      if(gpio==CCLK){        gch='C';      }
+//      if(gpio==CDT) {        gch='D';      }
+//      if(gpio==CBUT0){
+//        printf("tus: %d\n",time_us_32());
+//        printf("b0t: %d\n",button0_time);
+//      }
       if(gpio==CBUT0 && !fire && (((time_us_32()-button0_time)/MS)>=BUTD)){ceasefire=false;fire=true;button0_time = time_us_32();fire_pressed=true;}
-      if(gpio==CBUT1 && !fire && (((time_us_32()-button1_time)/MS)>=BUTD)){ceasefire=false;fire=true;button1_time = time_us_32();fire_pressed=true;}
-      gbuf[0]=gbuf[1];
-      gbuf[1]=gch;
+//      //if(gpio==CBUT1 && !fire && (((time_us_32()-button1_time)/MS)>=BUTD)){ceasefire=false;fire=true;button1_time = time_us_32();fire_pressed=true;}
+//      gbuf[0]=gbuf[1];
+//      gbuf[1]=gch;
     }
 
     //if(events&GPIO_IRQ_LEVEL_LOW && gpio==CBUT0){
@@ -1044,6 +1124,9 @@ void command(char* c){
         repos(plosa->editpos);
       }
       if(strstr(left,"spin")){ plosa->spin = (int16_t)atoi(right);}
+      if(strstr(left,"bmax")){ plosa->bat.max = (float)atof(right);}
+      if(strstr(left,"bmin")){ plosa->bat.min = (float)atof(right);}
+      if(strstr(left,"bload")){ plosa->bat.load = (float)atof(right);}
       if(strstr(left,"clock")){ plosa->clock = (bool)atoi(right);}
       if(strstr(left,"pointerdemo")){ plosa->pointerdemo = (bool)atoi(right);}
       if(strstr(left,"pd")){ plosa->pointerdemo = (bool)atoi(right);}
@@ -1092,10 +1175,11 @@ void command(char* c){
       if(plosa->editpos>8){plosa->editpos=0;}
       if(plosa->dt.dotw>6){plosa->dt.dotw=0;}
 
-      printf("\n- STATUS -\n\nmode[8]: %s\n",plosa->mode);
+      printf("\n- STATUS [%s]-\n\nmode[8]: %s\n",(rp2040_touch)?"WS_TOUCH_LCD_1.28":"WS_LCD_1.28",plosa->mode);
+
       printf("dt: %02d:%02d:%04d\r\n",plosa->dt.day,plosa->dt.month,plosa->dt.year);
       printf("dt: %s %02d:%02d:%02d\r\n",week[plosa->theme][plosa->dt.dotw],plosa->dt.hour,plosa->dt.min,plosa->dt.sec);
-      printf("bat: %s %fmA [%d] %fmax %fmin %fread\r\n", plosa->bat.mode,plosa->bat.mA,(plosa->bat.load)?1:0,plosa->bat.max,plosa->bat.min,plosa->bat.read);
+      printf("bat: %s %fmA %fload %fmax %fmin %fread\r\n", plosa->bat.mode,plosa->bat.mA,plosa->bat.load,plosa->bat.max,plosa->bat.min,plosa->bat.read);
       printf("editpos: %d\r\n",plosa->editpos);
       printf("theme: %d\r\n",plosa->theme);
       printf("BRIGHTNESS : %d\r\n",plosa->BRIGHTNESS);
@@ -1113,10 +1197,13 @@ void command(char* c){
       printf("%s\r\n",flashstatus);
     }
 
+    if(strstr(left,"i2c_scan")){   i2c_scan();}
+    if(strstr(left,"bat_reinit")){ bat_reinit(); }
     if(strstr(left,"reboot")){reset_usb_boot(0,0);}
     if(strstr(left,"narkose")){QMI8658_enableWakeOnMotion();}
-    if(strstr(left,"qmiinit")){QMI8658_init();}
+    if(strstr(left,"qmiinit")){QMI8658_init();sleep_ms(2500);printf("init done\n");}
     if(strstr(left,"qmireset")){QMI8658_reset();}
+    if(strstr(left,"qmireenable")){QMI8658_reenable();}
     if(strstr(left,"scrs")){printf("SCRS: %d [%d] {%d}\n",screensaver,theme_bg_dynamic_mode,plosa->is_sleeping);}
     if(strstr(left,"SNAPSHOT")){
       //printf("-----------------------> CUT HERE <---------------------\n\nuint8_t imagedata[138+  240*240*2] = {\n");
@@ -1322,11 +1409,17 @@ void draw_gfx(){
   lcd_line(POS_BAT_X+102+(POS_BAT_PS<<1)    ,POS_BAT_Y+1, POS_BAT_X+102+(POS_BAT_PS<<1)    ,POS_BAT_Y+POS_BAT_YS-2,BLUE,1); //round end
   lcd_yline(POS_BAT_X+103+(POS_BAT_PS<<1)    ,POS_BAT_Y+POS_BAT_YS/2-2,4,__builtin_bswap16(BLUE),2);  //+
   //printf("bat: %f %f %f %f\n",plosa->bat.read,plosa->bat.max, plosa->bat.min, plosa->bat.dif);
-  float bat_dif = ( plosa->bat.dif - (plosa->bat.max - plosa->bat.read ) );
-  if(bat_dif<0.0f){bat_dif=0.0f;}
-  //printf("(%f)  %f %f [%f]\n",(resultsummid()*conversion_factor),plosa->bat.dif,bat_dif,(bat_dif/plosa->bat.dif)*100.0f);
-
-  uint16_t bat =  (uint16_t)((bat_dif/plosa->bat.dif)*100.0f);
+  uint16_t bat = 0;
+  float rsm = resultsummid();
+  if(plosa->bat.read < plosa->bat.max){
+    float bat_dif = ( plosa->bat.dif - (plosa->bat.max - rsm ) );
+    if(bat_dif<0.1f && bat_dif>-0.1f){bat_dif=0.0f;}
+    //printf("(%f)  %f %f [%f]\n",(resultsummid()*conversion_factor),plosa->bat.dif,bat_dif,(bat_dif/plosa->bat.dif)*100.0f);
+    bat = (uint16_t)((bat_dif/plosa->bat.dif)*100.0f);
+  }else{
+    bat = 100;
+  }
+  //uint16_t bat = (uint16_t)(plosa->bat.max/plosa->bat.read)*100.0f;
   //printf("bat :  %03d\n",bat);
   if(bat>100){bat=100;}
   uint16_t level_color = colt[plosa->theme]->bat_level;
@@ -1506,8 +1599,21 @@ void draw_text(){
   lcd_str(POS_TIME_X+6*TFW, yoff_time, dbuf, &TFONT, colors[6], BLACK);
 }
 
+
 int main(void)
 {
+  sleep_ms(100);  // "Rain-wait" wait 100ms after booting (for other chips to initialize)
+  rtc_init();
+	stdio_init_all();
+
+	//stdio_usb_init();
+	int i = 0;
+	while (i++ < 10) {
+		if (stdio_usb_connected())
+			break;
+		sleep_ms(250);
+	}
+
     plosa->dummy=0;
     if(strstr((char*)plosa->mode,"SAVE")){
     		sprintf((char*)plosa->mode,"LOAD");
@@ -1522,18 +1628,22 @@ int main(void)
           sprintf(flashstatus,"flash: normal\0");
         }
     }
-    stdio_init_all();
     check_save_data(); // init, increase time by 1 second
-    sleep_ms(400);  // reboot takes about 0.6 sec. -> wait 0.4sec
-    //plosa->spin=1;
-    //plosa->gfxmode=GFX_ROTATE;
+    // reboot takes about 0.6 sec. + 0.1 sec "Rain-wait" -> wait 0.3sec
+    sleep_ms(300);
+
     plosa->pointerdemo=false;
-    //plosa->pstyle=2;
-    //plosa->theme=0;
-    //plosa->texture=1;
     if(plosa->theme==0){ edeg_fine = 270;
     }else{               edeg_fine = 90; }
+    plosa->scandir&=0x03;
+    // I2C Config
+    i2c_init(I2C_PORT, 100 * 1000);
+    gpio_set_function(DEV_SDA_PIN, GPIO_FUNC_I2C);
+    gpio_set_function(DEV_SCL_PIN, GPIO_FUNC_I2C);
+    gpio_pull_up(DEV_SDA_PIN);
+    gpio_pull_up(DEV_SCL_PIN);
 
+    i2c_scan();
     lcd_init();
     lcd_setatt(plosa->scandir&0x03);
     lcd_make_cosin();
@@ -1560,29 +1670,34 @@ int main(void)
     bool o_clk;
     bool o_dt;
     bool o_sw;
+    //rtc_init();
+    printf("init realtime clock\n");
+    if(!(plosa->dt.year%4)){last[2]=29;}else{last[2]=28;}
+    rtc_set_datetime(&plosa->dt);
+    printf("init realtime clock done\n");
+    print_font_table();
+
+    //CST816S_init(CST816S_Gesture_Mode);
 
     gpio_init(QMIINT1);
     gpio_set_dir(QMIINT1,GPIO_IN);
-    //gpio_pull_up(QMIINT1);
-    gpio_set_dir(CBUT0,GPIO_IN);
-    gpio_pull_up(CBUT0);
-    gpio_set_dir(CBUT1,GPIO_IN);
-    gpio_pull_up(CBUT1);
     gpio_set_irq_enabled_with_callback(QMIINT1, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
-    gpio_set_irq_enabled(CDT, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
-    gpio_set_irq_enabled(CSW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
-    gpio_set_irq_enabled(CBUT0, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
-    gpio_set_irq_enabled(CBUT1, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
-    gpio_set_irq_enabled(CCLK, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
 
-    rtc_init();
-    printf("init realtime clock\n");
-    rtc_set_datetime(&plosa->dt);
-    printf("init realtime clock done\n");
-    if(!(plosa->dt.year%4)){last[2]=29;}else{last[2]=28;}
+    if(rp2040_touch){
+      gpio_init(Touch_INT_PIN);
+      gpio_pull_up(Touch_INT_PIN);
+      gpio_set_dir(Touch_INT_PIN,GPIO_IN);
+      gpio_set_irq_enabled(Touch_INT_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
+      CST816S_init(CST816S_Point_Mode);
+    }else{
+      gpio_init(CBUT0);
+      gpio_set_dir(CBUT0,GPIO_IN);
+      gpio_pull_up(CBUT0);
+      gpio_set_irq_enabled(CBUT0, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
+    }
     QMI8658_init();
-    printf("QMI8658_init\r\n");
-    print_font_table();
+
+
     acc[0]=0.0f;
     acc[1]=0.0f;
     acc[2]=0.0f;
@@ -1590,6 +1705,25 @@ int main(void)
 
     bool qmis = false;
     while(true){
+      if(flag){
+          //printf("FLAG!\n");
+          screensaver=SCRSAV;
+          if(plosa->is_sleeping){
+            lcd_set_brightness(plosa->BRIGHTNESS);
+            lcd_sleepoff();
+          }
+          plosa->is_sleeping=false;
+          theme_bg_dynamic_mode = 0;
+          CST816S_Get_Point();
+          printf("X:%d Y:%d\r\n", Touch_CTS816.x_point, Touch_CTS816.y_point);
+          flag = 0;
+          if(!fire && (((time_us_32()-button0_time)/MS)>=BUTD)){
+            ceasefire=false;fire=true;button0_time = time_us_32();
+          }else{
+            fire = false;
+          }
+      }
+
       qmis = !qmis;
       if(qmis){
         QMI8658_read_xyz(acc, gyro, &tim_count);
@@ -1686,10 +1820,12 @@ int main(void)
 
       for(int i=0;i<LCD_SZ;i++){b0[i]=0x00;}
 
-      if(plosa->gfxmode==GFX_NORMAL||plosa->gfxmode==GFX_ROTATE){
+       if(plosa->gfxmode==GFX_NORMAL||plosa->gfxmode==GFX_ROTATE){
         if(bg_dynamic[plosa->conf_bg]){ // dynamic background
+          //printf("%f %f\n",acc[0], acc[1]);
           int16_t ya = (int16_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
           int16_t xa = (int16_t)get_acc12f(acc[0],acc[1],50.0f); //(acc[0]/50.0f);
+          //printf("%d %d\n",xa,ya);
           if(xa>EYE_MAX){xa=EYE_MAX;}
           if(xa<-EYE_MAX){xa=-EYE_MAX;}
           if(ya>EYE_MAX){ya=EYE_MAX;}
@@ -1716,6 +1852,7 @@ int main(void)
             Vec2 vbuv = {190,190};
             lcd_blit_deg2(vbo,vbuv,vbsz,flagdeg,backgrounds[plosa->conf_bg],colt[plosa->theme]->alpha,true);
           }else{
+            //printf("EYE %d %d\n",EYE_X+xa,EYE_Y-ya);
             lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,backgrounds[plosa->conf_bg]);
           }
         }else{
@@ -1738,6 +1875,9 @@ int main(void)
       if(fire==true){
         fire_counter++;
         //printf("fire! [%08x] (%d %d %d) {%d}\n",fire_counter,time_us_32()/MS,button0_time/MS,button1_time/MS,(time_us_32()-button0_time)/MS);
+        if(rp2040_touch){
+
+        }
 
         sleep_frame = SLEEP_FRAME;
         plosa->is_sleeping = false;

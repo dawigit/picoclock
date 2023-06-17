@@ -624,12 +624,12 @@ void QMI8658_Config_apply(struct QMI8658Config const *config)
 
 unsigned char QMI8658_reset(void){
 	QMI8658_write_reg(QMI8658_Reset, 0x01);
+	//sleep_ms(1800);
 }
 
 unsigned char QMI8658_init()
 {
 	QMI8658_reset();
-	sleep_ms(100);
 	unsigned char QMI8658_chip_id = 0x00;
 	unsigned char QMI8658_revision_id = 0x00;
 	unsigned char QMI8658_slave[2] = {QMI8658_SLAVE_ADDR_L, QMI8658_SLAVE_ADDR_H};
@@ -664,7 +664,8 @@ unsigned char QMI8658_init()
 		QMI8658_config.gyrRange = QMI8658GyrRange_512dps; // QMI8658GyrRange_2048dps   QMI8658GyrRange_1024dps
 		QMI8658_config.gyrOdr = QMI8658GyrOdr_1000Hz;
 		QMI8658_config.magOdr = QMI8658MagOdr_125Hz;
-		QMI8658_config.magDev = MagDev_AKM09918;
+		//QMI8658_config.magDev = MagDev_AKM09918;
+		QMI8658_config.magDev = 0;
 		QMI8658_config.aeOdr = QMI8658AeOdr_128Hz;
 
 		QMI8658_Config_apply(&QMI8658_config);

@@ -34,6 +34,9 @@ int16_t test_cy;
 int16_t test_x;
 int16_t test_y;
 
+uint8_t LCD_RST_PIN     = 12;
+
+
 //uint8_t* b0=NULL; //db
 //uint8_t* b1=NULL; //db
 
@@ -85,12 +88,7 @@ void lcd_module_init(){
   spi_init(SPI_PORT, 40000 * 1000);
   gpio_set_function(LCD_CLK_PIN, GPIO_FUNC_SPI);
   gpio_set_function(LCD_MOSI_PIN, GPIO_FUNC_SPI);
-  // I2C Config
-  i2c_init(I2C_PORT, 400 * 1000);
-  gpio_set_function(DEV_SDA_PIN, GPIO_FUNC_I2C);
-  gpio_set_function(DEV_SCL_PIN, GPIO_FUNC_I2C);
-  gpio_pull_up(DEV_SDA_PIN);
-  gpio_pull_up(DEV_SCL_PIN);
+  
   printf("DEV_Module_Init OK \r\n");
 }
 
