@@ -1,5 +1,7 @@
 # picoclock
 ### WAVESHARE RP2040-LCD-1.28 / WAVESHARE RP2040-TOUCH-LCD-1.28
+##### use image uf2/rp2040-tlcd-128-watch.uf2 for WAVESHARE RP2040-TOUCH-LCD-1.28
+##### rp2040-tlcd-128-watch.uf2 can be used for both rp2040-touch-lcd-1.28 and rp2040-lcd-1.28
 
 ![s_gb](https://github.com/dawigit/picoclock/blob/main/img/s_gb.png) ![s_ch](https://github.com/dawigit/picoclock/blob/main/img/s_ch.png)  
 ![s_configicon](https://github.com/dawigit/picoclock/blob/main/img/s_configicon.png) ![s_configmenu](https://github.com/dawigit/picoclock/blob/main/img/s_configmenu.png)
@@ -34,6 +36,10 @@ The file 'img2data.md' contains shell scripts for converting image data and font
 ## To flash the image
 
 `sudo picotool load ./build/main.uf2 -x --bus 1 --address XX`
+
+## To flash the image (touch)
+
+`sudo picotool load ./uf2/rp2040-tlcd-128-watch.uf2 -x --bus 1 --address XX`
 
 
 Find the '--address' with:
@@ -95,43 +101,3 @@ Find the '--address' with:
 - icons from openiconlibrary [https://sourceforge.net/projects/openiconlibrary]
 - textures from opengameart.org (most of them)
 - images from wikimedia.org
-
-
-### battery adjustment 1
-
-- turn on the sensors: 'sensors 1'
-- plug in usb cable / load
-- note how the "BAT(V)" value [bottom, below gyrocross] changes
-- load your battery
-
-The 'touch' shows values > 3.0, but if you un-plug the usb cable
-it will fall back to a value < 2.8 
-The 'non-touch' shows different (higher) values (use the same battery).
-
-
-- command 'bload 3.0' sets bat.load value
-- command 'bmax 2.8' sets bat.max value
-- command 'bmin 2.3' set bat.min value
-
-Whenever the value read from the battery is below 3.0 the display shows 'loading'.
-A value below 3.0 means we are not loading.
-bat.max - bat.bmin -> 100%
-
-So, load your battery to the max. 
-Unplug. 
-Set 'bat.max' to the value shown at "BAT(V)".
-Set 'bat.min' to a value NOT to small. (It will automatically be lowered and saved
-whenever a value lower then bat.min is read)
-
-### battery adjustment 2
-in main.c:
-- change values to your needs (bat1 / bat2) [ingore bat0]
-- build, flash
-- use command 'bat_reinit' (minicom)
-
-'bat_reinit' re-initializes (bat.{load,max,min}) with those (default) values from 'bat1' if you use a 'touch'
-OR: 'bat2' for the 'non-touch' version.
-
-
-
-

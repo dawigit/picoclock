@@ -76,6 +76,11 @@
 #define to_rad(angleInDegrees) ((angleInDegrees) * M_PI / 180.0f)
 #define to_deg(angleInRadians) ((angleInRadians) * 180.0f / M_PI)
 
+#define o_east 0
+#define o_south 1
+#define o_west 2
+#define o_north 3
+
 
 typedef struct _tFont
 {
@@ -119,6 +124,15 @@ typedef struct Vec2{
   int16_t y;
 } Vec2;
 
+typedef struct {
+  char co0[256];
+	char co1[256];
+	char co2[256];
+	char co3[256];
+	char co4[256];
+} UTFCodes_t;
+
+
 void lcd_init();
 
 void lcd_gpio_init();
@@ -141,9 +155,17 @@ void lcd_blit(uint8_t x, uint8_t y, uint8_t xs, uint8_t ys, uint16_t alpha, cons
 void lcd_line(uint8_t xs, uint8_t ys, uint8_t xe, uint8_t ye, uint16_t color, uint8_t ps);
 void lcd_aline(uint8_t xs, uint8_t ys, uint8_t xe, uint8_t ye, uint16_t color, uint8_t ps);
 void lcd_char(uint8_t x, uint8_t y, uint8_t c, sFONT* font, uint16_t cf, uint16_t cb, bool cn);
+void lcd_char_offset(uint8_t x, uint8_t y, uint8_t c, sFONT* font, uint16_t cf, uint16_t cb, bool cn, uint16_t o_top, uint16_t o_bottom);
+void lcd_char_offset_lr(uint8_t x, uint8_t y, uint8_t c, sFONT* font, uint16_t cf, uint16_t cb, bool cn, uint8_t o_left, uint8_t o_right);
 void lcd_str(uint8_t x, uint8_t y, char* data, sFONT* font, uint16_t cf, uint16_t cb);
 void lcd_strc(uint8_t x, uint8_t y, char* data, sFONT* font, uint16_t cf, uint16_t cb);
 void lcd_string(uint8_t x, uint8_t y, char* data ,sFONT* font, bool cn, uint16_t cf, uint16_t cb);
+void lcd_stringo(uint8_t x, uint8_t y, char* data, sFONT* font, bool cn, uint16_t cf, uint16_t cb, uint8_t o);
+void lcd_string_offset(uint8_t x, uint8_t y, char* data, sFONT* font, bool cn,
+  uint16_t cf, uint16_t cb, uint8_t o, uint8_t o_top, uint8_t o_bottom);
+void lcd_string_offset_lr(uint8_t x, uint8_t y, char* data, sFONT* font, bool cn,
+    uint16_t cf, uint16_t cb, uint8_t o, uint8_t o_left, uint8_t o_right);
+
 void lcd_number(uint8_t x, uint8_t y, uint32_t n ,sFONT* font, uint16_t cf, uint16_t cb);
 void lcd_float(uint8_t x, uint8_t y, float f ,sFONT* font, uint16_t cf, uint16_t cb);
 void lcd_floats(uint8_t x, uint8_t y, float f ,sFONT* font, uint16_t cf, uint16_t cb, bool columns);
@@ -180,7 +202,7 @@ void lcd_bez3circle(int16_t x, int16_t y, int16_t r, int16_t f, int16_t fr, uint
 void lcd_bez3circ(int16_t x, int16_t y, int16_t r,uint16_t color, int16_t ps, int16_t xo, int16_t yo);
 
 void lcd_bez3curver(int16_t* rx, int16_t* ry, int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3, int16_t f, int16_t fr);
-void lcd_bez2curver(int16_t* rx, int16_t* ry, int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t fr);
+void lcd_bez2curver(int16_t* rx, int16_t* ry, int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t f, int16_t fr);
 void lcd_alpha_on();
 void lcd_alpha_off();
 void lcd_alpha_line(uint8_t xs, uint8_t ys, uint8_t xe, uint8_t ye, uint16_t color, int16_t ps);
@@ -215,5 +237,9 @@ void lcd_magnify(uint8_t sx, uint8_t sy, uint8_t sz, uint8_t mx, uint8_t my, uin
 // origin , uv-size, texture-size
 void lcd_blit_deg2(Vec2 vo, Vec2 vuv, Vec2 vs, int16_t deg, const uint8_t* src, uint16_t alpha, bool centric);
 Vec2* lcd_linev2list2(Vec2 vs, Vec2 ve, int16_t* rsret);
+
+UTFCodes_t* lcd_utfdecode(char* rubu);
+
 extern uint8_t slice_num;
+
 #endif //__GC9A01_H

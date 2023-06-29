@@ -12,6 +12,7 @@ include_directories(./lib/QMI8658)
 add_executable(main
   main.c
   lib/draw.c
+  w.c
   CST816S.c
 )
 

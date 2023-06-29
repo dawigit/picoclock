@@ -24,21 +24,22 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "hardware/i2c.h"
 #include "pico/binary_info.h"
 #include "pico/stdlib.h"
-
 #include "lcd.h"
+#include "w.h"
 #include "lib/draw.h"
 #include "QMI8658.h"
 #include "CST816S.h"
-//#include "lib/bme280.h"
-//#include "lib/Fonts/fonts.h"
-#include "img/Font34.h"
-#include "img/Font30.h"
+#include "img/font30.h"
+#include "img/font34.h"
+#include "img/font40.h"
+#include "img/font48.h"
+
+#include "img/irisa190.h"
+#include "img/earth190.h"
 #include "img/bega.h"
 #include "img/sand.h"
 #include "img/col1.h"
 
-#include "img/irisa190.h"
-#include "img/earth190.h"
 
 //#include "img/maple.h"
 #include "img/usa32.h"
@@ -142,6 +143,14 @@ datetime_t default_time = {
   .sec   = 0
 };
 
+char b_year[6];
+char b_month[32];
+char b_day[4];
+char b_dotw[32];
+char b_hour[4];
+char b_min[4];
+char b_sec[4];
+
 
 bool deepsleep=false;
 int16_t flagdeg=90;
@@ -153,19 +162,10 @@ int16_t flagdeg1b=130;
 int16_t flagdeg2b=260;
 
 int16_t fdegs[7] = {90,30,60,30,60,130,260};
-
 int16_t b2s=75;
 
-//int16_t cdeg_adder=0;
-//int16_t cdeg_fine=270;
 int16_t edeg_fine=270;
-//int16_t cdeg_fine_adder=0;
-//int16_t cdeg_finestopper=3;
-
-//int16_t gdeg_adder=0;
 int16_t gdeg_fine=0;
-//int16_t gdeg_fine_adder=0;
-//int16_t gdeg_finestopper=3;
 bool no_moveshake = false;
 volatile uint8_t flag = 0;
 
@@ -181,6 +181,51 @@ typedef struct Battery_t {
 } Battery_t;
 */
 
+// #W*
+
+bool center_enabled = false;
+
+W* wn_background = NULL;
+W* wn_content = NULL;
+W* wn_drawclockhands = NULL;
+W* img_center = NULL;
+W* img_config = NULL;
+W* wblinker = NULL;
+W* wblinkerg = NULL;
+W* wblinker_once = NULL;
+W* wblinker_ref = NULL;
+
+W* w_dotw = NULL;
+W* w_dotw_cn = NULL;
+W* wsp_dotw = NULL;
+W* wsp_dotw_cn = NULL;
+
+W* w_hour = NULL;
+W* w_min = NULL;
+W* w_sec = NULL;
+W* w_timed0 = NULL;
+W* w_timed1 = NULL;
+W* wsp_hour = NULL;
+W* wsp_min = NULL;
+W* wsp_sec = NULL;
+
+W* w_day = NULL;
+W* w_month = NULL;
+W* w_year = NULL;
+W* w_dated0 = NULL;
+W* w_dated1 = NULL;
+W* wsp_day = NULL;
+W* wsp_month = NULL;
+W* wsp_year = NULL;
+
+W* cim_flags = NULL;
+W* cim_config = NULL;
+
+W* wl[14] = {NULL};
+
+W* wb_dotw; //day of the week content box (lat/cn)
+
+WBez2_t* w_move = NULL;
 
 Battery_t bat0 = {"GOOD\0", 150.0f, 4.16f, 3.325781f, 4.158838f, 0.0f, 0.0f}; // 150mA
 Battery_t bat1 = {"GOOD\0",1100.0f, 3.2f, 2.76f, 2.3f, 0.0f, 0.0f}; //1100ma rp2040_tlcd
@@ -192,6 +237,13 @@ Battery_t bat2 = {"GOOD\0",1100.0f, 4.16f, 4.12f, 3.8f, 0.0f, 0.0f}; //1100ma rp
 #define NO_POS_MODE 1
 #define SHELL_ENABLED 1
 // NO_sensors 1 : don't show sensor values [gyro,acc,bat]
+
+#define MAX_CONF 8
+#define MAX_CONFD (360/MAX_CONF)
+#define MAX_FCONF 4
+#define MAX_FCONFD (360/MAX_CONF)
+
+
 
 // add new battery:
 // change the XX below to your value when the battery is loading [the least one]
@@ -229,14 +281,22 @@ float resultminmaxmid(){
 }
 
 
-//forward decs
+//forward decs [4WARD]
 uint8_t crc(uint8_t *addr, uint32_t len);
 void dosave();
+void wtest();
+void reblink(W* w, W* wt);
+void reblink2(W* w0, W* w1, W* wt);
+void blinker_off(W* w);
+void blink_once(W* w, W* wt);
+void brepos(W* w, W* wt);
 //void draw_pointer(Vec2 vs, Vec2 vts, int16_t tu, uint16_t color, const uint8_t* sr, uint16_t alpha);
 //void draw_pointer_mode(Vec2 vs, Vec2 vts, int16_t tu, uint16_t color, const uint8_t* sr, uint16_t alpha, PSTYLE cps);
 
 
+//(uint16_t (*image_function)(void* self))config_functions[MAX_CONF];
 
+void* config_functions[MAX_CONF];
 
 
 float read_battery(){
@@ -271,6 +331,9 @@ float read_battery(){
 
 #define TFONT Font20
 #define CNFONT Font30
+#define TFO Font40
+#define TFOS Font24
+#define TFOW Font40
 
 
 #define mcpy(d,s,sz) for(int i=0;i<sz;i++){d[i]=s[i];}
@@ -321,11 +384,11 @@ float read_battery(){
 
 
 #define POS_DOW_X 20
-#define POS_DOW_Y 111
-#define POS_CNDOW_X 190
-#define POS_CNDOW_Y 72
+#define POS_DOW_Y 100
+#define POS_CNDOW_X 25
+#define POS_CNDOW_Y 64
 
-#define POS_TIME_X 64
+#define POS_TIME_X 48
 #define POS_TIME_Y 156
 
 #define TFW 14
@@ -344,6 +407,29 @@ typedef enum CMode {
   CM_Changepos = 3,
   CM_Changetheme = 4
 } CMode;
+
+typedef enum CModeT {
+  CMT_None = 0,
+  CMT_Select = 1,
+  CMT_EditDOTW,
+  CMT_EditDOTW_CN,
+  CMT_EditDOTWDone,
+  CMT_EditHour,
+  CMT_EditHourDone,
+  CMT_EditMin,
+  CMT_EditMinDone,
+  CMT_EditSec,
+  CMT_EditSecDone,
+  CMT_EditDay,
+  CMT_EditDayDone,
+  CMT_EditMonth,
+  CMT_EditMonthDone,
+  CMT_EditYear,
+  CMT_EditYearDone,
+  CMT_MoveDone,
+  CMT_BlinkOnce,
+} CModeT;
+
 
 typedef struct ColorTheme_t{
   uint16_t alpha;
@@ -375,17 +461,18 @@ typedef struct ThemePos_t{
    PXY_t pos_s;
 } ThemePos_t;
 
-
+#define TFOWI 26
+#define TFOSWI 14
 
 #define EDITPOSITIONS 8
   PXY_t tpos[EDITPOSITIONS+1] =
   { POS_DOW_X,POS_DOW_Y,
     POS_DATE_X,POS_DATE_Y,
-    POS_DATE_X+3*TFW,POS_DATE_Y,
-    POS_DATE_X+8*TFW,POS_DATE_Y,
+    POS_DATE_X+2*TFOWI+8,POS_DATE_Y,
+    POS_DATE_X+4*TFOWI+16,POS_DATE_Y,
     POS_TIME_X,      POS_TIME_Y,
-    POS_TIME_X+3*TFW,POS_TIME_Y,
-    POS_TIME_X+6*TFW,POS_TIME_Y,
+    POS_TIME_X+2*TFOSWI-8,POS_TIME_Y,
+    POS_TIME_X+4*TFOSWI,POS_TIME_Y,
     POS_CX-100,POS_CY,
     POS_CX, POS_CY
   };
@@ -468,8 +555,6 @@ H  - M - S - DOW
 
 #define THEMES 6
 
-
-
 CMode cmode = CM_None;
 int16_t xold,xoldt;
 int16_t yold,yoldt;
@@ -504,11 +589,6 @@ ColorTheme_t colt5={BLACK,GB_Blue,GB_Red,GB_White,NWHITE,GB_Red,WHITE,WHITE,WHIT
 ColorTheme_t colt6={BLACK,CH_Red,CH_Red,CH_White,NWHITE,GB_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
 
 ColorTheme_t* colt[THEMES];
-
-#define MAX_CONF 8
-#define MAX_CONFD (360/MAX_CONF)
-#define MAX_FCONF 4
-#define MAX_FCONFD (360/MAX_CONF)
 
 typedef enum {
   CP_EXIT=0,
@@ -548,6 +628,9 @@ extern Vec2 vO;
 extern Vec2 v32;
 
 extern uint8_t LCD_RST_PIN;
+extern W wroot;
+//W* wb_time;
+//W* wb_date;
 //Vec2 v0 = {0,0};
 
 uint16_t dcol = WHITE;
@@ -654,6 +737,8 @@ int flagsdelay = SWITCH_THEME_DELAY;
 int blink_counter = 0;
 bool bmode = false;
 
+uint32_t last_blink;
+
 extern float tsin[DEGS];
 extern float tcos[DEGS];
 //float tfsin[600];
@@ -685,15 +770,32 @@ float last_z = 0.0f;
 uint16_t cn_chars=0;
 char ftst[128*4] = {0};
 
-char* week_usa[7] = {"Sun\0","Mon\0","Tue\0","Wed\0","Thu\0","Fri\0","Sat\0"};
-char* week_gb[7] = {"Sun\0","Mon\0","Tue\0","Wed\0","Thu\0","Fri\0","Sat\0"};
 char* week_cn[7] = {"星期日\0","星期一\0","星期二\0","星期三\0","星期四\0","星期五\0","星期六\0"};
+char* week_usa[7] = {"Sun\0","Mon\0","Tue\0","Wed\0","Thu\0","Fri\0","Sat\0"};
 char* week_ger[7] = {"Son\0","Mon\0","Die\0","Mit\0","Don\0","Fre\0","Sam\0"};
-char* week_ch[7] = {"Son\0","Mon\0","Die\0","Mit\0","Don\0","Fre\0","Sam\0"};
 char* week_tr[7] = {"PAZ\0","PZT\0","SAL\0","CAR\0","PER\0","CUM\0","CMT\0"};
+char* week_gb[7] = {"Sun\0","Mon\0","Tue\0","Wed\0","Thu\0","Fri\0","Sat\0"};
+char* week_ch[7] = {"Son\0","Mon\0","Die\0","Mit\0","Don\0","Fre\0","Sam\0"};
 char** week[THEMES] = {week_cn,week_usa,week_ger,week_tr,week_gb,week_ch};
+char* wcn[7];
  // dummy month0
 uint8_t last[13] = {0,31,28,31,30,31,30,31,31,30,31,30,31};
+
+char* hours[24] = {"00","01","02","03","04","05","06","07","08","09",
+               "10","11","12","13","14","15","16","17","18","19",
+               "20","21","22","23"};
+char* numbers[100] = {
+  "00","01","02","03","04","05","06","07","08","09",
+  "10","11","12","13","14","15","16","17","18","19",
+  "20","21","22","23","24","25","26","27","28","29",
+  "30","31","32","33","34","35","36","37","38","39",
+  "40","41","42","43","44","45","46","47","48","49",
+  "50","51","52","53","54","55","56","57","58","59",
+  "60","61","62","63","64","65","66","67","68","69",
+  "70","71","72","73","74","75","76","77","78","79",
+  "80","82","81","83","84","85","86","87","88","89",
+  "90","91","92","93","94","95","96","97","98","99"
+};
 
 char cn_buffer[32] = {0};
 
@@ -789,6 +891,7 @@ void check_save_data(){
     if(plosa->configpos>=MAX_CONF){plosa->configpos = 0;}
     if(plosa->pstyle>=PS_TEXTURE){plosa->pstyle = PS_TEXTURE;}
     if(plosa->scandir>3){plosa->scandir = 0;}
+    if(plosa->BRIGHTNESS > 100 || plosa->BRIGHTNESS <= 10)plosa->BRIGHTNESS = 30;
     //plosa->pointerdemo = false;
     //plosa->pstyle = PS_NORMAL;
     //plosa->clock = true;
@@ -1032,62 +1135,19 @@ uint32_t button1_dif=0;
 
 void gpio_callback(uint gpio, uint32_t events) {
     if(events&GPIO_IRQ_EDGE_RISE){
-      if(gpio==CSW){        osw=true;      }
-      if(gpio==CCLK){        gch='c';      }
-      if(gpio==CDT){        gch='d';      }
       if(gpio==CBUT0){ceasefire=true;fire_pressed=false;rebootcounter=0;}
-      //if(gpio==CBUT1){ceasefire=true;fire_pressed=false;rebootcounter=0;}
-      if(gpio==QMIINT1){
-        //printf("QMIINT1\n");
-        deepsleep=false;
-      }
+      if(gpio==QMIINT1){ deepsleep=false; }
       if(rp2040_touch){
         if(gpio==Touch_INT_PIN){
           deepsleep=false;
           flag = 1;
         }
       }
-      gbuf[0]=gbuf[1];
-      gbuf[1]=gch;
     }
 
     if(events&GPIO_IRQ_EDGE_FALL){
-//      if(gpio==CSW){        sw=true;      }
-//      if(gpio==CCLK){        gch='C';      }
-//      if(gpio==CDT) {        gch='D';      }
-//      if(gpio==CBUT0){
-//        printf("tus: %d\n",time_us_32());
-//        printf("b0t: %d\n",button0_time);
-//      }
       if(gpio==CBUT0 && !fire && (((time_us_32()-button0_time)/MS)>=BUTD)){ceasefire=false;fire=true;button0_time = time_us_32();fire_pressed=true;}
-//      //if(gpio==CBUT1 && !fire && (((time_us_32()-button1_time)/MS)>=BUTD)){ceasefire=false;fire=true;button1_time = time_us_32();fire_pressed=true;}
-//      gbuf[0]=gbuf[1];
-//      gbuf[1]=gch;
     }
-
-    //if(events&GPIO_IRQ_LEVEL_LOW && gpio==CBUT0){
-    //  buttonglass-=BUTTONGLASSC;
-    //  if(buttonglass<=0){
-    //    fire=true;
-    //    if(plosa->editpos == 0){rebootcounter++;}
-    //    buttonglass=BUTTONGLASS;
-    //  }
-    //}
-
-    //if(events&GPIO_IRQ_LEVEL_LOW && gpio==CBUT1){
-    //  buttonglass-=BUTTONGLASSC;
-    //  if(buttonglass<=0){
-    //    fire=true;
-    //    if(plosa->editpos == 0){rebootcounter++;}
-    //    buttonglass=BUTTONGLASS;
-    //  }
-    //}
-
-    if(gbuf[0]=='C'&&gbuf[1]=='D'){tcw=true;}
-    if(gbuf[0]=='D'&&gbuf[1]=='C'){tccw=true;}
-    if(sw){sw=false;fire=true;}
-    if(osw){osw=false;ceasefire=true;}
-
 
 }
 char C_SET[4]="set ";
@@ -1101,6 +1161,13 @@ void command(char* c){
       char* right = space+1;
       if(strstr(left,"b2s")){   b2s = (int16_t)atoi(right);}
       if(strstr(left,"dither")){   plosa->dither = (bool)atoi(right);}
+      if(strstr(left,"spos")){
+        W_spinner* wsp = (W_spinner*)wsp_dotw_cn->d;
+        wsp->fpos = (uint16_t)atoi(right);
+        wsp->fixed = (wsp->fpos)?true:false;
+      }
+      //if(strstr(left,"setfsh")){   Font38.h = (uint16_t)atoi(right);}
+      //if(strstr(left,"setfsw")){   Font38.w = (uint16_t)atoi(right);}
       if(strstr(left,"scandir")){   plosa->scandir = ((uint8_t)atoi(right))&0x03;lcd_setatt(plosa->scandir);}
       if(strstr(left,"ori")){   plosa->scandir = ((uint8_t)atoi(right))&0x03;lcd_setatt(plosa->scandir);}
       if(strstr(left,"sensors")){   plosa->sensors = (bool)atoi(right);}
@@ -1108,6 +1175,7 @@ void command(char* c){
       if(strstr(left,"bender")){    plosa->bender = (bool)atoi(right);}
       if(strstr(left,"smooth")){  plosa->SMOOTH_BACKGROUND = (bool)atoi(right);}
       if(strstr(left,"insomnia")){  plosa->INSOMNIA = (bool)atoi(right);}
+      if(strstr(left,"inso")){  plosa->INSOMNIA = (bool)atoi(right);}
       if(strstr(left,"circle")){ plosa->DYNAMIC_CIRCLES = (bool)atoi(right);}
       if(strstr(left,"light")){     plosa->BRIGHTNESS = (uint8_t)atoi(right);lcd_set_brightness(plosa->BRIGHTNESS);}
       if(strstr(left,"deep")){ plosa->DEEPSLEEP = (bool)atoi(right);}
@@ -1138,6 +1206,8 @@ void command(char* c){
         if(plosa->theme>=THEMES){
           plosa->theme=THEMES-1;
         }
+        blinker_off(wblinker);
+        if(wblinker_ref){wblinker_ref=NULL;}
       }
       if(strstr(left,"deg")){
         flagdeg=(int16_t)atoi(right);
@@ -1196,7 +1266,7 @@ void command(char* c){
       printf("%s\r\n",crcstatus);
       printf("%s\r\n",flashstatus);
     }
-
+    if(strstr(left,"wtest")){ wtest();  }
     if(strstr(left,"i2c_scan")){   i2c_scan();}
     if(strstr(left,"bat_reinit")){ bat_reinit(); }
     if(strstr(left,"reboot")){reset_usb_boot(0,0);}
@@ -1395,7 +1465,50 @@ void draw_clock_hands(){
   //}
 }
 
-
+void draw_background(){
+  if(plosa->gfxmode==GFX_NORMAL||plosa->gfxmode==GFX_ROTATE){
+   if(bg_dynamic[plosa->conf_bg]){ // dynamic background
+     //printf("%f %f\n",acc[0], acc[1]);
+     int16_t ya = (int16_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
+     int16_t xa = (int16_t)get_acc12f(acc[0],acc[1],50.0f); //(acc[0]/50.0f);
+     //printf("%d %d\n",xa,ya);
+     if(xa>EYE_MAX){xa=EYE_MAX;}
+     if(xa<-EYE_MAX){xa=-EYE_MAX;}
+     if(ya>EYE_MAX){ya=EYE_MAX;}
+     if(ya<-EYE_MAX){ya=-EYE_MAX;}
+     if(plosa->SMOOTH_BACKGROUND){
+       xoldt = xa;
+       yoldt = ya;
+       xa+=xold;
+       ya+=yold;
+       xa>>=1;
+       ya>>=1;
+       xold = xoldt;
+       yold = yoldt;
+     }
+     if(xa >15){xa= 15;}
+     if(ya >15){ya= 15;}
+     if(xa<-15){xa=-15;}
+     if(ya<-15){ya=-15;}
+     gyrox=xa;
+     gyroy=ya;
+     if(plosa->gfxmode==GFX_ROTATE){
+       Vec2 vbo = {120+xa,120-ya};
+       Vec2 vbsz = {190,190};
+       Vec2 vbuv = {190,190};
+       lcd_blit_deg2(vbo,vbuv,vbsz,flagdeg,backgrounds[plosa->conf_bg],colt[plosa->theme]->alpha,true);
+     }else{
+       //printf("EYE %d %d\n",EYE_X+xa,EYE_Y-ya);
+       lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,backgrounds[plosa->conf_bg]);
+     }
+   }else{
+     mcpy(b0,backgrounds[plosa->conf_bg],LCD_SZ);
+   }
+ }else if(plosa->gfxmode==GFX_ROTOZOOM){
+   lcd_roto(backgrounds[plosa->conf_bg],bg_size[plosa->conf_bg],bg_size[plosa->conf_bg]);
+   lcd_rotoa();
+ }
+}
 
 void draw_gfx(){
   if(!draw_gfx_enabled){return;}
@@ -1548,7 +1661,18 @@ void draw_gfx(){
   }
 }
 
+void make_buffers(){
+  sprintf(b_hour,"%02d",plosa->dt.hour);
+  sprintf(b_min,"%02d",plosa->dt.min);
+  sprintf(b_sec,"%02d",plosa->dt.sec);
+
+  sprintf(b_day,"%02d",plosa->dt.day);
+  sprintf(b_month,"%02d",plosa->dt.month);
+  sprintf(b_year,"%04d",plosa->dt.year);
+}
+
 void draw_text(){
+  return;
   if(!draw_text_enabled){return;}
   if(plosa->sensors){
     lcd_str(POS_ACC_X, POS_ACC_Y+  1, "GYR_X =", &Font12, WHITE, BLACK);
@@ -1599,10 +1723,111 @@ void draw_text(){
   lcd_str(POS_TIME_X+6*TFW, yoff_time, dbuf, &TFONT, colors[6], BLACK);
 }
 
+void draw_content(){
+  if(cmode==CM_Editpos || cmode==CM_Changepos || cmode==CM_Config){
+    uint16_t cmode_color = GREEN;
+    if(cmode==CM_Changepos){
+      blink_counter++;
+      if(blink_counter==5){ bmode=!bmode;blink_counter=0; }
+      cmode_color = blinker[bmode];
+      //draw_doimage(*adoi_config[plosa->theme]);
+    }
+    if(plosa->editpos==0){
+      if(plosa->theme==0){
+        lcd_frame(POS_CNDOW_X-6,POS_CNDOW_Y,POS_CNDOW_X+CNFONT.w+3,POS_CNDOW_Y+CNFONT.h*3+1,cmode_color,3);
+      }else{
+        fx_circle(tpos[plosa->editpos].x+32,tpos[plosa->editpos].y+16,45,cmode_color,5,xold,yold);
+      }
+    }else if(plosa->editpos==1){ // day
+      fx_circle(tpos[plosa->editpos].x+20,tpos[plosa->editpos].y+5,24,cmode_color,5,xold,yold);
+    }else if(plosa->editpos==2){ // month
+      fx_circle(tpos[plosa->editpos].x+8,tpos[plosa->editpos].y+5,24,cmode_color,5,xold,yold);
+    }else if(plosa->editpos==3){  // year
+      fx_circle(tpos[plosa->editpos].x,tpos[plosa->editpos].y+5,40,cmode_color,5,xold,yold);
+    }else if(plosa->editpos==4){  // hour
+      fx_circle(tpos[plosa->editpos].x+16,tpos[plosa->editpos].y+5,30,cmode_color,5,xold,yold);
+    }else if(plosa->editpos==5){  // min
+      fx_circle(tpos[plosa->editpos].x+54,tpos[plosa->editpos].y+5,30,cmode_color,5,xold,yold);
+    }else if(plosa->editpos==6){  // sec
+      fx_circle(tpos[plosa->editpos].x+82,tpos[plosa->editpos].y+5,30,cmode_color,5,xold,yold);
+    }else if(plosa->editpos==EPOS_CONFIG){
+      //if(cmode==CM_Changepos){
+      //      draw_doimage(*adoi_config[plosa->theme]);
+      //}
+      int16_t x= (*adoi_config[plosa->theme])->vpos.x+15;
+      int16_t y= (*adoi_config[plosa->theme])->vpos.y+16;
+      fx_circle(x,y,22,cmode_color,3,xold,yold);
+
+      Vec2 dp1 = texsize[plosa->texture];
+      draw_clock_hands();
+
+    }else if(plosa->editpos==EPOS_CENTER){
+      if(cmode==CM_Config){
+        int16_t x= (*adoi_config[plosa->theme])->vpos.x+15;
+        int16_t y= (*adoi_config[plosa->theme])->vpos.y+16;
+        fx_circle(x,y,22,cmode_color,3,xold,yold);
+        Vec2 dp1 = texsize[plosa->texture];
+        draw_clock_hands();
+      }else{
+        fx_circle(tpos[plosa->editpos].x,tpos[plosa->editpos].y,19,cmode_color,3,xold,yold);
+      }
+    }
+  }
+
+  if(!theme_bg_dynamic_mode){
+    if(!plosa->highpointer||cmode==CM_Editpos){
+      draw_gfx();
+      draw_text();
+    }else{
+      draw_text();
+      draw_gfx();
+    }
+  }
+  if(draw_config_enabled){
+    if(plosa->spin!=0){
+      flagdeg = gdeg(flagdeg+plosa->spin);
+    }
+    edeg_fine = draw_getdeg(edeg_fine);
+    int16_t magnet = draw_circmenu(edeg_fine, 8, config_images);
+    if(magnet != 0){
+      int16_t MAG = 10;
+      if(magnet < MAG && magnet >-MAG){
+          if(magnet/2 == 0){ edeg_fine-= magnet; }
+          else{              edeg_fine -= (magnet)/2; }
+      }else{ edeg_fine -= magnet/8; }
+    }
+  }
+  #define magx 35
+  #define magy 90
+  #define mags 20
+  #define magy2 magy+mags+20
+  #define magx2 magx-10
+  #define magf 2
+  //lcd_magnify(magx,magy,mags,magx2,magy2,magf);
+  //lcd_frame(magx,magy,magx+mags,magy+mags,RED,1);
+  //lcd_frame(magx2,magy2,magx2+mags*magf,magy2+mags*magf,RED,1);
+
+  if(draw_flagconfig_enabled){
+    if(plosa->spin!=0){
+      flagdeg = gdeg(flagdeg+plosa->spin);
+    }
+    gdeg_fine = draw_getdeg(gdeg_fine);
+    int16_t magnet = draw_circmenu(gdeg_fine, THEMES, flags);
+    if(magnet != 0){
+      //printf("magnet = %d\n",magnet);
+      int16_t MAG = 15;
+      if(magnet < MAG && magnet >-MAG){
+          if(magnet/2 == 0){ gdeg_fine-= magnet; }
+          else{              gdeg_fine -= (magnet)/2; }
+      }else{ gdeg_fine -= magnet/8; }
+    }
+  }
+}
+
 
 int main(void)
 {
-  sleep_ms(100);  // "Rain-wait" wait 100ms after booting (for other chips to initialize)
+  sleep_ms(200);  // "Rain-wait" wait 100ms after booting (for other chips to initialize)
   rtc_init();
 	stdio_init_all();
 
@@ -1631,6 +1856,9 @@ int main(void)
     check_save_data(); // init, increase time by 1 second
     // reboot takes about 0.6 sec. + 0.1 sec "Rain-wait" -> wait 0.3sec
     sleep_ms(300);
+
+    if(plosa->BRIGHTNESS < 10)plosa->BRIGHTNESS = 10;
+    if(plosa->BRIGHTNESS > 100)plosa->BRIGHTNESS = 100;
 
     plosa->pointerdemo=false;
     if(plosa->theme==0){ edeg_fine = 270;
@@ -1702,26 +1930,564 @@ int main(void)
     acc[1]=0.0f;
     acc[2]=0.0f;
     command("stat");
-
+    init_root();
+    wtest();
+    #define WL_SIZE 14
+    CModeT cmt = CMT_None;
+    bool set_time = false;
     bool qmis = false;
+    int16_t last_tx, last_ty;
+    int16_t diff_tx, diff_ty;
+    W_spinner* spinrx = NULL;
+    W_spinner* spinry = NULL;
+    uint32_t flag_last_time = 0;
     while(true){
-      if(flag){
-          //printf("FLAG!\n");
-          screensaver=SCRSAV;
-          if(plosa->is_sleeping){
-            lcd_set_brightness(plosa->BRIGHTNESS);
-            lcd_sleepoff();
-          }
-          plosa->is_sleeping=false;
-          theme_bg_dynamic_mode = 0;
-          CST816S_Get_Point();
-          printf("X:%d Y:%d\r\n", Touch_CTS816.x_point, Touch_CTS816.y_point);
-          flag = 0;
-          if(!fire && (((time_us_32()-button0_time)/MS)>=BUTD)){
-            ceasefire=false;fire=true;button0_time = time_us_32();
+      if(flag){ //#FLAG
+        //printf("FLAG!\n");
+        screensaver=SCRSAV;
+        if(plosa->is_sleeping){
+          lcd_set_brightness(plosa->BRIGHTNESS);
+          lcd_sleepoff();
+        }
+        plosa->is_sleeping=false;
+        theme_bg_dynamic_mode = 0;
+        CST816S_Get_Point();
+        printf("X:%d Y:%d\r\n", Touch_CTS816.x_point, Touch_CTS816.y_point);
+        int16_t tx = (int16_t)Touch_CTS816.x_point;
+        int16_t ty = (int16_t)Touch_CTS816.y_point;
+        W* wf = wfindxy(&wroot, tx, ty );
+        if(flag_last_time && ((time_us_32()-flag_last_time)/MS) < 300){
+          printf("FLT: %08x %d\n",flag_last_time,((time_us_32()-flag_last_time)/MS));
+          //flag_last_time = 0;
+          wf = NULL;
+          fire = false;
+        }
+        if(wf){
+          printf("*");
+
+          if(wf->t == wt_spinner){
+            printf("SP %d %d {%d}\n",time_us_32(),wf->lt, (time_us_32()-wf->lt)/MS);
+            if(!fire && (((time_us_32()-wf->lt)/MS)<100)){
+              fire=true;
+              if(wf->st == st_spinner_char_v){
+                spinry = (W_spinner*)wf->d;
+              }else if(wf->st == st_spinner_char_h){
+                spinrx = (W_spinner*)wf->d;
+              }
+            }else{
+              fire = false;
+              last_tx = 0;
+              last_ty = 0;
+              diff_tx = 0;
+              diff_ty = 0;
+            }
+            wf->lt = time_us_32();
           }else{
-            fire = false;
+            if(!fire && (((time_us_32()-wf->lt)/MS)>=BUTD)){
+              fire=true;wf->lt = time_us_32();
+            }else{ fire = false; }
           }
+        }
+        if(fire){
+          if(cmt == CMT_EditDOTW && wf == wsp_dotw){
+            W_spinner* wsp = (W_spinner*)wsp_dotw->d;
+            spinry = wsp;
+            if(last_ty && ty > last_ty){
+              wsp->fpos -= (int16_t)(ty - last_ty); printf("+%d",(ty - last_ty));
+              diff_ty-= (ty - last_ty)>>2;
+            }else if(last_ty && ty < last_ty){
+              wsp->fpos += (int16_t)(last_ty - ty); printf("-%d",(last_ty - ty));
+              diff_ty += (last_ty-ty)>>2;
+            }
+            wspinner_adjust(wsp);
+            last_tx = tx; last_ty = ty;
+            printf("wsp_dotw %d [%d %d] (%d %d) {%d %d} %d / %d\n",plosa->dt.dotw,tx,ty,diff_tx,diff_ty,last_tx,last_ty,wsp->pos,wsp->fpos);
+          }
+          if(cmt == CMT_EditDOTW_CN && wf == wsp_dotw_cn){
+            W_spinner* wsp = (W_spinner*)wsp_dotw_cn->d;
+            spinrx = wsp;
+            if(last_tx && tx > last_tx){
+              wsp->fpos -= (int16_t)(tx - last_tx); printf("+%d",(tx - last_tx));
+              diff_tx-= (tx - last_tx)>>2;
+            }else if(last_tx && tx < last_tx){
+              wsp->fpos += (int16_t)(last_tx - tx); printf("-%d",(last_tx - tx));
+              diff_tx += (last_tx-tx)>>2;
+            }
+            wspinner_adjust_h(wsp);
+            last_tx = tx; last_ty = ty;
+            printf("wsp_dotw %d [%d %d] (%d %d) {%d %d} %d / %d\n",plosa->dt.dotw,tx,ty,diff_tx,diff_ty,last_tx,last_ty,wsp->pos,wsp->fpos);
+          }
+          if(cmt == CMT_EditDay && wf == wsp_day){
+            W_spinner* wsp = (W_spinner*)wsp_day->d;
+            if(last_ty && ty > last_ty){       wsp->fpos -= (int16_t)(ty - last_ty); diff_ty-= (ty - last_ty)>>2;
+            }else if(last_ty && ty < last_ty){   wsp->fpos += (int16_t)(last_ty - ty); diff_ty += (last_ty-ty)>>2;}
+            wspinner_adjust(wsp);
+            last_tx = tx; last_ty = ty;
+            printf("wsp_dotw %d [%d %d] (%d %d) {%d %d} %d / %d\n",plosa->dt.day,tx,ty,diff_tx,diff_ty,last_tx,last_ty,wsp->pos,wsp->fpos);
+          }
+          if(cmt == CMT_EditMonth && wf == wsp_month){
+            W_spinner* wsp = (W_spinner*)wsp_month->d;
+            if(last_ty && ty > last_ty){       wsp->fpos -= (int16_t)(ty - last_ty); diff_ty-= (ty - last_ty)>>2;
+            }else if(last_ty && ty < last_ty){   wsp->fpos += (int16_t)(last_ty - ty); diff_ty += (last_ty-ty)>>2;}
+            wspinner_adjust(wsp);
+            last_tx = tx; last_ty = ty;
+            printf("wsp_dotw %d [%d %d] (%d %d) {%d %d} %d / %d\n",plosa->dt.month,tx,ty,diff_tx,diff_ty,last_tx,last_ty,wsp->pos,wsp->fpos);
+
+          }
+          if(cmt == CMT_EditYear && wf == wsp_year){
+            W_spinner* wsp = (W_spinner*)wsp_year->d;
+            if(last_ty && ty > last_ty){       wsp->fpos -= (int16_t)(ty - last_ty); diff_ty-= (ty - last_ty)>>1;
+            }else if(last_ty && ty < last_ty){   wsp->fpos += (int16_t)(last_ty - ty); diff_ty += (last_ty-ty)>>1;}
+            wspinner_adjust(wsp);
+            last_tx = tx; last_ty = ty;
+            printf("wsp_dotw %d [%d %d] (%d %d) {%d %d} %d / %d\n",plosa->dt.year,tx,ty,diff_tx,diff_ty,last_tx,last_ty,wsp->pos,wsp->fpos);
+          }
+
+          if(cmt == CMT_EditHour && wf == wsp_hour){
+            W_spinner* wsp = (W_spinner*)wsp_hour->d;
+            if(last_ty && ty > last_ty){       wsp->fpos -= (int16_t)(ty - last_ty); diff_ty-= (ty - last_ty)>>2;
+            }else if(last_ty && ty < last_ty){   wsp->fpos += (int16_t)(last_ty - ty); diff_ty += (last_ty-ty)>>2;}
+            wspinner_adjust(wsp);
+            printf("wsp_hour %d [%d %d] {%d %d} %d / %d\n",plosa->dt.hour,tx,ty,last_tx,last_ty,wsp->pos,wsp->fpos);
+            last_tx = tx; last_ty = ty;
+            printf("wsp_dotw %d [%d %d] (%d %d) {%d %d} %d / %d\n",plosa->dt.hour,tx,ty,diff_tx,diff_ty,last_tx,last_ty,wsp->pos,wsp->fpos);
+          }
+          if(cmt == CMT_EditMin && wf == wsp_min){
+            W_spinner* wsp = (W_spinner*)wsp_min->d;
+            if(last_ty && ty > last_ty){       wsp->fpos -= (int16_t)(ty - last_ty); diff_ty-= (ty - last_ty)>>1;
+            }else if(last_ty && ty < last_ty){   wsp->fpos += (int16_t)(last_ty - ty); diff_ty += (last_ty-ty)>>1;}
+            wspinner_adjust(wsp);
+            last_tx = tx; last_ty = ty;
+            printf("wsp_dotw %d [%d %d] (%d %d) {%d %d} %d / %d\n",plosa->dt.min,tx,ty,diff_tx,diff_ty,last_tx,last_ty,wsp->pos,wsp->fpos);
+          }
+          if(cmt == CMT_EditSec && wf == wsp_sec){
+            W_spinner* wsp = (W_spinner*)wsp_sec->d;
+            if(last_ty && ty > last_ty){       wsp->fpos -= (int16_t)(ty - last_ty); diff_ty-= (ty - last_ty)>>1;
+            }else if(last_ty && ty < last_ty){   wsp->fpos += (int16_t)(last_ty - ty); diff_ty += (last_ty-ty)>>1;}
+            wspinner_adjust(wsp);
+            last_tx = tx; last_ty = ty;
+            printf("wsp_dotw %d [%d %d] (%d %d) {%d %d} %d / %d\n",plosa->dt.sec,tx,ty,diff_tx,diff_ty,last_tx,last_ty,wsp->pos,wsp->fpos);
+          }
+          if(wf->t == wt_text){
+            W_text* wt = (W_text*)wf->d;
+            printf("wf = 0x%08x %d %d [%d W_text %d] '%s'\n",wf,wf->x,wf->y,wf->t,wf->ws,wt->text);
+            reblink2(wblinker,wblinkerg,wf);
+            if(cmt == CMT_None){ cmt = CMT_Select; }
+
+            if(wf == w_day && wblinkerg->ws == ws_shown){
+              whidem(wl,WL_SIZE);
+              if(plosa->dt.day > last[plosa->dt.month]){
+                plosa->dt.day = last[plosa->dt.month];
+                sprintf(b_day,"%02d",plosa->dt.day);
+                rtc_set_datetime(&plosa->dt);
+              }
+              wspinner_set(wsp_day,plosa->dt.day-1);
+              wspinner_set_max(wsp_day,last[plosa->dt.month]);
+              wshow(w_day);
+              wshow(wsp_day);
+              int16_t ya = (int16_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
+              int16_t xa = (int16_t)get_acc12f(acc[0],acc[1],50.0f); //(acc[0]/50.0f);
+              w_move = wbez2_make(wf->x, wf->y, 120+xa, 160+ya, w_dotw->x, w_dotw->y, 8);
+              cmt = CMT_EditDay;
+            }else if(wf == w_day && wblinkerg->ws == ws_hidden){
+              whide(wsp_day);
+              wbez2_reset(w_move);
+              cmt = CMT_EditDayDone;
+              if(plosa->dt.day > last[plosa->dt.month]){
+                plosa->dt.day = last[plosa->dt.month];
+                sprintf(b_day,"%02d",plosa->dt.day);
+                rtc_set_datetime(&plosa->dt);
+              }
+
+            }
+            if(wf == w_month && wblinkerg->ws == ws_shown){
+              whidem(wl,WL_SIZE);
+              wspinner_set(wsp_month,plosa->dt.month-1);
+              wshow(w_month);
+              wshow(wsp_month);
+              int16_t ya = (int16_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
+              int16_t xa = (int16_t)get_acc12f(acc[0],acc[1],50.0f); //(acc[0]/50.0f);
+              w_move = wbez2_make(wf->x, wf->y, 120+xa, 160+ya, w_dotw->x, w_dotw->y, 8);
+              cmt = CMT_EditMonth;
+            }else if(wf == w_month && wblinkerg->ws == ws_hidden){
+              whide(wsp_month);
+              wbez2_reset(w_move);
+              cmt = CMT_EditMonthDone;
+              if(plosa->dt.day > last[plosa->dt.month]){
+                plosa->dt.day = last[plosa->dt.month];
+                sprintf(b_day,"%02d",plosa->dt.day);
+                rtc_set_datetime(&plosa->dt);
+              }
+            }
+            if(wf == w_year && wblinkerg->ws == ws_shown){
+              whidem(wl,WL_SIZE);
+              wspinner_set(wsp_year,plosa->dt.year-2000);
+              wshow(w_year);
+              wshow(wsp_year);
+              int16_t ya = (int16_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
+              int16_t xa = (int16_t)get_acc12f(acc[0],acc[1],50.0f); //(acc[0]/50.0f);
+              w_move = wbez2_make(wf->x, wf->y, 120+xa, 160+ya, w_dotw->x, w_dotw->y, 8);
+              cmt = CMT_EditYear;
+            }else if(wf == w_year && wblinkerg->ws == ws_hidden){
+              whide(wsp_year);
+              wbez2_reset(w_move);
+              cmt = CMT_EditYearDone;
+            }
+            if(wf == w_hour && wblinkerg->ws == ws_shown){
+              whidem(wl,WL_SIZE);
+              wspinner_set(wsp_hour,plosa->dt.hour);
+
+              wshow(w_hour);
+              wshow(wsp_hour);
+              int16_t ya = (int16_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
+              int16_t xa = (int16_t)get_acc12f(acc[0],acc[1],50.0f); //(acc[0]/50.0f);
+              w_move = wbez2_make(wf->x, wf->y, 120+xa, 30+ya, w_dotw->x, w_dotw->y, 8);
+              cmt = CMT_EditHour;
+            }else if(wf == w_hour && wblinkerg->ws == ws_hidden){
+              whide(wsp_hour);
+              wbez2_reset(w_move);
+              cmt = CMT_EditHourDone;
+            }
+            if(wf == w_min && wblinkerg->ws == ws_shown){
+              whidem(wl,WL_SIZE);
+              wshow(w_min);
+              wspinner_set(wsp_min,plosa->dt.min);
+              wshow(wsp_min);
+              int16_t ya = (int16_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
+              int16_t xa = (int16_t)get_acc12f(acc[0],acc[1],50.0f); //(acc[0]/50.0f);
+              w_move = wbez2_make(wf->x, wf->y,120+xa, 50+ya, w_dotw->x, w_dotw->y, 8);
+              cmt = CMT_EditMin;
+            }else if(wf == w_min && wblinkerg->ws == ws_hidden){
+              whide(wsp_min);
+              wbez2_reset(w_move);
+              cmt = CMT_EditMinDone;
+            }
+            if(wf == w_sec && wblinkerg->ws == ws_shown){
+              whidem(wl,WL_SIZE);
+              wshow(w_sec);
+              wspinner_set(wsp_sec,plosa->dt.sec);
+              wshow(wsp_sec);
+              int16_t ya = (int16_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
+              int16_t xa = (int16_t)get_acc12f(acc[0],acc[1],50.0f); //(acc[0]/50.0f);
+              w_move = wbez2_make(wf->x, wf->y, 120+xa, 50+ya, w_dotw->x, w_dotw->y, 8);
+              cmt = CMT_EditSec;
+            }else if(wf == w_sec && wblinkerg->ws == ws_hidden){
+              whide(wsp_sec);
+              wbez2_reset(w_move);
+              cmt = CMT_EditSecDone;
+            }
+
+          }else if(wf->t == wt_textr){
+            W_textr* wt = (W_textr*)wf->d;
+            printf("wf = 0x%08x %d %d [%d W_textr %d] '%s'\n",wf,wf->x,wf->y,wf->t,wf->ws,wt->get_text());
+            reblink2(wblinker,wblinkerg,wf);
+            if(cmt == CMT_None){
+              cmt = CMT_Select;
+            }
+            if(wf == w_dotw && wblinkerg->ws == ws_shown){
+              whidem(wl,WL_SIZE);
+              wshow(wb_dotw);
+              wshow(wsp_dotw);
+              cmt = CMT_EditDOTW;
+            }else if(wf == w_dotw && wblinkerg->ws == ws_hidden){
+              wshowm(wl,WL_SIZE);
+              whide(wsp_dotw);
+              cmt = CMT_EditDOTWDone;
+            }
+
+            if(wf == w_dotw_cn && wblinkerg->ws == ws_shown){
+              whidem(wl,WL_SIZE);
+              wshow(wb_dotw);
+              wshow(wsp_dotw_cn);
+              cmt = CMT_EditDOTW_CN;
+            }else if(wf == w_dotw_cn && wblinkerg->ws == ws_hidden){
+              wshowm(wl,WL_SIZE);
+              whide(wsp_dotw_cn);
+              cmt = CMT_EditDOTWDone;
+            }
+
+          }else if(wf->t == wt_imager){
+            reblink2(wblinker,wblinkerg,wf);
+            if(wf == img_center && wblinkerg->ws == ws_shown){
+              printf("img_center\n");
+              whidem(wl,WL_SIZE);
+              wshow(img_center);
+              wshow(cim_flags);
+            }else if(wf == img_center && wblinkerg->ws == ws_hidden){
+              wshowm(wl,WL_SIZE);
+              whide(cim_flags);
+            }
+
+          }else if(wf->t == wt_image){
+            reblink2(wblinker,wblinkerg,wf);
+            if(wf == img_config && wblinkerg->ws == ws_shown){
+              printf("img_config\n");
+              blinker_off(wblinkerg);
+              wshow(cim_config);
+              wshow(wn_drawclockhands);
+              whidem(wl,WL_SIZE);
+              flag_last_time = time_us_32();
+            //}else if(wf == img_config && wblinkerg->ws == ws_hidden){
+            //  wshowm(wl,WL_SIZE);
+            //  whide(cim_config);
+            //  whide(wn_drawclockhands);
+            }else if(wf->p == cim_flags && wblinkerg->ws == ws_shown){ // flag selected
+              bool flag_found = false;
+              uint8_t fi = 0;
+              W_box* wb = (W_box*)cim_flags->d;
+              for(;fi<wb->nc;fi++){
+                if(wb->ch[fi] == wf){
+                  flag_found = true;
+                  break;
+                }
+              }
+              if(flag_found){
+                plosa->theme = fi;
+                if(plosa->theme == 0){ // china
+                  wshow(w_dotw_cn);
+                  whide(w_dotw);
+                }else{
+                  whide(w_dotw_cn);
+                  wshow(w_dotw);
+                }
+                flag_last_time = time_us_32();
+                whide(cim_flags);
+                wshowm(wl,WL_SIZE);
+                whide(wblinkerg);
+              }
+              printf("cim_flags [%d] %08x\n",flag_found?fi:-1,flag_last_time);
+            }
+          }else if(wf->t == wt_imagef){
+            blink_once(wblinker_once,wf);
+            wshow(wblinker_once);
+            W_imagef* wif = (W_imagef*)wf->d;
+            if(wif){
+              wif->image_function();
+              flag_last_time = time_us_32();
+              last_blink = time_us_32();
+              printf("imagef w:%08x %08x %08x f:%8x\n",wf,flag_last_time, last_blink, wif->image_function);
+            }
+
+          }else{  printf("wf = NONE FOUND\n"); }
+          fire = false;
+        }
+        flag = 0;
+      } // if(flag) END
+
+      if(spinry && diff_ty){
+        printf("spinry: %08x %d\n",spinry,diff_ty);
+        spinry->fpos+=diff_ty;
+        wspinner_adjust(spinry);
+        if(diff_ty>0){diff_ty--;}
+        else if(diff_ty<0){diff_ty++;}
+        else if(diff_ty==0){spinry = NULL;}
+      }
+      if(spinrx && diff_tx){
+        printf("spinrx: %08x %d\n",spinrx,diff_tx);
+        spinrx->fpos+=diff_tx;
+        wspinner_adjust(spinrx);
+        if(diff_tx>0){diff_tx--;}
+        else if(diff_tx<0){diff_tx++;}
+        else if(diff_tx==0){spinrx = NULL;}
+      }
+
+      if(wblinker_once->ws == ws_shown){
+        printf("wblinker_once\n");
+        if(((time_us_32()-last_blink)/MS) > 250){
+            whide(wblinker_once);
+        }
+
+      }
+
+      if(cmt == CMT_MoveDone){
+        printf("CMT_MoveDone\n");
+        wshowm(wl,WL_SIZE);
+        cmt = CMT_None;
+      }
+
+
+      if(cmt == CMT_EditDOTW){
+        W_spinner* wsp = (W_spinner*)wsp_dotw->d;
+        if(wsp->moved && (wsp->fpos%wsp->font->h)==0){
+          wsp->pos = (wsp->fpos/wsp->font->h);
+          if(plosa->dt.dotw != wsp->pos){
+            plosa->dt.dotw = wsp->pos; //(uint8_t)(wsp->fpos/wsp->font->h);
+            if(plosa->dt.dotw>6)plosa->dt.dotw=0;
+            rtc_set_datetime(&plosa->dt);
+            printf("set DOTW: %d [%d]\n", plosa->dt.dotw);
+            wsp->moved = false;
+          }
+        }
+      }
+      if(cmt == CMT_EditDOTW_CN){
+        W_spinner* wsp = (W_spinner*)wsp_dotw_cn->d;
+        if(wsp->moved && (wsp->fpos%wsp->font->w)==0){
+          wsp->pos = (wsp->fpos/wsp->font->w);
+          if(plosa->dt.dotw != wsp->pos){
+            plosa->dt.dotw = wsp->pos; //(uint8_t)(wsp->fpos/wsp->font->h);
+            if(plosa->dt.dotw>6)plosa->dt.dotw=0;
+            rtc_set_datetime(&plosa->dt);
+            printf("set DOTW_CN: %d [%d]\n", plosa->dt.dotw);
+            wsp->moved = false;
+          }
+        }
+      }
+      if(cmt == CMT_EditDay){
+        if(w_move && !w_move->done){
+          wbez2_move(w_move, w_day);
+          brepos(wblinkerg, w_day);
+        }
+        W_spinner* wsp = (W_spinner*)wsp_day->d;
+        if(wsp->moved && (wsp->fpos%wsp->font->h)==0){
+          wsp->pos = (wsp->fpos/wsp->font->h);
+          plosa->dt.day = wsp->pos+1; //(uint8_t)(wsp->fpos/wsp->font->h);
+          if(plosa->dt.day>last[plosa->dt.month])plosa->dt.day=0;
+          rtc_set_datetime(&plosa->dt);
+          printf("set DAY: %d [%d]\n", plosa->dt.day);
+          sprintf(b_day,"%02d",plosa->dt.day);
+          wsp->moved = false;
+        }
+      }
+      if(cmt == CMT_EditDayDone){
+        if(w_move && !w_move->done){
+          if(wbez2_mover(w_move, w_day)){
+            cmt = CMT_MoveDone;
+            wbez2_del(w_move);
+            w_move = NULL;
+          }
+        }
+      }
+
+      if(cmt == CMT_EditMonth){
+        if(w_move && !w_move->done){
+          wbez2_move(w_move, w_month);
+          brepos(wblinkerg, w_month);
+        }
+        W_spinner* wsp = (W_spinner*)wsp_month->d;
+        if(wsp->moved && (wsp->fpos%wsp->font->h)==0){
+          wsp->pos = (wsp->fpos/wsp->font->h);
+          plosa->dt.month = wsp->pos+1; //(uint8_t)(wsp->fpos/wsp->font->h);
+          if(plosa->dt.month>last[plosa->dt.month])plosa->dt.month=0;
+          rtc_set_datetime(&plosa->dt);
+          printf("set MONTH: %d [%d]\n", plosa->dt.month);
+          sprintf(b_month,"%02d",plosa->dt.month);
+          wsp->moved = false;
+        }
+      }
+      if(cmt == CMT_EditMonthDone){
+        if(w_move && !w_move->done){
+          if(wbez2_mover(w_move, w_month)){
+            cmt = CMT_MoveDone;
+            wbez2_del(w_move);
+            w_move = NULL;
+          }
+        }
+      }
+
+      if(cmt == CMT_EditYear){
+        if(w_move && !w_move->done){
+          wbez2_move(w_move, w_year);
+          brepos(wblinkerg, w_year);
+        }
+        W_spinner* wsp = (W_spinner*)wsp_year->d;
+        if(wsp->moved && (wsp->fpos%wsp->font->h)==0){
+          wsp->pos = (wsp->fpos/wsp->font->h);
+          plosa->dt.year = 2000 + wsp->pos; //(uint8_t)(wsp->fpos/wsp->font->h);
+          if(!(plosa->dt.year%4)){last[2]=29;}else{last[2]=28;}
+          rtc_set_datetime(&plosa->dt);
+          printf("set YEAR: %d [%d]\n", plosa->dt.year);
+          sprintf(b_year,"%02d",plosa->dt.year);
+          wsp->moved = false;
+        }
+      }
+      if(cmt == CMT_EditYearDone){
+        if(w_move && !w_move->done){
+          if(wbez2_mover(w_move, w_year)){
+            cmt = CMT_MoveDone;
+            wbez2_del(w_move);
+            w_move = NULL;
+          }
+        }
+      }
+
+
+      if(cmt == CMT_EditHour){
+        if(w_move && !w_move->done){
+          wbez2_move(w_move, w_hour);
+          brepos(wblinkerg, w_hour);
+        }
+        W_spinner* wsp = (W_spinner*)wsp_hour->d;
+        if(wsp->moved && (wsp->fpos%wsp->font->h)==0){
+          wsp->pos = (wsp->fpos/wsp->font->h);
+          plosa->dt.hour = wsp->pos; //(uint8_t)(wsp->fpos/wsp->font->h);
+          if(plosa->dt.hour>23)plosa->dt.hour=0;
+          rtc_set_datetime(&plosa->dt);
+          printf("set HOUR: %d [%d]\n", plosa->dt.hour);
+          sprintf(b_hour,"%02d",plosa->dt.hour);
+          wsp->moved = false;
+        }
+      }
+      if(cmt == CMT_EditHourDone){
+        if(w_move && !w_move->done){
+          if(wbez2_mover(w_move, w_hour)){
+            cmt = CMT_MoveDone;
+            wbez2_del(w_move);
+            w_move = NULL;
+          }
+        }
+      }
+      if(cmt == CMT_EditMin){
+        if(w_move && !w_move->done){
+          wbez2_move(w_move, w_min);
+          brepos(wblinkerg,w_min);
+        }
+        W_spinner* wsp = (W_spinner*)wsp_min->d;
+        if(wsp->moved && (wsp->fpos%wsp->font->h)==0){
+          wsp->pos = (wsp->fpos/wsp->font->h);
+          plosa->dt.min = wsp->pos; //(uint8_t)(wsp->fpos/wsp->font->h);
+          if(plosa->dt.min>59)plosa->dt.min=0;
+          rtc_set_datetime(&plosa->dt);
+          printf("set MIN: %d [%d]\n", plosa->dt.min);
+          sprintf(b_min,"%02d",plosa->dt.min);
+          wsp->moved = false;
+        }
+      }
+      if(cmt == CMT_EditMinDone){
+        if(w_move && !w_move->done){
+          printf("CMT_EditMinDone\n");
+          if(wbez2_mover(w_move, w_min)){
+            printf("->MoveDone\n");
+            cmt = CMT_MoveDone;
+            wbez2_del(w_move);
+            w_move = NULL;
+          }
+        }
+      }
+
+      if(cmt == CMT_EditSec){
+        if(w_move && !w_move->done){
+          wbez2_move(w_move, w_sec);
+          brepos(wblinkerg,w_sec);
+        }
+        W_spinner* wsp = (W_spinner*)wsp_sec->d;
+        if(wsp->moved && (wsp->fpos%wsp->font->h)==0){
+          wsp->pos = (wsp->fpos/wsp->font->h);
+          plosa->dt.sec = wsp->pos; //(uint8_t)(wsp->fpos/wsp->font->h);
+          if(plosa->dt.sec>59)plosa->dt.sec=0;
+          rtc_set_datetime(&plosa->dt);
+          printf("set SEC: %d [%d]\n", plosa->dt.sec);
+          sprintf(b_sec,"%02d",plosa->dt.sec);
+          wsp->moved = false;
+        }
+      }
+      if(cmt == CMT_EditSecDone){
+        if(w_move && !w_move->done){
+          if(wbez2_mover(w_move, w_sec)){
+            cmt = CMT_MoveDone;
+            wbez2_del(w_move);
+            w_move = NULL;
+          }
+        }
       }
 
       qmis = !qmis;
@@ -1818,50 +2584,9 @@ int main(void)
         }
       }
 
-      for(int i=0;i<LCD_SZ;i++){b0[i]=0x00;}
+      for(int i=0;i<LCD_SZ;i++){b0[i]=0x00;}  //clear buffer
 
-       if(plosa->gfxmode==GFX_NORMAL||plosa->gfxmode==GFX_ROTATE){
-        if(bg_dynamic[plosa->conf_bg]){ // dynamic background
-          //printf("%f %f\n",acc[0], acc[1]);
-          int16_t ya = (int16_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
-          int16_t xa = (int16_t)get_acc12f(acc[0],acc[1],50.0f); //(acc[0]/50.0f);
-          //printf("%d %d\n",xa,ya);
-          if(xa>EYE_MAX){xa=EYE_MAX;}
-          if(xa<-EYE_MAX){xa=-EYE_MAX;}
-          if(ya>EYE_MAX){ya=EYE_MAX;}
-          if(ya<-EYE_MAX){ya=-EYE_MAX;}
-          if(plosa->SMOOTH_BACKGROUND){
-            xoldt = xa;
-            yoldt = ya;
-            xa+=xold;
-            ya+=yold;
-            xa>>=1;
-            ya>>=1;
-            xold = xoldt;
-            yold = yoldt;
-          }
-          if(xa >15){xa= 15;}
-          if(ya >15){ya= 15;}
-          if(xa<-15){xa=-15;}
-          if(ya<-15){ya=-15;}
-          gyrox=xa;
-          gyroy=ya;
-          if(plosa->gfxmode==GFX_ROTATE){
-            Vec2 vbo = {120+xa,120-ya};
-            Vec2 vbsz = {190,190};
-            Vec2 vbuv = {190,190};
-            lcd_blit_deg2(vbo,vbuv,vbsz,flagdeg,backgrounds[plosa->conf_bg],colt[plosa->theme]->alpha,true);
-          }else{
-            //printf("EYE %d %d\n",EYE_X+xa,EYE_Y-ya);
-            lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,backgrounds[plosa->conf_bg]);
-          }
-        }else{
-          mcpy(b0,backgrounds[plosa->conf_bg],LCD_SZ);
-        }
-      }else if(plosa->gfxmode==GFX_ROTOZOOM){
-        lcd_roto(backgrounds[plosa->conf_bg],bg_size[plosa->conf_bg],bg_size[plosa->conf_bg]);
-        lcd_rotoa();
-      }
+      // draw-bg
 
       if(cmode!=CM_Editpos || plosa->editpos==EPOS_CENTER ){
         rtc_get_datetime(&plosa->dt);
@@ -1875,9 +2600,6 @@ int main(void)
       if(fire==true){
         fire_counter++;
         //printf("fire! [%08x] (%d %d %d) {%d}\n",fire_counter,time_us_32()/MS,button0_time/MS,button1_time/MS,(time_us_32()-button0_time)/MS);
-        if(rp2040_touch){
-
-        }
 
         sleep_frame = SLEEP_FRAME;
         plosa->is_sleeping = false;
@@ -1900,10 +2622,11 @@ int main(void)
                 draw_text_enabled=true;
                 draw_config_enabled=false;
                 hg_enabled = false;
+                wshowm(wl,WL_SIZE);
                 break;
               case CP_BACKGROUND:
                 ++plosa->conf_bg;
-                if(plosa->conf_bg==MAX_BG){plosa->conf_bg=0;}
+                if(plosa->conf_bg>=MAX_BG){plosa->conf_bg=0;}
                 break;
               case CP_PENSTYLE:
                 if(plosa->pstyle!=PS_TEXTURE){
@@ -1935,7 +2658,7 @@ int main(void)
                 if(plosa->texture==TEXTURES){plosa->texture=0;}
                 break;
               case CP_PENCIL:
-                plosa->bender=!plosa->bender;
+                plosa->bender = !plosa->bender;
                 break;
               case CP_SAVE:
                 dosave();
@@ -1971,6 +2694,9 @@ int main(void)
             draw_text_enabled=false;
             draw_config_enabled=true;
             cmode=CM_Config;
+            whidem(wl,WL_SIZE);
+            wshow(wn_content);
+
           }
           if(plosa->editpos==EPOS_CENTER){
             draw_gfx_enabled= false;
@@ -1990,6 +2716,7 @@ int main(void)
             draw_gfx_enabled=true;
             draw_text_enabled=true;
             draw_flagconfig_enabled=false;
+            wshowm(wl,WL_SIZE);
           }
         }
         fire=false;
@@ -2030,7 +2757,9 @@ int main(void)
       }
 
       if(cmode==CM_Changepos){
-        if(NO_POS_MODE){
+        if(rp2040_touch){
+
+        }else if(NO_POS_MODE){
           if(dir_x==D_PLUS){  if(pos_matrix_x<positions[plosa->theme]->dim_x-1)++pos_matrix_x;          }
           if(dir_x==D_MINUS){ if(pos_matrix_x>0)--pos_matrix_x;          }
           if(dir_y==D_PLUS){  if(pos_matrix_y<positions[plosa->theme]->dim_y-1)++pos_matrix_y;          }
@@ -2091,95 +2820,11 @@ int main(void)
           if(!(plosa->dt.year%4)){last[2]=29;}else{last[2]=28;}
         }
       }
-      if(cmode==CM_Editpos || cmode==CM_Changepos || cmode==CM_Config){
-        uint16_t cmode_color = GREEN;
-        if(cmode==CM_Changepos){
-          blink_counter++;
-          if(blink_counter==5){ bmode=!bmode;blink_counter=0; }
-          cmode_color = blinker[bmode];
-        }
-        if(plosa->editpos==0){
-          if(plosa->theme==0){
-            lcd_frame(POS_CNDOW_X-6,POS_CNDOW_Y,POS_CNDOW_X+CNFONT.w+3,POS_CNDOW_Y+CNFONT.h*3+1,cmode_color,3);
-          }else{
-            fx_circle(tpos[plosa->editpos].x+18,tpos[plosa->editpos].y+8,25,cmode_color,3,xold,yold);
-          }
-        }else if(plosa->editpos==3){
-          fx_circle(tpos[plosa->editpos].x+12,tpos[plosa->editpos].y+5,28,cmode_color,3,xold,yold);
-        }else if(plosa->editpos==EPOS_CONFIG){
-          if(cmode==CM_Changepos){
-                draw_doimage(*adoi_config[plosa->theme]);
-          }
-          int16_t x= (*adoi_config[plosa->theme])->vpos.x+15;
-          int16_t y= (*adoi_config[plosa->theme])->vpos.y+16;
-          fx_circle(x,y,22,cmode_color,3,xold,yold);
 
-          Vec2 dp1 = texsize[plosa->texture];
-          draw_clock_hands();
-
-        }else if(plosa->editpos==EPOS_CENTER){
-          if(cmode==CM_Config){
-            int16_t x= (*adoi_config[plosa->theme])->vpos.x+15;
-            int16_t y= (*adoi_config[plosa->theme])->vpos.y+16;
-            fx_circle(x,y,22,cmode_color,3,xold,yold);
-            Vec2 dp1 = texsize[plosa->texture];
-            draw_clock_hands();
-          }else{
-            fx_circle(tpos[plosa->editpos].x,tpos[plosa->editpos].y,19,cmode_color,3,xold,yold);
-          }
-        }else{
-          fx_circle(tpos[plosa->editpos].x+12,tpos[plosa->editpos].y+5,20,cmode_color,3,xold,yold);
-        }
-      }
-
-      if(!theme_bg_dynamic_mode){
-        if(!plosa->highpointer||cmode==CM_Editpos){
-          draw_gfx();
-          draw_text();
-        }else{
-          draw_text();
-          draw_gfx();
-        }
-      }
-      if(draw_config_enabled){
-        if(plosa->spin!=0){
-          flagdeg = gdeg(flagdeg+plosa->spin);
-        }
-        edeg_fine = draw_getdeg(edeg_fine);
-        int16_t magnet = draw_circmenu(edeg_fine, 8, config_images);
-        if(magnet != 0){
-          int16_t MAG = 10;
-          if(magnet < MAG && magnet >-MAG){
-              if(magnet/2 == 0){ edeg_fine-= magnet; }
-              else{              edeg_fine -= (magnet)/2; }
-          }else{ edeg_fine -= magnet/8; }
-        }
-      }
-      #define magx 35
-      #define magy 90
-      #define mags 20
-      #define magy2 magy+mags+20
-      #define magx2 magx-10
-      #define magf 2
-      //lcd_magnify(magx,magy,mags,magx2,magy2,magf);
-      //lcd_frame(magx,magy,magx+mags,magy+mags,RED,1);
-      //lcd_frame(magx2,magy2,magx2+mags*magf,magy2+mags*magf,RED,1);
-
-      if(draw_flagconfig_enabled){
-        if(plosa->spin!=0){
-          flagdeg = gdeg(flagdeg+plosa->spin);
-        }
-        gdeg_fine = draw_getdeg(gdeg_fine);
-        int16_t magnet = draw_circmenu(gdeg_fine, THEMES, flags);
-        if(magnet != 0){
-          //printf("magnet = %d\n",magnet);
-          int16_t MAG = 15;
-          if(magnet < MAG && magnet >-MAG){
-              if(magnet/2 == 0){ gdeg_fine-= magnet; }
-              else{              gdeg_fine -= (magnet)/2; }
-          }else{ gdeg_fine -= magnet/8; }
-        }
-      }
+      make_buffers();
+      //w_dotw_cn->ws = ((plosa->theme)?ws_hidden:ws_shown);
+      //w_dotw->ws = ((plosa->theme)?ws_shown:ws_hidden);
+      wdraw(&wroot);
 
       lcd_display(b0);
 
@@ -2189,4 +2834,292 @@ int main(void)
       plosa->save_crc=crc(&plosa->theme,LOSASIZE);
     }
     return 0;
+}
+
+void blinker_off(W* w){
+    if(w->ws == ws_shown){ w->ws = ws_hidden; }
+}
+
+void brepos(W* w, W* wt){
+  if( ((wt->w>>1) >= wt->h) || ((wt->h>>1) >= wt->w) ){ // rect
+    w->x = wt->x-6;
+    w->y = wt->y-6;
+    w->w = wt->w+9;
+    w->h = wt->h+9;
+    w->t = wt_blinker_rect;
+  }else{
+    w->w = (wt->w>>1)+6;
+    w->h = (wt->h>>1)+6;
+    if( (wt->h>>1) > wt->w ){
+      w->w = w->h;
+    }
+    w->x = wt->x+(wt->w>>1);
+    w->y = wt->y+(wt->h>>1);
+    w->t = wt_blinker_circle;
+  }
+
+}
+
+void blink_once(W* w, W* wt){
+  w->ws = ws_shown;
+  wblinker_ref = wt;
+  w->st = st_blink_once;
+  brepos(w,wt);
+}
+
+void reblink(W* w, W* wt){ // w = wblinker, wt = wtarget
+  if(wblinker_ref == wt){
+    printf("SAME!\n");
+    w->ws = ws_hidden;
+    wblinker_ref = NULL;
+  }else{
+    w->ws = ws_shown;
+    wblinker_ref = wt;
+    brepos(w,wt);
+  }
+}
+
+#define W1C_MAX 2
+uint16_t w1c = 0;
+void reblink2(W* w0, W* w1, W* wt){
+  if(!wblinker_ref || wblinker_ref != wt){
+    //++w1c;
+    //if(w1c>=W1C_MAX){
+      //w1c = 0;
+      w0->ws = ws_shown;
+      w1->ws = ws_hidden;
+      wblinker_ref = wt;
+      brepos(w0,wt);
+    //}
+  }else if(w0->ws == ws_shown){
+    w0->ws = ws_hidden;
+    w1->ws = ws_shown;
+    wblinker_ref = wt;
+    brepos(w1,wt);
+  }else if(w1->ws == ws_shown){
+    w1->ws = ws_hidden;
+    wblinker_ref = NULL;
+  }
+}
+
+char* get_dotw_all(uint8_t index){
+  if(!plosa->theme){
+    convert_cs(week[plosa->theme][index],cn_buffer);
+    return cn_buffer;
+  }else{
+    return week[plosa->theme][index];
+  }
+}
+
+char* get_dotw(){
+  //printf("get_dotw: [%d] '%s'\n",plosa->dt.dotw, week[plosa->theme][plosa->dt.dotw]);
+  if(plosa->theme){
+    return week[plosa->theme][plosa->dt.dotw];
+  }else{
+    return "\0";
+  }
+}
+
+char* get_dotw_cn(){
+  if(!plosa->theme){
+    convert_cs(week[plosa->theme][plosa->dt.dotw],cn_buffer);
+  }else{sprintf(cn_buffer,"\0");}
+  return cn_buffer;
+}
+
+char* get_dotw_cn_i(uint8_t i){
+  convert_cs(week[0][i],cn_buffer);
+  return strdup(cn_buffer);
+}
+
+uint16_t* get_theme_image(){
+  return (uint16_t*)flags[plosa->theme];
+}
+
+void doit_bg(){
+  if(++plosa->conf_bg >= MAX_BG){ plosa->conf_bg = 0; }
+  printf("doit_bg %d\n",plosa->conf_bg);
+}
+void doit_rotate(){
+  plosa->rota = (bool)!plosa->rota;
+  if(plosa->rota){
+    plosa->gfxmode=GFX_ROTATE;
+    if(plosa->spin==0){plosa->spin=1;}
+  }else{
+    plosa->spin=0;
+    plosa->gfxmode=GFX_NORMAL;
+  }
+}
+void doit_ps_texture(){
+  if(plosa->pstyle!=PS_TEXTURE){
+    plosa->pstyle++;
+  }else{
+    plosa->pstyle=PS_NORMAL;
+  }
+}
+
+void doit_rotozoom(){
+  plosa->rotoz = (bool)!plosa->rotoz;
+  if(plosa->rotoz){
+    plosa->gfxmode=GFX_ROTOZOOM;
+  }else{
+    plosa->gfxmode=GFX_NORMAL;
+  }
+}
+void doit_wand(){
+  plosa->texture++;
+  if(plosa->texture==TEXTURES){plosa->texture=0;}
+}
+void doit_bender(){
+  plosa->bender = (bool)!plosa->bender;
+  printf("doit_bender [%d]\n",(plosa->bender?1:0));
+}
+void doit_save(){
+  dosave();
+}
+
+void doit_exit(){
+  wshowm(wl,WL_SIZE);
+  whide(cim_config);
+  whide(wn_drawclockhands);
+
+}
+
+
+void wtest(){
+
+  config_functions[0] = (void*)doit_exit;
+  config_functions[1] = (void*)doit_bg;
+  config_functions[2] = (void*)doit_rotozoom;
+  config_functions[3] = (void*)doit_rotate;
+  config_functions[4] = (void*)doit_save;
+  config_functions[5] = (void*)doit_ps_texture;
+  config_functions[6] = (void*)doit_wand;
+  config_functions[7] = (void*)doit_bender;
+
+  W* w;
+  wn_background = wadd_none(&wroot,draw_background);
+  wn_content = wadd_none(&wroot,draw_content);
+  wn_drawclockhands = wadd_none(&wroot,draw_clock_hands);
+
+  #define TIME_X 40
+  #define TIME_Y 140
+  w_timed0 = wadd_text(&wroot,TIME_X+2*TFO.w-12,TIME_Y,TFO.w<<1,TFO.h,":",&TFO,WHITE,BLACK,BLACK,0);
+  wset_st(w_timed0,st_text_ghost);
+  w_timed1 = wadd_text(&wroot,TIME_X+4*TFO.w-4,TIME_Y,TFO.w<<1,TFO.h,":",&TFO,WHITE,BLACK,BLACK,0);
+  wset_st(w_timed1,st_text_ghost);
+  w_hour = wadd_text(&wroot,TIME_X,TIME_Y,TFO.w<<1,TFO.h,b_hour,&TFO,WHITE,BLACK,BLACK,0);
+  w_min = wadd_text(&wroot,TIME_X+2*TFO.w+8,TIME_Y,TFO.w<<1,TFO.h,b_min,&TFO,WHITE,BLACK,BLACK,0);
+  w_sec = wadd_text(&wroot,TIME_X+4*TFO.w+16,TIME_Y,TFO.w<<1,TFO.h,b_sec,&TFO,WHITE,BLACK,BLACK,0);
+
+
+
+  #define DATE_X 50
+  #define DATE_Y 64
+
+  //wb_date = wadd_box(&wroot,DATE_X,DATE_Y,9*TFOS.w,TFOS.h);
+  w_dated0 = wadd_text(&wroot,DATE_X+2*TFOS.w-8,DATE_Y,TFOS.w<<1,TFOS.h,".",&TFOS,WHITE,BLACK,BLACK,0);
+  wset_st(w_dated0,st_text_ghost);
+  w_dated1 = wadd_text(&wroot,DATE_X+4*TFOS.w,DATE_Y,TFOS.w<<1,TFOS.h,".",&TFOS,WHITE,BLACK,BLACK,0);
+  wset_st(w_dated1,st_text_ghost);
+  w_day = wadd_text(&wroot,DATE_X,DATE_Y,TFOS.w<<1,TFOS.h,b_day,&TFOS,WHITE,BLACK,BLACK,0);
+  w_month = wadd_text(&wroot,DATE_X+2*TFOS.w+8,DATE_Y,TFOS.w<<1,TFOS.h,b_month,&TFOS,WHITE,BLACK,BLACK,0);
+  w_year = wadd_text(&wroot,DATE_X+4*TFOS.w+16,DATE_Y,TFOS.w<<2,TFOS.h,b_year,&TFOS,WHITE,BLACK,BLACK,0);
+
+
+  wb_dotw = wadd_box(&wroot,0,0,239,239);
+  w_dotw_cn = wadd_textr(wb_dotw,POS_CNDOW_X, POS_CNDOW_Y,CNFONT.w,CNFONT.h*3,get_dotw_cn,&CNFONT,CN_Red,BLACK,BLACK,0);
+  wset_st(w_dotw_cn,st_text_cn);
+  whide(w_dotw_cn);
+  w_dotw = wadd_textr(wb_dotw,POS_DOW_X, POS_DOW_Y,TFOW.w*3,TFOW.h,get_dotw,&TFOW,WHITE,BLACK,BLACK,0);
+
+  img_center = wadd_imager(&wroot,get_theme_image,120-16,120-16,32,32);
+  img_config = wadd_image(&wroot,(uint16_t*)config,240-(32+16),120-16,32,32);
+  wblinker = wadd_blinker(&wroot,120,120,24,24,5,RED,BLUE,5,false);
+  whide(wblinker);
+  wblinkerg = wadd_blinker(&wroot,120,120,24,24,5,GREEN,GBLUE,5,false);
+  whide(wblinkerg);
+  wblinker_once = wadd_blinker(&wroot,120,120,24,24,5,ORANGE,YELLOW,3,false);
+  whide(wblinker_once);
+
+
+  for(uint8_t i=0;i<7;i++){ wcn[i] = get_dotw_cn_i(i); }
+  wsp_dotw = wspinner_add(&wroot,130-(TFOW.w>>1),120-((3*TFOW.h)>>1),3*TFOW.w+8,3*TFOW.h+8,
+            st_spinner_char_v,plosa->dt.dotw, 7, (void**)NULL,get_dotw_all, &TFOW, WHITE, BLACK, BLUE);
+  whide(wsp_dotw);
+  wsp_dotw_cn = wspinner_add(&wroot,120-(CNFONT.w>>1),120-((3*CNFONT.h)>>1),3*CNFONT.w+8,3*CNFONT.h,
+            st_spinner_char_h,plosa->dt.dotw, 7, (void**)NULL,get_dotw_all, &CNFONT, WHITE, BLACK, BLUE);
+  whide(wsp_dotw_cn);
+
+
+  wsp_day = wspinner_add(&wroot,130-(TFOW.w>>1),120-((3*TFOW.h)>>1),2*TFOW.w+8,3*TFOW.h+8,
+            st_spinner_char_v,plosa->dt.day-1, last[plosa->dt.month], (void**)numbers+1, NULL, &TFOW, WHITE, BLACK, BLUE);
+  whide(wsp_day);
+  wsp_month = wspinner_add(&wroot,130-(TFOW.w>>1),120-((3*TFOW.h)>>1),2*TFOW.w+8,3*TFOW.h+8,
+            st_spinner_char_v,plosa->dt.month, 12 , (void**)numbers+1, NULL, &TFOW, WHITE, BLACK, BLUE);
+  whide(wsp_month);
+  wsp_year = wspinner_add(&wroot,130-(TFOW.w>>1),120-((3*TFOW.h)>>1),2*TFOW.w+8,3*TFOW.h+8,
+            st_spinner_char_v,plosa->dt.year-2000, 100 , (void**)numbers, NULL, &TFOW, WHITE, BLACK, BLUE);
+  whide(wsp_year);
+
+
+  wsp_hour = wspinner_add(&wroot,130-(TFOW.w>>1),120-((3*TFOW.h)>>1),2*TFOW.w+8,3*TFOW.h+8,
+            st_spinner_char_v,plosa->dt.hour, 24, (void**)hours, NULL, &TFOW, WHITE, BLACK, BLUE);
+  whide(wsp_hour);
+  wsp_min = wspinner_add(&wroot,130+(TFOW.w>>1),120-((3*TFOW.h)>>1),2*TFOW.w+8,3*TFOW.h+8,
+            st_spinner_char_v,plosa->dt.min, 60, (void**)numbers, NULL, &TFOW, WHITE, BLACK, BLUE);
+  whide(wsp_min);
+  wsp_sec = wspinner_add(&wroot,130+(TFOW.w>>1),120-((3*TFOW.h)>>1),2*TFOW.w+8,3*TFOW.h+8,
+            st_spinner_char_v,plosa->dt.sec, 60, (void**)numbers, NULL, &TFOW, WHITE, BLACK, BLUE);
+  whide(wsp_sec);
+  //cim_flags = wcim_make(THEMES,0);
+  //wb_time = wadd_box(&wroot,TIME_X,TIME_Y,7*TFO.w,TFO.h);
+  int16_t maxcd = (int16_t)(DEGS/THEMES);
+  int16_t cdeg = 0;
+  cim_flags = wadd_box(&wroot,0,0,240,240);
+  for(uint16_t i=0;i<THEMES;i++){
+    Vec2 cv = gvdl(cdeg,CIRCMENU_RADIUS);
+    cdeg=chkdeg(cdeg+maxcd);
+    wadd_image(cim_flags,(uint16_t*)flags[i],cv.x-16+LCD_W2,cv.y-16+LCD_H2,32,32);
+  }
+  whide(cim_flags);
+
+  cim_config = wadd_box(&wroot,0,0,240,240);
+  resize(cim_config,MAX_CONF);
+  maxcd = (int16_t)(DEGS/MAX_CONF);
+  Vec2 cv;
+  for(uint16_t i=0;i<MAX_CONF;i++){
+    cv = gvdl(cdeg,CIRCMENU_RADIUS);
+    cdeg=chkdeg(cdeg+maxcd);
+    W* w = wadd_imagef(cim_config,(uint16_t*)config_images[i],config_functions[i],cv.x-16+LCD_W2,cv.y-16+LCD_H2,32,32);
+    printf("CIMC: %d %08x [%08x]\n",i,w,config_functions[i]);
+  }
+  W_box* wb = (W_box*)cim_config->d;
+  printf("wb %d\n",wb->nc);
+  whide(cim_config);
+
+  uint16_t i=0;
+  wl[i++] = wn_content;
+  wl[i++] = w_hour;
+  wl[i++] = w_min;
+  wl[i++] = w_sec;
+  wl[i++] = w_timed0;
+  wl[i++] = w_timed1;
+  wl[i++] = w_day;
+  wl[i++] = w_month;
+  wl[i++] = w_year;
+  wl[i++] = w_dated0;
+  wl[i++] = w_dated1;
+  wl[i++] = img_center;
+  wl[i++] = img_config;
+  wl[i++] = wb_dotw;
+
+  if(plosa->theme == 0){ // china
+    wshow(w_dotw_cn);
+    whide(w_dotw);
+  }else{
+    whide(w_dotw_cn);
+    wshow(w_dotw);
+  }
+
 }

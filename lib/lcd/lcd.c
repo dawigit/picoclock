@@ -88,7 +88,7 @@ void lcd_module_init(){
   spi_init(SPI_PORT, 40000 * 1000);
   gpio_set_function(LCD_CLK_PIN, GPIO_FUNC_SPI);
   gpio_set_function(LCD_MOSI_PIN, GPIO_FUNC_SPI);
-  
+
   printf("DEV_Module_Init OK \r\n");
 }
 
@@ -504,6 +504,72 @@ void lcd_char(uint8_t x, uint8_t y, uint8_t c, sFONT* font, uint16_t cf, uint16_
 	}
   lcd_blit(x,y,font->w,font->h,cb,(const uint8_t*)pbuf);
 }
+
+void lcd_char_offset(uint8_t x, uint8_t y, uint8_t c, sFONT* font,
+  uint16_t cf, uint16_t cb, bool cn, uint16_t o_top, uint16_t o_bottom)
+{
+  uint16_t fw = font->w;
+	uint16_t fh = font->h-o_bottom;
+	uint32_t size = fw*fh;
+  if(!cn){c-=' ';}
+  uint32_t offset = c * font->h * (fw / 8 + ((fw%8)?1:0));
+	const unsigned char *ptr = &font->data[offset] + (fw / 8 + ((fw%8)?1:0))*o_top;
+  uint32_t i,j,yo;
+	uint8_t cd;
+	j=0;
+	cd=0;
+	for(yo=o_top;yo<fh;yo++){
+		cd = *ptr;
+		for(i=0;i<fw;i++){
+			if(cd & 0x80){	pbuf[j] = cf;
+			}else{					pbuf[j] = cb; }
+			j++;
+			cd<<=1;
+			if(i % 8 == 7){ ++ptr; cd = *ptr;}
+		}
+		++ptr;
+	}
+  lcd_blit(x,y,font->w,font->h-(o_top+o_bottom),cb,(const uint8_t*)pbuf);
+}
+
+void lcd_char_offset_lr(uint8_t x, uint8_t y, uint8_t c, sFONT* font,
+  uint16_t cf, uint16_t cb, bool cn, uint8_t o_left, uint8_t o_right)
+{
+  uint16_t fw = font->w;
+	uint16_t fh = font->h;
+  //if(o_left)fw-=o_left;
+	//uint32_t size = fw*fh;
+  if(!cn){c-=' ';}
+  uint32_t offset = c * font->h * (fw / 8 + ((fw%8)?1:0));
+	const unsigned char *ptr = &font->data[offset] + (fw / 8 + ((fw%8)?1:0));
+  uint32_t j,yo,ori,oris;
+	uint8_t i,cd;
+  if(o_right){
+    ori = o_right;
+    oris = fw - o_right;
+  }else{
+    ori = fw;
+    oris = 0;
+  }
+  j=0;
+	cd=0;
+	for(yo=0;yo<fh;yo++){
+		cd = *ptr;
+		for(i=0;i<fw;i++){
+      if(i>=o_left && i<ori){
+        if(cd & 0x80){	pbuf[j] = cf;
+        }else{					pbuf[j] = cb; }
+        j++;
+      }
+			cd<<=1;
+			if(i % 8 == 7){ ++ptr; cd = *ptr;}
+		}
+		++ptr;
+	}
+  lcd_blit(x,y,font->w-(o_left+oris),font->h,cb,(const uint8_t*)pbuf);
+}
+
+
 void lcd_string(uint8_t x, uint8_t y, char* data, sFONT* font,bool cn, uint16_t cf, uint16_t cb){
   uint8_t c,px=x,py=y;
   cf = __builtin_bswap16(cf);
@@ -518,6 +584,79 @@ void lcd_string(uint8_t x, uint8_t y, char* data, sFONT* font,bool cn, uint16_t 
     ++data;
   }
 }
+
+void lcd_stringo(uint8_t x, uint8_t y, char* data, sFONT* font, bool cn, uint16_t cf, uint16_t cb, uint8_t o){
+  uint8_t c,px=x,py=y;
+  uint16_t fw = font->w;
+  uint16_t fh = font->h;
+
+  cf = __builtin_bswap16(cf);
+  cb = __builtin_bswap16(cb);
+
+  while(*data){
+    c=*data;
+    //printf("lcd_string: '%c'\n",c);
+    lcd_char(px,py,c,font,cf,cb,cn);
+    ++data;
+    switch(o){
+      case o_east:  px += fw; break;
+      case o_west:  px -= fw; break;
+      case o_south: py += fh; break;
+      case o_north: py -= fh; break;
+    }
+  }
+}
+
+
+
+
+void lcd_string_offset(uint8_t x, uint8_t y, char* data, sFONT* font, bool cn,
+  uint16_t cf, uint16_t cb, uint8_t o, uint8_t o_top, uint8_t o_bottom)
+{
+  uint8_t c,px=x,py=y;
+  uint16_t fw = font->w;
+  uint16_t fh = font->h;
+  cf = __builtin_bswap16(cf);
+  cb = __builtin_bswap16(cb);
+
+  while(*data){
+    c=*data;
+    //printf("lcd_string: '%c'\n",c);
+    lcd_char_offset(px,py,c,font,cf,cb,o,o_top,o_bottom);
+    ++data;
+    switch(o){
+      case o_east:  px += fw; break;
+      case o_west:  px -= fw; break;
+      case o_south: py += fh; break;
+      case o_north: py -= fh; break;
+    }
+  }
+}
+
+void lcd_string_offset_lr(uint8_t x, uint8_t y, char* data, sFONT* font, bool cn,
+  uint16_t cf, uint16_t cb, uint8_t o, uint8_t o_left, uint8_t o_right)
+{
+  uint8_t c,px=x,py=y;
+  uint16_t fw = font->w;
+  uint16_t fh = font->h;
+  cf = __builtin_bswap16(cf);
+  cb = __builtin_bswap16(cb);
+  printf("lcr_lr: %d %d\n",o_left,o_right);
+
+  while(*data){
+    c=*data;
+    //printf("lcd_string: '%c'\n",c);
+    lcd_char_offset_lr(px,py,c,font,cf,cb,cn,o_left,o_right);
+    ++data;
+    switch(o){
+      case o_east:  px += fw; break;
+      case o_west:  px -= fw; break;
+      case o_south: py += fh; break;
+      case o_north: py -= fh; break;
+    }
+  }
+}
+
 
 void lcd_str(uint8_t x, uint8_t y, char* data, sFONT* font, uint16_t cf, uint16_t cb){
   //cf = __builtin_bswap16(cf);
@@ -704,10 +843,9 @@ Bez2_t* lcd_bez2initfull(Bez2_t* bez,
 {
     if(!bez){
       printf("bez2test init\n");
-      printf("bez: %08x\n",bez);
       bez=malloc(sizeof(Bez2_t));
-      if(!bez){printf("kaa bezi ned, heast!\n");return NULL;}
       printf("bez: %08x\n",bez);
+      if(!bez)return NULL;
     }
 
     color=__builtin_bswap16(color);
@@ -816,7 +954,6 @@ void lcd_bez2l(Bez2_t* b){
     int16_t x = ((int32_t)(txa+((cx*tf)/b->frames)));
     int16_t y = ((int32_t)(tya+((cy*tf)/b->frames)));
     lcd_pixel_rawps((uint16_t)BX+x,(uint16_t)BY+y,b->color,b->ps+1);
-
     tf++;
   }
 }
@@ -979,8 +1116,7 @@ void lcd_bez3circle(int16_t x, int16_t y, int16_t r, int16_t f, int16_t fr, uint
   lcd_bez3curvel(x-r+(xo>>2),y,  x-r-(xo>>1),y-(r+(r>>1)),  x+r+(xo>>2),y-(r+(r>>1)), x+r+(xo>>1),y ,f,fr,color,ps);
 }
 
-void lcd_bez2curver(int16_t* rx, int16_t* ry, int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t fr){
-  int16_t f=0;
+void lcd_bez2curver(int16_t* rx, int16_t* ry, int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t f, int16_t fr){
   int16_t ax = x2-x0;
   int16_t ay = y2-y0;
   int16_t bx = x2-x1;
@@ -1575,4 +1711,38 @@ void lcd_blit_deg2(Vec2 vo, Vec2 vuv, Vec2 vs, int16_t deg, const uint8_t* src, 
   }
   free(pvx);
   free(pvy);
+}
+
+UTFCodes_t* lcd_utfdecode(char* rubu){
+  //string rustriow = string("ЂЃ‚ѓ„…†‡€‰Љ‹ЊЌЋЏђ‘’“”•–— ™љ›њќћџ ЎўЈ¤Ґ¦§Ё©Є«¬ ®Ї°±Ііґµ¶·ё№є»јЅѕїАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя\0");
+  char* r = "ЂЃ‚ѓ„…†‡€‰Љ‹ЊЌЋЏђ‘’“”•–— ™љ›њќћџ ЎўЈ¤Ґ¦§Ё©Є«¬ ®Ї°±Ііґµ¶·ё№є»јЅѕїАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя\0";
+	rubu = r;
+	size_t si=0,so=0x80;
+  UTFCodes_t* u = malloc(sizeof(UTFCodes_t));
+  if(!u)return NULL;
+	while(rubu[si]){
+		char c = rubu[si];
+		if(c==0xd0){
+			c = (char)rubu[++si];
+			u->co0[c]=so;
+		}else if(c==0xd1){ // else OR else...
+			c = (char)rubu[++si];
+			u->co1[c]=so;
+		}else if(c==0xd2){ // else OR else...
+			c = (char)rubu[++si];
+			u->co2[c]=so;
+		}else if(c==0xc2){ // else OR else...
+			c = (char)rubu[++si];
+			u->co3[c]=so;
+		}else if(c==0xe2){ // else OR else...
+			++si;
+			c = (char)rubu[++si];
+			u->co4[c]=so;
+		}else{
+			if(c!=0x20){				c = (char)rubu[++si];			}
+		}
+		++si;
+		++so;
+	}
+  return u;
 }

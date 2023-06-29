@@ -40,7 +40,7 @@ mksnap will open the 'png' with eog image viewer (if installed)
 
 
 
-## obsolate [use snaps]
+## obsolete [use snaps]
 ### snapshot
 
 i left the old code if you want to play
@@ -61,7 +61,7 @@ i left the old code if you want to play
     - when the pointer starts moving again press 'control+c'
 5. snapshot snapshotcut
 6. hopefully creates snapshotcut.bmp
-## obsolate
+## obsolete
 
 
 ## img2data
