@@ -2,6 +2,7 @@
 ### WAVESHARE RP2040-LCD-1.28 / WAVESHARE RP2040-TOUCH-LCD-1.28
 ##### use image uf2/rp2040-tlcd-128-watch.uf2 for WAVESHARE RP2040-TOUCH-LCD-1.28
 ##### rp2040-tlcd-128-watch.uf2 can be used for both rp2040-touch-lcd-1.28 and rp2040-lcd-1.28
+![s_spinmin](https://github.com/dawigit/picoclock/blob/main/img/s_spinmin.png) ![s_spindotw](https://github.com/dawigit/picoclock/blob/main/img/s_spindotw.png) ![s_spindotw_cn](https://github.com/dawigit/picoclock/blob/main/img/s_spindotw_cn.png)
 
 ![s_gb](https://github.com/dawigit/picoclock/blob/main/img/s_gb.png) ![s_ch](https://github.com/dawigit/picoclock/blob/main/img/s_ch.png)  
 ![s_configicon](https://github.com/dawigit/picoclock/blob/main/img/s_configicon.png) ![s_configmenu](https://github.com/dawigit/picoclock/blob/main/img/s_configmenu.png)
@@ -22,6 +23,8 @@ https://github.com/dawigit/picoclock/tree/main/img/ancestral#readme old images
 
 ![uscn1](https://user-images.githubusercontent.com/26333559/196231673-cdbe89fb-14fd-46a9-b566-e3241b16d3c8.png)
 ![trde1](https://user-images.githubusercontent.com/26333559/196231689-c6d9e030-b088-4c9f-bef6-1a3cd4f5b1c6.png)
+
+#### Touch control (with RP2040-TOUCH-LCD-1.28)
 
 #### The button is simply plugged into GND and GP22 (h2)
 #### With a button, attached the rp2040-lcd is controlled with the gyroscope
