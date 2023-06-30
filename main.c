@@ -1,6 +1,6 @@
 static __attribute__((section (".noinit")))char losabuf[4096];
 
-#define DEVMODE 1
+#define DEVMODE 0
 
 #include "stdio.h"
 #include "pico/stdlib.h"
