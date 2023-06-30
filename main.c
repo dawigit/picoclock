@@ -1,5 +1,7 @@
 static __attribute__((section (".noinit")))char losabuf[4096];
 
+#define DEVMODE 1
+
 #include "stdio.h"
 #include "pico/stdlib.h"
 #include "stdlib.h"
@@ -564,17 +566,25 @@ const PosMat_t* positions[THEMES] = {&p_cn,&p_us,&p_us,&p_us,&p_us,&p_us};
 const uint8_t* flags[THEMES] = {cn32,usa32,ger32,tr32,flag_gb32,flag_ch32};
 const uint8_t* stars[THEMES] = {cn16,usa16,ger16,tr16,flag_gb16,flag_ch16};
 
-#define MAX_BG 5
+#ifdef DEVMODE
+  #define MAX_BG 1
+  const char* backgrounds[MAX_BG] = {earth190};
+  const int16_t bg_size[MAX_BG] = {190};
+  const bool bg_dynamic[MAX_BG] = {true};
+#else
+  #define MAX_BG 5
+  const char* backgrounds[MAX_BG] = {earth190,irisa190,bega,col1,sand};
+  const int16_t bg_size[MAX_BG] = {190,190,240,240,240};
+  const bool bg_dynamic[MAX_BG] = {true,true,false,false,false};
+#endif
+
+
 #define TEXTURES 5
 uint16_t pd_tex = 0;
 const char* textures[TEXTURES] ={w2,flow,tiles_blue,l3,gt};
 Vec2 texsize[TEXTURES] = {128,20, 128,20, 128,19, 128,25, 120,26  };
 Vec2 psize_h[TEXTURES] = {75,20,   75,20,  75,19,  80,25,  75,20  };
 Vec2 psize_m[TEXTURES] = {102,16,  102,10, 102,10, 118,25, 102,10 };
-const char* backgrounds[MAX_BG] = {earth190,irisa190,bega,col1,sand};
-const int16_t bg_size[MAX_BG] = {190,190,240,240,240};
-
-const bool bg_dynamic[MAX_BG] = {true,true,false,false,false};
 
 const uint16_t edit_colors[THEMES] = {ORANGE,YELLOW,ORANGE,ORANGE,ORANGE,ORANGE};
 const uint16_t change_colors[THEMES] = {YELLOW,YELLOW,YELLOW,YELLOW,YELLOW,YELLOW};
@@ -1952,9 +1962,19 @@ int main(void)
         plosa->is_sleeping=false;
         theme_bg_dynamic_mode = 0;
         CST816S_Get_Point();
-        printf("X:%d Y:%d\r\n", Touch_CTS816.x_point, Touch_CTS816.y_point);
+        printf("[%d] X:%d Y:%d\r\n", plosa->scandir, Touch_CTS816.x_point, Touch_CTS816.y_point);
         int16_t tx = (int16_t)Touch_CTS816.x_point;
         int16_t ty = (int16_t)Touch_CTS816.y_point;
+        if(plosa->scandir==1){
+          int16_t tt = tx; tx = ty; ty = tt;
+          ty = LCD_H - ty;
+        }else if(plosa->scandir==2){
+          tx = LCD_W - tx;
+          ty = LCD_H - ty;
+        }else if(plosa->scandir==3){
+          int16_t tt = tx; tx = ty; ty = tt;
+          tx = LCD_W - tx;
+        }
         W* wf = wfindxy(&wroot, tx, ty );
         if(flag_last_time && ((time_us_32()-flag_last_time)/MS) < 300){
           printf("FLT: %08x %d\n",flag_last_time,((time_us_32()-flag_last_time)/MS));
@@ -2971,8 +2991,9 @@ void doit_wand(){
   if(plosa->texture==TEXTURES){plosa->texture=0;}
 }
 void doit_bender(){
-  plosa->bender = (bool)!plosa->bender;
-  printf("doit_bender [%d]\n",(plosa->bender?1:0));
+  if(plosa->bender>1)plosa->bender = (bool)1;
+  plosa->bender = !plosa->bender;
+  //printf("doit_bender [%d]\n", (bool)plosa->bender);
 }
 void doit_save(){
   dosave();
