@@ -180,8 +180,7 @@ W* wadd_imager(W* p, uint16_t* (*get_image)(), int16_t x, int16_t y, int16_t w, 
   return wn;
 }
 
-W* wadd_imagef(W* p, uint16_t* data, void (*image_function)(), int16_t x, int16_t y, int16_t w, int16_t h)
-{
+W* wadd_imagef(W* p, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t* data, uint8_t (*image_function)(), uint8_t* index, uint8_t max_index){
   W* wn = wnew();
   if(wn){
     printf("wn 0x%08x\n",wn);
@@ -199,6 +198,8 @@ W* wadd_imagef(W* p, uint16_t* data, void (*image_function)(), int16_t x, int16_
     wn->d = wif;
     wif->image_data = data;
     wif->image_function = image_function;
+    wif->index = index;
+    wif->max_index = max_index;
     if(p){ wadd(p,wn); }
   }
   return wn;
@@ -389,6 +390,24 @@ void wdraw(W* w){
       lcd_blit((uint8_t)w->x,(uint8_t)w->y, (uint8_t)w->w,(uint8_t)w->h, BLACK,(uint8_t*)((uint16_t* (*)())w->d)());
   }else if(w->t == wt_imagef){
     W_imagef* wif = (W_imagef*)w->d;
+    if(wif->max_index){
+      int16_t wifdegg = DEGS/(wif->max_index);
+      int16_t deg = wifdegg*wif->max_index-10;
+      int16_t ww = (w->w>>1)+10;
+      Vec2 vi;
+      if(wif->max_index==1){
+        vi = gvdl(deg, ww);
+        lcd_circle(w->x+(w->w>>1)+vi.x , w->y+(w->h>>1)+vi.y, 3, (*wif->index==1)?BLUE:RED, 1, *wif->index);
+      }else{
+        for(uint16_t i=0;i<wif->max_index;++i){
+          vi = gvdl(deg, ww);
+          lcd_circle(w->x+(w->w>>1)+vi.x , w->y+(w->h>>1)+vi.y, 3, (*wif->index==i)?BLUE:RED, 1, (*wif->index==i)?true:false);
+          deg += wifdegg;
+          if(deg>=DEGS){deg-=DEGS;}
+          if(deg<0){deg+=DEGS;}
+        }
+      }
+    }
     lcd_blit((uint8_t)w->x,(uint8_t)w->y, (uint8_t)w->w,(uint8_t)w->h, BLACK,(uint8_t*)wif->image_data);
   }else if(w->t == wt_text){
       //lcd_string(uint8_t x, uint8_t y, char* data, sFONT* font,bool cn, uint16_t cf, uint16_t cb)

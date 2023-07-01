@@ -1,6 +1,6 @@
 static __attribute__((section (".noinit")))char losabuf[4096];
 
-#define DEVMODE 0
+//#define DEVMODE 1
 
 #include "stdio.h"
 #include "pico/stdlib.h"
@@ -118,10 +118,10 @@ typedef struct {
   bool rotoz;
   bool rota;
   GFX_MODE gfxmode;
-  PSTYLE pstyle;
-  int16_t spin;
+  uint8_t pstyle;
+  int8_t spin;
   uint8_t texture;
-  uint16_t configpos;
+  uint8_t configpos;
   uint8_t conf_bg;
   uint8_t conf_phour;
   uint8_t conf_pmin;
@@ -156,13 +156,6 @@ char b_sec[4];
 
 bool deepsleep=false;
 int16_t flagdeg=90;
-int16_t flagdeg1=30;
-int16_t flagdeg2=60;
-int16_t flagdeg1a=30;
-int16_t flagdeg2a=60;
-int16_t flagdeg1b=130;
-int16_t flagdeg2b=260;
-
 int16_t fdegs[7] = {90,30,60,30,60,130,260};
 int16_t b2s=75;
 
@@ -245,6 +238,7 @@ Battery_t bat2 = {"GOOD\0",1100.0f, 4.16f, 4.12f, 3.8f, 0.0f, 0.0f}; //1100ma rp
 #define MAX_FCONF 4
 #define MAX_FCONFD (360/MAX_CONF)
 
+#define MAX_SPIN 8
 
 
 // add new battery:
@@ -566,6 +560,7 @@ const PosMat_t* positions[THEMES] = {&p_cn,&p_us,&p_us,&p_us,&p_us,&p_us};
 const uint8_t* flags[THEMES] = {cn32,usa32,ger32,tr32,flag_gb32,flag_ch32};
 const uint8_t* stars[THEMES] = {cn16,usa16,ger16,tr16,flag_gb16,flag_ch16};
 
+// define number of backgrounds and backgrounds + extra data
 #ifdef DEVMODE
   #define MAX_BG 1
   const char* backgrounds[MAX_BG] = {earth190};
@@ -580,6 +575,7 @@ const uint8_t* stars[THEMES] = {cn16,usa16,ger16,tr16,flag_gb16,flag_ch16};
 
 
 #define TEXTURES 5
+#define MAX_TEXTURE TEXTURES
 uint16_t pd_tex = 0;
 const char* textures[TEXTURES] ={w2,flow,tiles_blue,l3,gt};
 Vec2 texsize[TEXTURES] = {128,20, 128,20, 128,19, 128,25, 120,26  };
@@ -878,6 +874,7 @@ void check_save_data(){
     plosa->rotoz = false;
     plosa->gfxmode = GFX_NORMAL;
     plosa->sensors = false;
+    plosa->bender = false;
     plosa->gyrocross = true;
     plosa->DYNAMIC_CIRCLES = false;
     plosa->DEEPSLEEP = true;
@@ -896,11 +893,12 @@ void check_save_data(){
     if(plosa->editpos>EDITPOSITIONS){plosa->editpos=EDITPOSITIONS;}
     if(plosa->conf_bg>=MAX_BG){plosa->conf_bg=0;}
     if(plosa->gfxmode>GFX_ROTATE){plosa->gfxmode=GFX_NORMAL;}
-    if(plosa->spin>5){plosa->spin=5;}
+    if(plosa->spin>7){plosa->spin=7;}
     if(plosa->texture>=TEXTURES){plosa->texture=0;}
     if(plosa->configpos>=MAX_CONF){plosa->configpos = 0;}
     if(plosa->pstyle>=PS_TEXTURE){plosa->pstyle = PS_TEXTURE;}
     if(plosa->scandir>3){plosa->scandir = 0;}
+    if(plosa->bender>1){plosa->bender = 0;}
     if(plosa->BRIGHTNESS > 100 || plosa->BRIGHTNESS <= 10)plosa->BRIGHTNESS = 30;
     //plosa->pointerdemo = false;
     //plosa->pstyle = PS_NORMAL;
@@ -1201,7 +1199,7 @@ void command(char* c){
         if(plosa->editpos>EDITPOSITIONS){plosa->editpos=EDITPOSITIONS;}
         repos(plosa->editpos);
       }
-      if(strstr(left,"spin")){ plosa->spin = (int16_t)atoi(right);}
+      if(strstr(left,"spin")){ plosa->spin = (uint8_t)atoi(right);}
       if(strstr(left,"bmax")){ plosa->bat.max = (float)atof(right);}
       if(strstr(left,"bmin")){ plosa->bat.min = (float)atof(right);}
       if(strstr(left,"bload")){ plosa->bat.load = (float)atof(right);}
@@ -1404,7 +1402,7 @@ int16_t draw_circmenu(int16_t cdf, uint8_t num_items, const uint8_t** src_menuit
   cdeg=chkdeg(cdeg);
   cdegc=chkdeg(cdegc);
   int16_t cdegd = cdegc%maxcd;
-  plosa->configpos = cdegc/maxcd;
+  plosa->configpos = (uint8_t) cdegc/maxcd;
   if(cdegd > (maxcd/2)){++plosa->configpos;}
   //printf("configpos=%d cdegd=%d\n",plosa->configpos,cdegd);
   for(uint16_t i=0;i<num_items;i++){
@@ -1475,46 +1473,47 @@ void draw_clock_hands(){
   //}
 }
 
-void draw_background(){
+void draw_background()
+{
   if(plosa->gfxmode==GFX_NORMAL||plosa->gfxmode==GFX_ROTATE){
-   if(bg_dynamic[plosa->conf_bg]){ // dynamic background
-     //printf("%f %f\n",acc[0], acc[1]);
-     int16_t ya = (int16_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
-     int16_t xa = (int16_t)get_acc12f(acc[0],acc[1],50.0f); //(acc[0]/50.0f);
-     //printf("%d %d\n",xa,ya);
-     if(xa>EYE_MAX){xa=EYE_MAX;}
-     if(xa<-EYE_MAX){xa=-EYE_MAX;}
-     if(ya>EYE_MAX){ya=EYE_MAX;}
-     if(ya<-EYE_MAX){ya=-EYE_MAX;}
-     if(plosa->SMOOTH_BACKGROUND){
-       xoldt = xa;
-       yoldt = ya;
-       xa+=xold;
-       ya+=yold;
-       xa>>=1;
-       ya>>=1;
-       xold = xoldt;
-       yold = yoldt;
-     }
-     if(xa >15){xa= 15;}
-     if(ya >15){ya= 15;}
-     if(xa<-15){xa=-15;}
-     if(ya<-15){ya=-15;}
-     gyrox=xa;
-     gyroy=ya;
-     if(plosa->gfxmode==GFX_ROTATE){
+    if(bg_dynamic[plosa->conf_bg]){ // dynamic background
+      //printf("%f %f\n",acc[0], acc[1]);
+      int16_t ya = (int16_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
+      int16_t xa = (int16_t)get_acc12f(acc[0],acc[1],50.0f); //(acc[0]/50.0f);
+      //printf("%d %d\n",xa,ya);
+      if(xa>EYE_MAX){xa=EYE_MAX;}
+      if(xa<-EYE_MAX){xa=-EYE_MAX;}
+      if(ya>EYE_MAX){ya=EYE_MAX;}
+      if(ya<-EYE_MAX){ya=-EYE_MAX;}
+      if(plosa->SMOOTH_BACKGROUND){
+        xoldt = xa;
+        yoldt = ya;
+        xa+=xold;
+        ya+=yold;
+        xa>>=1;
+        ya>>=1;
+        xold = xoldt;
+        yold = yoldt;
+      }
+      if(xa >15){xa= 15;}
+      if(ya >15){ya= 15;}
+      if(xa<-15){xa=-15;}
+      if(ya<-15){ya=-15;}
+      gyrox=xa;
+      gyroy=ya;
+      if(plosa->gfxmode==GFX_ROTATE){
        Vec2 vbo = {120+xa,120-ya};
        Vec2 vbsz = {190,190};
        Vec2 vbuv = {190,190};
        lcd_blit_deg2(vbo,vbuv,vbsz,flagdeg,backgrounds[plosa->conf_bg],colt[plosa->theme]->alpha,true);
-     }else{
+      }else{
        //printf("EYE %d %d\n",EYE_X+xa,EYE_Y-ya);
        lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,backgrounds[plosa->conf_bg]);
-     }
-   }else{
-     mcpy(b0,backgrounds[plosa->conf_bg],LCD_SZ);
-   }
- }else if(plosa->gfxmode==GFX_ROTOZOOM){
+      }
+      }else{
+      mcpy(b0,backgrounds[plosa->conf_bg],LCD_SZ);
+    }
+  }else if(plosa->gfxmode==GFX_ROTOZOOM){
    lcd_roto(backgrounds[plosa->conf_bg],bg_size[plosa->conf_bg],bg_size[plosa->conf_bg]);
    lcd_rotoa();
  }
@@ -1604,25 +1603,6 @@ void draw_gfx(){
     lcd_blit(120-16,120-16,32,32,colt[plosa->theme]->alpha, flags[plosa->theme]); // center
   }
 
-
-  if(plosa->spin!=0){
-    flagdeg = gdeg(flagdeg+plosa->spin);
-    flagdeg1  = gdeg(flagdeg1 +plosa->spin+(gyrox>>3));
-    flagdeg2  = gdeg(flagdeg2 -plosa->spin*7);
-    flagdeg1a = gdeg(flagdeg1a-plosa->spin*2);
-    flagdeg2a = gdeg(flagdeg2a+plosa->spin*5);
-    flagdeg1b = gdeg(flagdeg1b-plosa->spin);
-    flagdeg2b = gdeg(flagdeg2b+plosa->spin*7);
-    int i=0;
-    fdegs[i]= gdeg(fdegs[i]+plosa->spin);++i;
-    fdegs[i]= gdeg(fdegs[i]+plosa->spin*9+(gyrox>>3));++i;
-    fdegs[i]= gdeg(fdegs[i]-plosa->spin*7);++i;
-    fdegs[i]= gdeg(fdegs[i]-plosa->spin*2);++i;
-    fdegs[i]= gdeg(fdegs[i]+plosa->spin*5);++i;
-    fdegs[i]= gdeg(fdegs[i]-plosa->spin*3);++i;
-    fdegs[i]= gdeg(fdegs[i]+plosa->spin*7);++i;
-
-  }
   // graphical view of x/y gyroscope
   if(plosa->gyrocross){
     #define GSPX 120
@@ -1984,7 +1964,6 @@ int main(void)
         }
         if(wf){
           printf("*");
-
           if(wf->t == wt_spinner){
             printf("SP %d %d {%d}\n",time_us_32(),wf->lt, (time_us_32()-wf->lt)/MS);
             if(!fire && (((time_us_32()-wf->lt)/MS)<100)){
@@ -2118,7 +2097,6 @@ int main(void)
                 sprintf(b_day,"%02d",plosa->dt.day);
                 rtc_set_datetime(&plosa->dt);
               }
-
             }
             if(wf == w_month && wblinkerg->ws == ws_shown){
               whidem(wl,WL_SIZE);
@@ -2282,7 +2260,9 @@ int main(void)
             wshow(wblinker_once);
             W_imagef* wif = (W_imagef*)wf->d;
             if(wif){
-              wif->image_function();
+              //*wif->index += 1;
+              //if(*wif->index >= wif->max_index)*wif->index = 0;
+              if(wif->image_function) wif->image_function();
               flag_last_time = time_us_32();
               last_blink = time_us_32();
               printf("imagef w:%08x %08x %08x f:%8x\n",wf,flag_last_time, last_blink, wif->image_function);
@@ -2841,16 +2821,27 @@ int main(void)
         }
       }
 
+      if(plosa->spin!=0){
+        flagdeg = gdeg(flagdeg+plosa->spin);
+        if(plosa->pointerdemo){
+          uint8_t i=0;
+          fdegs[i]= gdeg(fdegs[i]+plosa->spin);++i;
+          fdegs[i]= gdeg(fdegs[i]+plosa->spin*9+(gyrox>>3));++i;
+          fdegs[i]= gdeg(fdegs[i]-plosa->spin*7);++i;
+          fdegs[i]= gdeg(fdegs[i]-plosa->spin*2);++i;
+          fdegs[i]= gdeg(fdegs[i]+plosa->spin*5);++i;
+          fdegs[i]= gdeg(fdegs[i]-plosa->spin*3);++i;
+          fdegs[i]= gdeg(fdegs[i]+plosa->spin*7);++i;
+        }
+      }
+
+
       make_buffers();
-      //w_dotw_cn->ws = ((plosa->theme)?ws_hidden:ws_shown);
-      //w_dotw->ws = ((plosa->theme)?ws_shown:ws_hidden);
       wdraw(&wroot);
 
       lcd_display(b0);
 
-      if(SHELL_ENABLED){
-        shell();
-      }
+      if(SHELL_ENABLED){        shell();      }
       plosa->save_crc=crc(&plosa->theme,LOSASIZE);
     }
     return 0;
@@ -2960,18 +2951,24 @@ void doit_bg(){
   if(++plosa->conf_bg >= MAX_BG){ plosa->conf_bg = 0; }
   printf("doit_bg %d\n",plosa->conf_bg);
 }
+
 void doit_rotate(){
-  plosa->rota = (bool)!plosa->rota;
   if(plosa->rota){
-    plosa->gfxmode=GFX_ROTATE;
-    if(plosa->spin==0){plosa->spin=1;}
+    ++plosa->spin;
+    if(plosa->spin >= MAX_SPIN){
+      plosa->spin = 0;
+      plosa->gfxmode = GFX_NORMAL;
+      plosa->rota = false;
+    }
   }else{
-    plosa->spin=0;
-    plosa->gfxmode=GFX_NORMAL;
+    plosa->rota = true;
+    plosa->gfxmode = GFX_ROTATE;
+    if(plosa->spin==0){ plosa->spin = 1; }
   }
+  printf("doit_rota: [%d] %d\n",plosa->rota?1:0,plosa->spin);
 }
-void doit_ps_texture(){
-  if(plosa->pstyle!=PS_TEXTURE){
+void doit_clockhand_style(){
+  if(plosa->pstyle<PS_TEXTURE){ // rotate normal/alpha/texture
     plosa->pstyle++;
   }else{
     plosa->pstyle=PS_NORMAL;
@@ -2988,12 +2985,13 @@ void doit_rotozoom(){
 }
 void doit_wand(){
   plosa->texture++;
-  if(plosa->texture==TEXTURES){plosa->texture=0;}
+  if(plosa->texture==TEXTURES){ plosa->texture=0; }
 }
 void doit_bender(){
-  if(plosa->bender>1)plosa->bender = (bool)1;
-  plosa->bender = !plosa->bender;
-  //printf("doit_bender [%d]\n", (bool)plosa->bender);
+  uint8_t b = plosa->bender;
+  if(plosa->bender){    plosa->bender = false;
+  }else{                plosa->bender = true; }
+  //printf("doit_bender [%d / %d]\n", plosa->bender,b);
 }
 void doit_save(){
   dosave();
@@ -3009,12 +3007,15 @@ void doit_exit(){
 
 void wtest(){
 
+  uint8_t config_maxdex[8] = {0,MAX_BG,1,MAX_SPIN,0,3,MAX_TEXTURE,1};
+  uint8_t* config_dex[8] = {0,(uint8_t*)&plosa->conf_bg,(uint8_t*)&plosa->rotoz,&plosa->spin,0,(uint8_t*)&plosa->pstyle,&plosa->texture,(uint8_t*)&plosa->bender};
+
   config_functions[0] = (void*)doit_exit;
   config_functions[1] = (void*)doit_bg;
   config_functions[2] = (void*)doit_rotozoom;
   config_functions[3] = (void*)doit_rotate;
   config_functions[4] = (void*)doit_save;
-  config_functions[5] = (void*)doit_ps_texture;
+  config_functions[5] = (void*)doit_clockhand_style;
   config_functions[6] = (void*)doit_wand;
   config_functions[7] = (void*)doit_bender;
 
@@ -3112,7 +3113,7 @@ void wtest(){
   for(uint16_t i=0;i<MAX_CONF;i++){
     cv = gvdl(cdeg,CIRCMENU_RADIUS);
     cdeg=chkdeg(cdeg+maxcd);
-    W* w = wadd_imagef(cim_config,(uint16_t*)config_images[i],config_functions[i],cv.x-16+LCD_W2,cv.y-16+LCD_H2,32,32);
+    W* w = wadd_imagef(cim_config,cv.x-16+LCD_W2,cv.y-16+LCD_H2,32,32,(uint16_t*)config_images[i],config_functions[i],config_dex[i],config_maxdex[i]);
     printf("CIMC: %d %08x [%08x]\n",i,w,config_functions[i]);
   }
   W_box* wb = (W_box*)cim_config->d;

@@ -217,7 +217,6 @@ void lcd_linev2(Vec2 vs, Vec2 ve, uint16_t color, int16_t ps);
 
 Vec2 gvdl(int16_t deg, int16_t l);
 void gxyld(int16_t* x, int16_t* y, uint16_t l, uint16_t deg);
-Vec2 gvdl(int16_t deg, int16_t l);
 int16_t gdeg(int16_t d);
 void fxyd(float* x, float* y, int16_t deg);
 

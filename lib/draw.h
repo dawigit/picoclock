@@ -3,10 +3,10 @@
 #include "lcd/lcd.h"
 
 typedef enum {
-  PS_NORMAL,
-  PS_ALPHA,
-  PS_TEXTURE,
-  PS_BENDER
+  PS_NORMAL = 0,
+  PS_ALPHA = 1,
+  PS_TEXTURE = 2,
+  PS_BENDER = 3,
 } PSTYLE; //Clock Pointer Style
 
 

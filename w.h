@@ -103,9 +103,10 @@ typedef struct {
 } W_blinker;
 
 typedef struct {
-  void (*image_function)();
+  uint8_t (*image_function)();
   uint16_t* image_data;
-  uint16_t index;
+  uint8_t* index;
+  uint8_t max_index;
 } W_imagef;
 
 #define SPT_INT8 1
@@ -179,7 +180,7 @@ void wset_st(W* w, W_st st);
 W* wadd_box(W* p, int16_t x, int16_t y, int16_t w, int16_t h);
 W* wadd_image(W* p, uint16_t* data, int16_t x, int16_t y, int16_t w, int16_t h);
 W* wadd_imager(W* p, uint16_t* (*get_image)(), int16_t x, int16_t y, int16_t w, int16_t h);
-W* wadd_imagef(W* p, uint16_t* data, void (*image_function)(), int16_t x, int16_t y, int16_t w, int16_t h);
+W* wadd_imagef(W* p, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t* data, uint8_t (*image_function)(), uint8_t* index, uint8_t max_index);
 W* wadd_text(W* p, int16_t x, int16_t y, int16_t w, int16_t h,
   char* text, sFONT* font, uint16_t cf, uint16_t cb, uint16_t cfr,uint8_t fs);
 
