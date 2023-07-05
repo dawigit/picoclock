@@ -1,6 +1,6 @@
 static __attribute__((section (".noinit")))char losabuf[4096];
 
-//#define DEVMODE 1
+#define DEVMODE 1
 
 #include "stdio.h"
 #include "pico/stdlib.h"
@@ -339,7 +339,7 @@ float read_battery(){
 
 
 #define FRAME_DELAY 50
-#define LOOPWAIT 10
+#define LOOPWAIT 25
 
 #define DRAW_GFX_FIRST true //1 == text floating above clock
 #define HOURGLASSBORDER 200 // minimum rise/fall of acc_x
@@ -525,7 +525,8 @@ H  - M - S - DOW
   };
 
   PosMat_t p_us = {3,3,pos_matrix_US};
-  PosMat_t p_cn = {4,3,pos_matrix_CN};
+  PosMat_t p_cn = {3,3,pos_matrix_US};
+  //PosMat_t p_cn = {4,3,pos_matrix_CN};
 
 #define USA_Old_Glory_Red  0xB0C8 //0xB31942
 #define USA_Old_Glory_Blue 0x098C //0x0A3161
@@ -1375,7 +1376,8 @@ int16_t draw_getdeg(int16_t deg){
 
 void draw_init(){
   doi_config = DOImage_new(240-(32+16), 120-16, 32,32 ,BLACK,config);
-  doi_config_cn = DOImage_new(18, 120-16, 32,32 ,BLACK,config);
+  doi_config_cn = DOImage_new(240-(32+16), 120-16, 32,32 ,BLACK,config);
+  //doi_config_cn = DOImage_new(18, 120-16, 32,32 ,BLACK,config);
 }
 
 
@@ -1390,27 +1392,29 @@ void fx_circle(uint16_t x, uint16_t y, uint16_t r, uint16_t c, uint16_t ps, uint
 #define CIRCMENU_RADIUS 88
 
 int16_t draw_circmenu(int16_t cdf, uint8_t num_items, const uint8_t** src_menuitems){
-  int16_t cdeg_fine=cdf;
-  int16_t cdeg = cdeg_fine;
+  int16_t cdeg;
   int16_t cdegc;
   int16_t maxcd = (int16_t)(DEGS/num_items);
-  if(plosa->theme==0){
-    cdegc = DEGS-cdeg_fine-QDEG;
-  }else{
-    cdegc = DEGS-cdeg_fine-3*QDEG;
-  }
-  cdeg=chkdeg(cdeg);
-  cdegc=chkdeg(cdegc);
-  int16_t cdegd = cdegc%maxcd;
-  plosa->configpos = (uint8_t) cdegc/maxcd;
-  if(cdegd > (maxcd/2)){++plosa->configpos;}
-  //printf("configpos=%d cdegd=%d\n",plosa->configpos,cdegd);
+  cdeg=chkdeg(cdf);
+  //cdegc=chkdeg(cdegc);
+
   for(uint16_t i=0;i<num_items;i++){
     Vec2 cv = gvdl(cdeg,CIRCMENU_RADIUS);
     lcd_blit(cv.x-16+LCD_W2,cv.y-16+LCD_H2,32,32,BLACK,src_menuitems[i]);
     cdeg=chkdeg(cdeg+maxcd);
   }
-  int16_t d = (cdeg+90)%maxcd;
+
+  int16_t cdegd = (DEGS-cdeg)%maxcd;
+  int16_t sln = (DEGS-cdeg)/maxcd;
+  sln+=2;
+  if(sln<0)sln+=(int8_t)num_items;
+  if(sln>=num_items)sln-=num_items;
+  plosa->configpos = (uint8_t) sln;
+  if(cdegd > (maxcd/2)){ ++plosa->configpos; }
+  if(plosa->configpos >= num_items){ plosa->configpos = 0; }
+  //printf("sln *%d %d (%d / %d) [%d]\n",plosa->configpos, sln, cdegd, maxcd, cdeg);
+
+  int16_t d = (cdeg+(DEGS/4))%maxcd;
   if(d!=0){
     if(d>(maxcd/2)){  return d-maxcd;
     }else{            return d;    }
@@ -1774,9 +1778,9 @@ void draw_content(){
     }
   }
   if(draw_config_enabled){
-    if(plosa->spin!=0){
-      flagdeg = gdeg(flagdeg+plosa->spin);
-    }
+    //if(plosa->spin!=0){    }
+    //flagdeg = gdeg(flagdeg+plosa->spin);
+    flagdeg = gdeg(flagdeg);
     edeg_fine = draw_getdeg(edeg_fine);
     int16_t magnet = draw_circmenu(edeg_fine, 8, config_images);
     if(magnet != 0){
@@ -2615,6 +2619,7 @@ int main(void)
           colors[plosa->editpos]=edit_colors[plosa->theme];
         }else if(cmode==CM_Config){
           if(draw_config_enabled==true){
+            printf("configpos: %d\n",plosa->configpos);
             switch(plosa->configpos){
               case CP_EXIT:
                 cmode=CM_None;
@@ -2667,10 +2672,9 @@ int main(void)
           }else if(draw_flagconfig_enabled){
             if(plosa->configpos >= THEMES){plosa->configpos = 0;}
             //printf("flag selected: %d\n",plosa->configpos);
-            if((plosa->theme==0 && plosa->configpos>0)||(plosa->configpos==0 && plosa->theme>0)){
               gdeg_fine += 180;
               edeg_fine += 180;
-            }
+            //if((plosa->theme==0 && plosa->configpos>0)||(plosa->configpos==0 && plosa->theme>0)){            }
             plosa->theme = plosa->configpos;
 
             draw_gfx_enabled=true;
