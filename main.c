@@ -1,6 +1,6 @@
 static __attribute__((section (".noinit")))char losabuf[4096];
 
-#define DEVMODE 1
+//#define DEVMODE 1
 
 #include "stdio.h"
 #include "pico/stdlib.h"
@@ -1396,8 +1396,6 @@ int16_t draw_circmenu(int16_t cdf, uint8_t num_items, const uint8_t** src_menuit
   int16_t cdegc;
   int16_t maxcd = (int16_t)(DEGS/num_items);
   cdeg=chkdeg(cdf);
-  //cdegc=chkdeg(cdegc);
-
   for(uint16_t i=0;i<num_items;i++){
     Vec2 cv = gvdl(cdeg,CIRCMENU_RADIUS);
     lcd_blit(cv.x-16+LCD_W2,cv.y-16+LCD_H2,32,32,BLACK,src_menuitems[i]);
