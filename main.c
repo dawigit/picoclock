@@ -2228,7 +2228,7 @@ int main(void)
               wshow(cim_flags);
             }else if(wf == img_center && wblinkerg->ws == ws_hidden){
               wshowm(wl,WL_SIZE);
-              whide(cim_flags);
+              whide(cim_config);
             }
 
           }else if(wf->t == wt_image){
@@ -2694,6 +2694,9 @@ int main(void)
             draw_flagconfig_enabled=false;
             hg_enabled = false;
             cmode=CM_None;
+            wshow(img_center);
+            wshow(img_config);
+
           }
         }else if(cmode==CM_Changepos){
           cmode=CM_Editpos;
@@ -2710,6 +2713,7 @@ int main(void)
             draw_config_enabled=true;
             cmode=CM_Config;
             whidem(wl,WL_SIZE);
+            whide(img_config);
             wshow(wn_content);
 
           }
@@ -2717,6 +2721,7 @@ int main(void)
             draw_gfx_enabled= false;
             draw_text_enabled=false;
             draw_flagconfig_enabled=true;
+            whide(img_config);
             cmode=CM_Config;
           }
         }else if(cmode==CM_Editpos){
@@ -2726,12 +2731,14 @@ int main(void)
           if(!(plosa->dt.year%4)){last[2]=29;}else{last[2]=28;}
           hg_enabled = false;
 
-          if(draw_flagconfig_enabled){
+          if(draw_flagconfig_enabled || draw_config_enabled){
             update_pos_matrix();
             draw_gfx_enabled=true;
             draw_text_enabled=true;
             draw_flagconfig_enabled=false;
             wshowm(wl,WL_SIZE);
+            wshow(img_center);
+            wshow(img_config);
           }
         }
         fire=false;
