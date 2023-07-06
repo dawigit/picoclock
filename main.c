@@ -159,8 +159,8 @@ int16_t flagdeg=90;
 int16_t fdegs[7] = {90,30,60,30,60,130,260};
 int16_t b2s=75;
 
-int16_t edeg_fine=270;
-int16_t gdeg_fine=0;
+int16_t config_deg=0;
+int16_t flags_deg=0;
 bool no_moveshake = false;
 volatile uint8_t flag = 0;
 
@@ -1402,17 +1402,7 @@ int16_t draw_circmenu(int16_t cdf, uint8_t num_items, const uint8_t** src_menuit
     cdeg=chkdeg(cdeg+maxcd);
   }
 
-  int16_t cdegd = (DEGS-cdeg)%maxcd;
-  int16_t sln = (DEGS-cdeg)/maxcd;
-  sln+=2;
-  if(sln<0)sln+=(int8_t)num_items;
-  if(sln>=num_items)sln-=num_items;
-  plosa->configpos = (uint8_t) sln;
-  if(cdegd > (maxcd/2)){ ++plosa->configpos; }
-  if(plosa->configpos >= num_items){ plosa->configpos = 0; }
-  //printf("sln *%d %d (%d / %d) [%d]\n",plosa->configpos, sln, cdegd, maxcd, cdeg);
-
-  int16_t d = (cdeg+(DEGS/4))%maxcd;
+  int16_t d = (cdf+(DEGS/4))%maxcd;
   if(d!=0){
     if(d>(maxcd/2)){  return d-maxcd;
     }else{            return d;    }
@@ -1778,16 +1768,28 @@ void draw_content(){
   if(draw_config_enabled){
     //if(plosa->spin!=0){    }
     //flagdeg = gdeg(flagdeg+plosa->spin);
+    int16_t num_items = MAX_CONF;
+    int16_t maxcd = (int16_t)(DEGS/num_items);
     flagdeg = gdeg(flagdeg);
-    edeg_fine = draw_getdeg(edeg_fine);
-    int16_t magnet = draw_circmenu(edeg_fine, 8, config_images);
+    config_deg = draw_getdeg(config_deg);
+    int16_t magnet = draw_circmenu(config_deg, num_items, config_images);
     if(magnet != 0){
       int16_t MAG = 10;
       if(magnet < MAG && magnet >-MAG){
-          if(magnet/2 == 0){ edeg_fine-= magnet; }
-          else{              edeg_fine -= (magnet)/2; }
-      }else{ edeg_fine -= magnet/8; }
+          if(magnet/2 == 0){ config_deg-= magnet; }
+          else{              config_deg -= (magnet)/2; }
+      }else{ config_deg -= magnet/8; }
     }
+    int16_t cdegd = (DEGS-config_deg)%maxcd;
+    int16_t sln = (DEGS-config_deg)/maxcd;
+    sln+=2;
+    if(sln<0)sln+=(int8_t)num_items;
+    if(sln>=num_items)sln-=num_items;
+    plosa->configpos = (uint8_t) sln;
+    if(cdegd > (maxcd/2)){ ++plosa->configpos; }
+    if(plosa->configpos >= num_items){ plosa->configpos = 0; }
+    //printf("sln *%d %d (%d / %d) [%d]\n",plosa->configpos, sln, cdegd, maxcd, config_deg);
+
   }
   #define magx 35
   #define magy 90
@@ -1800,19 +1802,31 @@ void draw_content(){
   //lcd_frame(magx2,magy2,magx2+mags*magf,magy2+mags*magf,RED,1);
 
   if(draw_flagconfig_enabled){
-    if(plosa->spin!=0){
-      flagdeg = gdeg(flagdeg+plosa->spin);
-    }
-    gdeg_fine = draw_getdeg(gdeg_fine);
-    int16_t magnet = draw_circmenu(gdeg_fine, THEMES, flags);
+    if(plosa->spin!=0){      flagdeg = gdeg(flagdeg+plosa->spin);    } // pointerdemo
+    int16_t num_items = THEMES;
+    int16_t maxcd = (int16_t)(DEGS/num_items);
+
+    flags_deg = draw_getdeg(flags_deg);
+    int16_t magnet = draw_circmenu(flags_deg, num_items, flags);
     if(magnet != 0){
       //printf("magnet = %d\n",magnet);
       int16_t MAG = 15;
       if(magnet < MAG && magnet >-MAG){
-          if(magnet/2 == 0){ gdeg_fine-= magnet; }
-          else{              gdeg_fine -= (magnet)/2; }
-      }else{ gdeg_fine -= magnet/8; }
+          if(magnet/2 == 0){ flags_deg -= magnet; }
+          else{              flags_deg -= (magnet/2); }
+      }else{ flags_deg -= magnet/8; }
     }
+    int16_t fdeg = flags_deg - (maxcd+maxcd/2);
+    fdeg = chkdeg(fdeg);
+
+    int16_t cdegd = (DEGS-fdeg)%maxcd;
+    int16_t sln = (DEGS-fdeg)/maxcd;
+    if(sln<0)sln+=(int8_t)num_items;
+    if(sln>=num_items)sln-=num_items;
+    plosa->configpos = (uint8_t) sln;
+    if(cdegd > (maxcd/2)){ ++plosa->configpos; }
+    if(plosa->configpos >= num_items){ plosa->configpos = 0; }
+    //printf("sln *%d %d (%d / %d) [%d %d]\n",plosa->configpos, sln, cdegd, maxcd, fdeg, flags_deg);
   }
 }
 
@@ -1853,8 +1867,7 @@ int main(void)
     if(plosa->BRIGHTNESS > 100)plosa->BRIGHTNESS = 100;
 
     plosa->pointerdemo=false;
-    if(plosa->theme==0){ edeg_fine = 270;
-    }else{               edeg_fine = 90; }
+    config_deg = 90;
     plosa->scandir&=0x03;
     // I2C Config
     i2c_init(I2C_PORT, 100 * 1000);
@@ -2668,10 +2681,10 @@ int main(void)
                 break;
             }
           }else if(draw_flagconfig_enabled){
-            if(plosa->configpos >= THEMES){plosa->configpos = 0;}
+            //if(plosa->configpos >= THEMES){plosa->configpos = 0;}
             //printf("flag selected: %d\n",plosa->configpos);
-              gdeg_fine += 180;
-              edeg_fine += 180;
+            //flags_deg += 180;
+            //config_deg += 180;
             //if((plosa->theme==0 && plosa->configpos>0)||(plosa->configpos==0 && plosa->theme>0)){            }
             plosa->theme = plosa->configpos;
 
