@@ -2228,7 +2228,8 @@ int main(void)
               wshow(cim_flags);
             }else if(wf == img_center && wblinkerg->ws == ws_hidden){
               wshowm(wl,WL_SIZE);
-              whide(cim_config);
+              //whide(cim_config);
+              whide(cim_flags);
             }
 
           }else if(wf->t == wt_image){
@@ -2681,22 +2682,15 @@ int main(void)
                 break;
             }
           }else if(draw_flagconfig_enabled){
-            //if(plosa->configpos >= THEMES){plosa->configpos = 0;}
-            //printf("flag selected: %d\n",plosa->configpos);
-            //flags_deg += 180;
-            //config_deg += 180;
-            //if((plosa->theme==0 && plosa->configpos>0)||(plosa->configpos==0 && plosa->theme>0)){            }
             plosa->theme = plosa->configpos;
-
             draw_gfx_enabled=true;
             draw_text_enabled=true;
             draw_flagconfig_enabled=false;
-            draw_flagconfig_enabled=false;
             hg_enabled = false;
             cmode=CM_None;
-            wshow(img_center);
-            wshow(img_config);
-
+            wshowm(wl,WL_SIZE);
+            if(plosa->theme == 0){  wshow(w_dotw_cn);whide(w_dotw); // china
+            }else{ whide(w_dotw_cn); wshow(w_dotw); }
           }
         }else if(cmode==CM_Changepos){
           cmode=CM_Editpos;
@@ -2715,13 +2709,15 @@ int main(void)
             whidem(wl,WL_SIZE);
             whide(img_config);
             wshow(wn_content);
-
           }
           if(plosa->editpos==EPOS_CENTER){
             draw_gfx_enabled= false;
             draw_text_enabled=false;
             draw_flagconfig_enabled=true;
+            whidem(wl,WL_SIZE);
             whide(img_config);
+            whide(wb_dotw);
+            wshow(wn_content);
             cmode=CM_Config;
           }
         }else if(cmode==CM_Editpos){
@@ -2730,15 +2726,18 @@ int main(void)
           rtc_set_datetime(&plosa->dt);
           if(!(plosa->dt.year%4)){last[2]=29;}else{last[2]=28;}
           hg_enabled = false;
+          wshowm(wl,WL_SIZE);
+          if(plosa->theme == 0){  wshow(w_dotw_cn);whide(w_dotw); // china
+          }else{ whide(w_dotw_cn); wshow(w_dotw); }
+          wshowm(wl,WL_SIZE);
 
           if(draw_flagconfig_enabled || draw_config_enabled){
             update_pos_matrix();
             draw_gfx_enabled=true;
             draw_text_enabled=true;
             draw_flagconfig_enabled=false;
-            wshowm(wl,WL_SIZE);
-            wshow(img_center);
-            wshow(img_config);
+//            wshow(img_center);
+//            wshow(img_config);
           }
         }
         fire=false;
@@ -3158,12 +3157,7 @@ void wtest(){
   wl[i++] = img_config;
   wl[i++] = wb_dotw;
 
-  if(plosa->theme == 0){ // china
-    wshow(w_dotw_cn);
-    whide(w_dotw);
-  }else{
-    whide(w_dotw_cn);
-    wshow(w_dotw);
-  }
+  if(plosa->theme == 0){  wshow(w_dotw_cn);whide(w_dotw); // china
+  }else{ whide(w_dotw_cn); wshow(w_dotw); }
 
 }
