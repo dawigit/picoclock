@@ -1215,6 +1215,9 @@ void command(char* c){
         if(plosa->theme>=THEMES){
           plosa->theme=THEMES-1;
         }
+        if(plosa->theme == 0){  wshow(w_dotw_cn);whide(w_dotw); // china
+        }else{ whide(w_dotw_cn); wshow(w_dotw); }
+
         blinker_off(wblinker);
         if(wblinker_ref){wblinker_ref=NULL;}
       }

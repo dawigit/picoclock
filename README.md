@@ -1,7 +1,6 @@
 # picoclock
 ### WAVESHARE RP2040-LCD-1.28 / WAVESHARE RP2040-TOUCH-LCD-1.28
-##### use image uf2/rp2040-tlcd-128-watch.uf2 for WAVESHARE RP2040-TOUCH-LCD-1.28
-##### rp2040-tlcd-128-watch.uf2 can be used for both rp2040-touch-lcd-1.28 and rp2040-lcd-1.28
+
 #### TOUCH
 ![s_bigfont](https://github.com/dawigit/picoclock/blob/main/img/s_bigfont.png) ![s_configicon_new](https://github.com/dawigit/picoclock/blob/main/img/s_configicon_new.png)
 ![s_spinmin](https://github.com/dawigit/picoclock/blob/main/img/s_spinmin.png) ![s_spindotw](https://github.com/dawigit/picoclock/blob/main/img/s_spindotw.png) ![s_spindotw_cn](https://github.com/dawigit/picoclock/blob/main/img/s_spindotw_cn.png)
