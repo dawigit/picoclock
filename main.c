@@ -1,6 +1,6 @@
 static __attribute__((section (".noinit")))char losabuf[4096];
 
-//#define DEVMODE 1
+#define DEVMODE 1
 
 #include "stdio.h"
 #include "pico/stdlib.h"
@@ -38,8 +38,6 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "img/font48.h"
 
 #ifndef DEVMODE
-//#include "img/irisa190.h"
-//#include "img/earth190.h"
 #include "img/bega.h"
 #include "img/sand.h"
 #include "img/bg1_256.h"
@@ -48,12 +46,10 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "img/bg4_256.h"
 #include "img/bg5_256.h"
 #include "img/bg6_256.h"
-//#include "img/iris256.h"
-//#include "img/earth256.h"
 #include "img/i8.h"
 #endif
 #include "img/e8.h"
-
+#include "img/b256.h"
 
 //#include "img/maple.h"
 #include "img/usa32.h"
@@ -591,17 +587,17 @@ const uint8_t* stars[THEMES] = {cn16,usa16,ger16,tr16,flag_gb16,flag_ch16};
 // define number of backgrounds and backgrounds + extra data
 uint16_t* tbg = NULL;
 #ifdef DEVMODE
-  #define MAX_BG 1
-  const char* backgrounds[MAX_BG] = {e8};
-  const int16_t bg_size[MAX_BG] = {256};
-  const bool bg_dynamic[MAX_BG] = {true};
+  #define MAX_BG 2
+  const char* backgrounds[MAX_BG] = {e8,b256};
+  const int16_t bg_size[MAX_BG] = {256,256};
+  const bool bg_dynamic[MAX_BG] = {true,true};
 #else
-  #define MAX_BG 10
-  const char* backgrounds[MAX_BG] = {e8,i8,bega,sand,
+  #define MAX_BG 11
+  const char* backgrounds[MAX_BG] = {e8,i8,b256,bega,sand,
     bg1_256,bg2_256,bg3_256, bg4_256,bg5_256,bg6_256
   };
-  const int16_t bg_size[MAX_BG] = {256,256,240,240,256,256,256,256,256,256};
-  const bool bg_dynamic[MAX_BG] = {true,true,false,false,false,false,false,false,false,false};
+  const int16_t bg_size[MAX_BG] = {256,256,256,240,240,256,256,256,256,256,256};
+  const bool bg_dynamic[MAX_BG] = {true,true,true,false,false,false,false,false,false,false,false};
 #endif
 
 
@@ -1672,34 +1668,6 @@ void draw_background()
 {
   if(plosa->gfxmode==GFX_NORMAL||plosa->gfxmode==GFX_ROTATE){
     if(bg_dynamic[plosa->conf_bg]){ // dynamic background
-      //float acx[3], acy[3];
-      //float aacx[3], aacy[3];
-      //QMI8658_read_xyz(acc, gyro, &tim_count);
-      //aacx[0] = fabs(acc[0]);
-      //aacy[0] = fabs(acc[1]);
-      //acx[0] = acc[0];
-      //acy[0] = acc[1];
-      ////printf("%+4.4f %+4.4f\n",acx[0],acy[0]);
-      //sleep_ms(2);
-      //QMI8658_read_xyz(acc, gyro, &tim_count);
-      //aacx[1] = fabs(acc[0]);
-      //aacy[1] = fabs(acc[1]);
-      //acx[1] = acc[0];
-      //acy[1] = acc[1];
-      ////printf("%+4.4f %+4.4f\n",acx[1],acy[1]);
-      //sleep_ms(2);
-      //QMI8658_read_xyz(acc, gyro, &tim_count);
-      //aacx[2] = fabs(acc[0]);
-      //aacy[2] = fabs(acc[1]);
-      //acx[2] = acc[0];
-      //acy[2] = acc[1];
-      //if(aacx[2]-aacx[1]>20.0f&&aacx[2]-aacx[0]>20.0f){
-      //  acc[0]=acx[1];
-      //  acc[1]=acy[1];
-      //}else if(aacy[2]-aacy[1]>20.0f&&aacy[2]-aacy[0]>20.0f){
-      //  acc[1]=acy[1];
-      //  acc[0]=acx[1];
-      //}
 
       int16_t xa = (int16_t)get_acc12f(acc[0],acc[1],50.0f); //(acc[0]/50.0f);
       int16_t ya = (int16_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
@@ -2874,7 +2842,6 @@ int main(void)
           }
         }
       }
-
       for(int i=0;i<LCD_SZ;i++){b0[i]=0x00;}  //clear buffer
 
       // draw-bg

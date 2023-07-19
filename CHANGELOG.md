@@ -1,4 +1,5 @@
 ### Changelog:
+- raspberry texture added
 - some seamless textures added (good with rotozoom)
 - texture mapping (using hardware_interp)
   based on: [https://github.com/raspberrypi/pico-examples/tree/master/pio/st7789_lcd]
