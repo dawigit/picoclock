@@ -88,6 +88,23 @@ rm $name.bmp
 echo "};" >> $oname.h
 }
 
+## earth / eye texture creation
+
+- create earth.png with 256*256 size
+
+- (sc)roll image to center:
+`convert earth.png -roll +128+128 e8.png`
+
+- this process is reversible:
+`convert e8.png -roll +128+128 earth256.png`
+ creates the 'regular' earth image
+
+- now we need the image data as header file:
+`img2data e8.png 256*256`
+
+e8.h is ready to be included.
+
+
 ## mkfontimagexy
 
 ### usage: mkfontimagexy FONT X Y POINTSIZE
@@ -98,9 +115,9 @@ echo "};" >> $oname.h
 
 A complete conversion process would be:
 - install fonts
-- cp /usr/share/fonts/opentype/noto/NotoSansCJK-Thin.ttc ./nf.ttc
-- mkfontimagexy nf.ttc 31 40 27;
-- eog nf.ttc.png
+`cp /usr/share/fonts/opentype/noto/NotoSansCJK-Thin.ttc ./nf.ttc`
+`mkfontimagexy nf.ttc 31 40 27`
+`eog nf.ttc.png`
 
 This generates 'nf.ttc.h' (aka Font40.h) and Font30.h is made alike.
 Those fonts contain Latin, Cyrillic and a bunch of 'Chinese' characters – to write the weekdays.

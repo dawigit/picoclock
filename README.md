@@ -36,8 +36,7 @@ The images/fonts are in the ./img folder.
 The file 'img2data.md' contains shell scripts for converting image data and fonts into header files.
 
 #### Problems, bugs, tbd:
-- battery display has to be adjusted depending on battery (still testing)
-- some crashes result in pico freezing at QMI8658_init() - remove battery
+- battery display has to be adjusted depending on battery type
 
 ## To flash the image
 
