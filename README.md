@@ -2,6 +2,7 @@
 ### WAVESHARE RP2040-LCD-1.28 / WAVESHARE RP2040-TOUCH-LCD-1.28
 
 #### TOUCH
+![s_qdtm](https://github.com/dawigit/picoclock/blob/main/img/s_qdtm.png) ![s_rotozcy](https://github.com/dawigit/picoclock/blob/main/img/s_rotozcy.png) ![s_rotozg](https://github.com/dawigit/picoclock/blob/main/img/s_rotozg.png) ![s_rotozr](https://github.com/dawigit/picoclock/blob/main/img/s_rotozr.png)
 ![s_bigfont](https://github.com/dawigit/picoclock/blob/main/img/s_bigfont.png) ![s_configicon_new](https://github.com/dawigit/picoclock/blob/main/img/s_configicon_new.png)
 ![s_spinmin](https://github.com/dawigit/picoclock/blob/main/img/s_spinmin.png) ![s_spindotw](https://github.com/dawigit/picoclock/blob/main/img/s_spindotw.png) ![s_spindotw_cn](https://github.com/dawigit/picoclock/blob/main/img/s_spindotw_cn.png)
 
@@ -63,9 +64,8 @@ Find the '--address' with:
 - 'gyro'		  [show/hide gyrocross]
 - 'bender'		[second pointer elastic]
 - 'smooth'		[smoother/1frame delay for movement]
-- 'insomnia'	[never sleeps – for development only! stays on when bat full and not loading]
+- 'insomnia'	[no sleep/ screen always on]
 - 'circle'		[gyroscope changes circle, looks crappy atm]
-- 'deep'		[enables SLEEP_DEEP mode, sleeps deeper, can wake up every (1-30) second(s), sleeps deeper in time]
 - 'high'		[highpointer: pointer above text]
 - 'alpha'		[alpha pointers]
 - 'clock'		[shows/hides analog clock]
@@ -82,7 +82,6 @@ Find the '--address' with:
 - 'day'			[set day (1-31)]
 - 'spin'		[set degrees (-359,0,359) +/- when 'rota' is eanbled]
 - 'deg'			[set the degree when (0-359) 'rota' is enabled]
-- 'cpst'    [set clock pointer style (0-2) normal,alpha,texture]
 - 'editpos'		[set editposition (0-8)]
 
 #### no args
@@ -93,16 +92,13 @@ Find the '--address' with:
 - 'save'		[save data]
 - 'stat'		[show status (stdio)]
 - 'roto'		[gfx_mode = rotozoom]
-- 'rota'		[gfx_mode = rotating background for dynamic backgrounds (theme 0/1)]
+- 'rota'		[gfx_mode = rotating background for dynamic backgrounds]
 - 'norm'		[gfx_mode = normal gfx, no rotation, no rotozoom]
 
 
 ### additional information
 - all tools/scripts moved to folder 'tool'
 - img2data.md -> tool/tools.md
-- added bez2/3 curves
-- added dynamic circles
-- also added a few testing functions for bezier curves [they show all the lines, bigger dots]
 - icons from openiconlibrary [https://sourceforge.net/projects/openiconlibrary]
 - textures from opengameart.org (most of them)
 - images from wikimedia.org

@@ -535,15 +535,11 @@ void wspinner_draw_h(W* w){
 
   if((wsp->fpos%wsp->font->w) == 0){
     pos = (!pos)?wsp->nc-1:pos-1;
-    //lcd_stringo((uint8_t)w->x+4,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,true,wsp->cf,wsp->cb,1);
-
     lcd_strc((uint8_t)w->x+4,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,wsp->cf,wsp->cb);
     if(++pos>=wsp->nc)pos-=(wsp->nc);
-    //lcd_stringo((uint8_t)w->x+wsp->font->w+4,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,true,wsp->cf,wsp->cb,1);
     lcd_strc((uint8_t)w->x+wsp->font->w+4,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,wsp->cf,wsp->cb);
     if(wsp->pos>=wsp->nc)wsp->pos-=wsp->nc;
     if(++pos>=wsp->nc)pos-=(wsp->nc);
-    //lcd_stringo((uint8_t)w->x+2*wsp->font->w+4,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,true,wsp->cf,wsp->cb,1);
     lcd_strc((uint8_t)w->x+2*wsp->font->w+4,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,wsp->cf,wsp->cb);
   }else{
     uint16_t o = (wsp->fpos%wsp->font->w);

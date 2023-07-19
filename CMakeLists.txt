@@ -34,6 +34,8 @@ hardware_timer
 hardware_adc
 hardware_flash
 hardware_sync
+hardware_interp
+
 pico_bootsel_via_double_reset
 )
 

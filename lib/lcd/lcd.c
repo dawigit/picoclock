@@ -727,8 +727,9 @@ inline void lcd_pixel_raw_save(uint16_t x, uint16_t y, uint16_t c){
 
 
 inline void lcd_xlineq(uint16_t x, uint16_t y, uint16_t l, uint16_t c){
-  uint16_t i=0;
-  while(i<l){ img[LCD_W*y+x+i] = c;++i; }
+  uint16_t xi=0;
+  uint16_t yi=LCD_W*y;
+  while(xi<l){ img[yi+x+xi] = c;++xi; }
 }
 
 inline void lcd_pixel_rawps(uint16_t x, uint16_t y, uint16_t c, uint16_t ps){

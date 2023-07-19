@@ -1,6 +1,10 @@
 ### Changelog:
-
-- 'rp2040-tlcd-128-watch.uf2' added in ./uf2 for use with rp2040-touch-lcd-1.28 / rp2040-lcd-1.28 
+- some seamless textures added (good with rotozoom)
+- texture mapping (using hardware_interp)
+  based on: [https://github.com/raspberrypi/pico-examples/tree/master/pio/st7789_lcd]
+  (quadruple draw, mirroring) (rotate / rotozoom)
+- gyroscope error correction
+- 'main.uf2' for  RP2040-TOUCH-LCD-1.28 /  RP2040-LCD-1.28
 - 'scandir' command added [0-3] (hardware) rotate display by 90°
 - 'editpos' command added [0-8]
 - load/save flash fixed. [restore save ram from flash now works]

@@ -17,6 +17,7 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "hardware/flash.h"
 #include "hardware/sync.h"
 #include "hardware/clocks.h"
+#include "hardware/interp.h"
 #include "pico/binary_info.h"
 #include "pico/bootrom.h"
 #include <float.h>
@@ -36,11 +37,22 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "img/font40.h"
 #include "img/font48.h"
 
-#include "img/irisa190.h"
-#include "img/earth190.h"
+#ifndef DEVMODE
+//#include "img/irisa190.h"
+//#include "img/earth190.h"
 #include "img/bega.h"
 #include "img/sand.h"
-#include "img/col1.h"
+#include "img/bg1_256.h"
+#include "img/bg2_256.h"
+#include "img/bg3_256.h"
+#include "img/bg4_256.h"
+#include "img/bg5_256.h"
+#include "img/bg6_256.h"
+//#include "img/iris256.h"
+//#include "img/earth256.h"
+#include "img/i8.h"
+#endif
+#include "img/e8.h"
 
 
 //#include "img/maple.h"
@@ -74,6 +86,24 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "img/flow.h"
 #include "img/l3.h"
 #include "img/gt.h"
+
+// Tested with the parts that have the height of 240 and 320
+#define SCREEN_WIDTH 240
+#define SCREEN_HEIGHT 240
+#define SCREEN_WIDTH2 120
+#define SCREEN_HEIGHT2 120
+#define SCREEN_SIZE (SCREEN_WIDTH*SCREEN_HEIGHT)
+#define IMAGE_SIZE 256
+#define LOG_IMAGE_SIZE 8
+#define SERIAL_CLK_DIV 1.f
+#define UNIT_LSB 16
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+#define THETA_MAX (2.f * (float) M_PI)
+
 
 typedef enum {
   GFX_NORMAL,
@@ -118,6 +148,7 @@ typedef struct {
   bool rotoz;
   bool rota;
   GFX_MODE gfxmode;
+  float fspin;
   uint8_t pstyle;
   int8_t spin;
   uint8_t texture;
@@ -137,11 +168,11 @@ static LOSA_t* plosa=(LOSA_t*)losabuf;
 
 datetime_t default_time = {
   .year  = 2023,
-  .month = 6,
-  .day   = 10,
-  .dotw  = 6, // 0 is Sunday, so 5 is Friday
-  .hour  = 17,
-  .min   = 40,
+  .month = 7,
+  .day   = 19,
+  .dotw  = 3, // 0 is Sunday, so 5 is Friday
+  .hour  = 11,
+  .min   = 12,
   .sec   = 0
 };
 
@@ -239,6 +270,7 @@ Battery_t bat2 = {"GOOD\0",1100.0f, 4.16f, 4.12f, 3.8f, 0.0f, 0.0f}; //1100ma rp
 #define MAX_FCONFD (360/MAX_CONF)
 
 #define MAX_SPIN 8
+#define MAX_FSPIN (0.005f*8)
 
 
 // add new battery:
@@ -335,7 +367,7 @@ float read_battery(){
 #define mcpy(d,s,sz) for(int i=0;i<sz;i++){d[i]=s[i];}
 //#define THEMES 4
 
-#define EYE irisa190
+//#define EYE irisa190
 
 
 #define FRAME_DELAY 50
@@ -389,11 +421,6 @@ float read_battery(){
 
 #define TFW 14
 
-// eye dimensions (dynamic backgrounds)
-#define EYE_SZ 190
-#define EYE_R EYE_SZ/2
-#define EYE_X 120-EYE_R
-#define EYE_Y 120-EYE_R
 #define EYE_MAX 25-1
 
 typedef enum CMode {
@@ -562,16 +589,19 @@ const uint8_t* flags[THEMES] = {cn32,usa32,ger32,tr32,flag_gb32,flag_ch32};
 const uint8_t* stars[THEMES] = {cn16,usa16,ger16,tr16,flag_gb16,flag_ch16};
 
 // define number of backgrounds and backgrounds + extra data
+uint16_t* tbg = NULL;
 #ifdef DEVMODE
   #define MAX_BG 1
-  const char* backgrounds[MAX_BG] = {earth190};
-  const int16_t bg_size[MAX_BG] = {190};
+  const char* backgrounds[MAX_BG] = {e8};
+  const int16_t bg_size[MAX_BG] = {256};
   const bool bg_dynamic[MAX_BG] = {true};
 #else
-  #define MAX_BG 5
-  const char* backgrounds[MAX_BG] = {earth190,irisa190,bega,col1,sand};
-  const int16_t bg_size[MAX_BG] = {190,190,240,240,240};
-  const bool bg_dynamic[MAX_BG] = {true,true,false,false,false};
+  #define MAX_BG 10
+  const char* backgrounds[MAX_BG] = {e8,i8,bega,sand,
+    bg1_256,bg2_256,bg3_256, bg4_256,bg5_256,bg6_256
+  };
+  const int16_t bg_size[MAX_BG] = {256,256,240,240,256,256,256,256,256,256};
+  const bool bg_dynamic[MAX_BG] = {true,true,false,false,false,false,false,false,false,false};
 #endif
 
 
@@ -609,6 +639,17 @@ typedef enum {
 } CONF_POS;
 
 const uint8_t* config_images[MAX_CONF+1] = {conf_exit,conf_background,conf_rotozoom,conf_rotate,conf_save,conf_handstyle,conf_clock,conf_bender};
+
+float theta = 0.0f;
+float theta1 = 0.0f;
+float theta2 = 0.0f;
+float theta3 = 0.0f;
+int32_t theta_x = 10;
+int32_t theta_y = 0;
+int32_t texu = 0;
+int32_t texv = 0;
+float theta_d = 1.2f;
+bool theta_go = false;
 
 void update_pos_matrix(){
   if(pos_matrix_x>=positions[plosa->theme]->dim_x){
@@ -866,6 +907,7 @@ void check_save_data(){
     plosa->pstyle = PS_NORMAL;
     plosa->clock = true;
     plosa->spin = 0;
+    plosa->fspin = 0.0f;
     plosa->texture = 0;
     plosa->configpos = 0;
     plosa->conf_bg = 0;
@@ -895,6 +937,7 @@ void check_save_data(){
     if(plosa->conf_bg>=MAX_BG){plosa->conf_bg=0;}
     if(plosa->gfxmode>GFX_ROTATE){plosa->gfxmode=GFX_NORMAL;}
     if(plosa->spin>7){plosa->spin=7;}
+    if(plosa->fspin>THETA_MAX){plosa->fspin=0.0f;}
     if(plosa->texture>=TEXTURES){plosa->texture=0;}
     if(plosa->configpos>=MAX_CONF){plosa->configpos = 0;}
     if(plosa->pstyle>=PS_TEXTURE){plosa->pstyle = PS_TEXTURE;}
@@ -1191,25 +1234,6 @@ void command(char* c){
       if(strstr(left,"high")){ plosa->highpointer = (bool)atoi(right);}
       if(strstr(left,"alpha")){ plosa->alphapointer = (bool)atoi(right);}
       if(strstr(left,"pstyle")){ plosa->pstyle = (PSTYLE)atoi(right);}
-      if(strstr(left,"texture")){
-        plosa->texture = (uint8_t)atoi(right);
-        if(plosa->texture>=TEXTURES){plosa->texture=TEXTURES-1;}
-      }
-      if(strstr(left,"editpos")){
-        plosa->editpos = (uint8_t)atoi(right);
-        if(plosa->editpos>EDITPOSITIONS){plosa->editpos=EDITPOSITIONS;}
-        repos(plosa->editpos);
-      }
-      if(strstr(left,"spin")){ plosa->spin = (uint8_t)atoi(right);}
-      if(strstr(left,"bmax")){ plosa->bat.max = (float)atof(right);}
-      if(strstr(left,"bmin")){ plosa->bat.min = (float)atof(right);}
-      if(strstr(left,"bload")){ plosa->bat.load = (float)atof(right);}
-      if(strstr(left,"clock")){ plosa->clock = (bool)atoi(right);}
-      if(strstr(left,"pointerdemo")){ plosa->pointerdemo = (bool)atoi(right);}
-      if(strstr(left,"pd")){ plosa->pointerdemo = (bool)atoi(right);}
-      if(strstr(left,"bg")){ plosa->conf_bg = (uint8_t)atoi(right);
-        if(plosa->conf_bg >= MAX_BG){plosa->conf_bg=0;}
-      }
       if(strstr(left,"theme")){
         plosa->theme = (uint8_t)atoi(right);
         if(plosa->theme>=THEMES){
@@ -1220,6 +1244,33 @@ void command(char* c){
 
         blinker_off(wblinker);
         if(wblinker_ref){wblinker_ref=NULL;}
+      }
+      if(strstr(left,"texu")){ texu = (int32_t)atoi(right);return;}
+      if(strstr(left,"texv")){ texv = (int32_t)atoi(right);return;}
+      if(strstr(left,"thx")){ theta_x = (int32_t)atoi(right);return;}
+      if(strstr(left,"thy")){ theta_y = (int32_t)atoi(right);return;}
+      if(strstr(left,"thd")){ theta_d = (float)atof(right);return;}
+      if(strstr(left,"tgo")){ theta_go = (bool)atof(right);}
+      if(strstr(left,"th")){ theta = (float)atof(right);return;}
+      if(strstr(left,"texture")){
+        plosa->texture = (uint8_t)atoi(right);
+        if(plosa->texture>=TEXTURES){plosa->texture=TEXTURES-1;}
+      }
+      if(strstr(left,"editpos")){
+        plosa->editpos = (uint8_t)atoi(right);
+        if(plosa->editpos>EDITPOSITIONS){plosa->editpos=EDITPOSITIONS;}
+        repos(plosa->editpos);
+      }
+      if(strstr(left,"spin")){ plosa->spin = (uint8_t)atoi(right);}
+      if(strstr(left,"fspin")){ plosa->fspin = (float)atof(right);}
+      if(strstr(left,"bmax")){ plosa->bat.max = (float)atof(right);}
+      if(strstr(left,"bmin")){ plosa->bat.min = (float)atof(right);}
+      if(strstr(left,"bload")){ plosa->bat.load = (float)atof(right);}
+      if(strstr(left,"clock")){ plosa->clock = (bool)atoi(right);}
+      if(strstr(left,"pointerdemo")){ plosa->pointerdemo = (bool)atoi(right);}
+      if(strstr(left,"pd")){ plosa->pointerdemo = (bool)atoi(right);}
+      if(strstr(left,"bg")){ plosa->conf_bg = (uint8_t)atoi(right);
+        if(plosa->conf_bg >= MAX_BG){plosa->conf_bg=0;}
       }
       if(strstr(left,"deg")){
         flagdeg=(int16_t)atoi(right);
@@ -1281,7 +1332,7 @@ void command(char* c){
     if(strstr(left,"wtest")){ wtest();  }
     if(strstr(left,"i2c_scan")){   i2c_scan();}
     if(strstr(left,"bat_reinit")){ bat_reinit(); }
-    if(strstr(left,"reboot")){reset_usb_boot(0,0);}
+    if(strstr(left,"boot")){reset_usb_boot(0,0);}
     if(strstr(left,"narkose")){QMI8658_enableWakeOnMotion();}
     if(strstr(left,"qmiinit")){QMI8658_init();sleep_ms(2500);printf("init done\n");}
     if(strstr(left,"qmireset")){QMI8658_reset();}
@@ -1331,6 +1382,7 @@ void shell(){
   }
 }
 
+
 int16_t get_acc02f(float f0, float f1, float FACT){
   switch(plosa->scandir){
     case 0: return (int16_t)(f0/FACT);break;
@@ -1354,6 +1406,35 @@ int16_t get_acc12(float f0, float f1){return get_acc12f(f0,f1,25.0f);}
 
 int16_t get_acc0(){return get_acc02(acc[0],acc[1]);}
 int16_t get_acc1(){return get_acc12(acc[0],acc[1]);}
+
+// dismiss acxy[2] absolute largest
+void get_acc_ec(){
+  float limit = 15.0f;
+  float acx[3], acy[3];
+  float aacx[3], aacy[3];
+  for(int i=0;i<3;++i){
+    QMI8658_read_xyz(acc, gyro, &tim_count);
+    aacx[i] = fabs(acc[0]);
+    aacy[i] = fabs(acc[1]);
+     acx[i] = acc[0];
+     acy[i] = acc[1];
+    //printf(" %+4.4f %+4.4f\n",acx[i],acy[i]);
+    sleep_ms(2);
+  }
+  //printf("%+4.4f %+4.4f",acx[2],acy[2]);
+  if(aacx[0]>aacx[1]&&aacx[0]>aacx[2]) acx[0]=(acx[1]+acx[2])/2.0f; //printf("*x0");
+  if(aacx[1]>aacx[0]&&aacx[1]>aacx[2]) acx[1]=(acx[0]+acx[2])/2.0f; //printf("*x1");
+  if(aacx[2]>aacx[0]&&aacx[2]>aacx[1]) acx[2]=(acx[0]+acx[1])/2.0f; //printf("*x2");
+
+  if(aacy[0]>aacy[1]&&aacy[0]>aacy[2]) acy[0]=(acx[1]+acx[2])/2.0f; //printf("*y0");
+  if(aacy[1]>aacy[0]&&aacy[1]>aacy[2]) acy[1]=(acx[0]+acx[2])/2.0f; //printf("*y1");
+  if(aacy[2]>aacy[0]&&aacy[2]>aacy[1]) acy[2]=(acx[0]+acx[1])/2.0f; //printf("*y2");
+  acc[0] = (acx[0]+acx[1]+acx[2])/3.0f;
+  acc[1] = (acy[0]+acy[1]+acy[2])/3.0f;
+  //printf("\n= %+4.4f %+4.4f\n\n",acc[0],acc[1]);
+}
+
+void pacc(){printf("%+4.6f %+4.6f\n",acc[0],acc[1]);}
 
 int16_t draw_getdeg(int16_t deg){
   float   FACT      = 25.0f;
@@ -1468,14 +1549,160 @@ void draw_clock_hands(){
   //}
 }
 
+void draw_rotozoom(uint16_t* src){
+  //pacc();
+  int32_t bgi = 0;
+  float f = theta_d;
+  theta+=plosa->fspin;
+  f = 0.7f + sinf(theta);
+  int32_t rotate[4] = {
+          (int32_t) ( (cosf(theta))*f * (1 << UNIT_LSB) ), (int32_t) ((-sinf(theta))*f * (1 << UNIT_LSB)),
+          (int32_t) ( (sinf(theta))*f * (1 << UNIT_LSB) ), (int32_t) ((cosf(theta) )*f * (1 << UNIT_LSB))
+  };
+  if(theta>THETA_MAX)theta-=THETA_MAX;
+  while(theta < 0) theta += THETA_MAX;
+  interp0->base[0] = rotate[0];
+  interp0->base[1] = rotate[2];
+  interp0->base[2] = (uint32_t) src;
+  for (int32_t y = 0; y < SCREEN_HEIGHT; ++y) {
+      interp0->accum[0] = rotate[1] * y;
+      interp0->accum[1] = rotate[3] * y;
+      for (int32_t x = 0; x < SCREEN_WIDTH; ++x) {
+        ((uint16_t*)b0)[bgi++] = *(uint16_t *) (interp0->pop[2]);
+      }
+  }
+}
+
+void draw_rotatecenter(uint16_t* src, int32_t bgio){
+  //pacc();
+  int32_t d = 33;
+  float theta_max = 2.f * (float) M_PI;
+  float tmq = theta_max/4;
+  int32_t xs = 0, ys = 0;
+  uint16_t* b1 = (uint16_t*)b0 + bgio*2;
+  float f = theta_d;
+  int32_t rotate[4] = {
+    (int32_t) ( (cosf(theta))*f * (1 << UNIT_LSB) ), (int32_t) ((-sinf(theta))*f * (1 << UNIT_LSB)),
+    (int32_t) ( (sinf(theta))*f * (1 << UNIT_LSB) ), (int32_t) ((cosf(theta) )*f * (1 << UNIT_LSB))
+  };
+  theta+=plosa->fspin;
+  if(theta>theta_max)theta-=theta_max;
+  while(theta < 0) theta += theta_max;
+  //printf("[%0.4f / %0.4f] %04x %04x %04x %04x %08x %08x %08x %08x\n",theta,tmq,texu,texv,theta_x,theta_y,rotate[0],rotate[2],rotate[1],rotate[3]);
+
+  // Q1
+  int32_t bgi = SCREEN_SIZE/2+SCREEN_WIDTH2;
+  interp0->base[0] = rotate[0];
+  interp0->base[1] = rotate[2];
+  interp0->base[2] = (uint32_t) src;
+  for (int32_t y = 0; y < SCREEN_HEIGHT2-d; ++y) {
+      interp0->accum[0] = rotate[1] * y;
+      interp0->accum[1] = rotate[3] * y;
+      for (int32_t x = 0; x < SCREEN_WIDTH2-d; ++x) {
+        ((uint16_t*)b1)[bgi] = *(uint16_t *) (interp0->pop[2]);
+        bgi -= SCREEN_WIDTH;
+      }
+      bgi = SCREEN_SIZE/2+SCREEN_WIDTH2+y;
+  }
+
+  // Q4
+  bgi = SCREEN_WIDTH2+SCREEN_HEIGHT2*SCREEN_WIDTH;
+  theta1 = theta + 3*tmq;
+  if(theta1>theta_max)theta1-=theta_max;
+  rotate[0] = (int32_t) ( (cosf(theta1))*f * (1 << UNIT_LSB));
+  rotate[1] = (int32_t) ((-sinf(theta1))*f * (1 << UNIT_LSB));
+  rotate[2] = (int32_t) ( (sinf(theta1))*f * (1 << UNIT_LSB));
+  rotate[3] = rotate[0];
+  interp0->base[0] = rotate[0];
+  interp0->base[1] = rotate[2];
+  for (int32_t y = 0; y < SCREEN_HEIGHT2-d; ++y) {
+      interp0->accum[0] = rotate[1] * y;
+      interp0->accum[1] = rotate[3] * y;
+      for (int32_t x = 0; x < SCREEN_WIDTH2-d; ++x) {
+        ((uint16_t*)b1)[--bgi] = *(uint16_t *) (interp0->pop[2]);
+      }
+      bgi-=SCREEN_WIDTH2+d;
+  }
+
+  // Q3
+  bgi = SCREEN_WIDTH2+SCREEN_HEIGHT2*SCREEN_WIDTH-2;
+  theta2 = theta + 2*tmq;
+  if(theta2>theta_max)theta2-=theta_max;
+  rotate[0] = (int32_t) ( (cosf(theta2))*f * (1 << UNIT_LSB));
+  rotate[1] = (int32_t) ((-sinf(theta2))*f * (1 << UNIT_LSB));
+  rotate[2] = (int32_t) ( (sinf(theta2))*f * (1 << UNIT_LSB));
+  rotate[3] = rotate[0];
+  interp0->base[0] = rotate[0];
+  interp0->base[1] = rotate[2];
+  for (int32_t y = 0; y < SCREEN_HEIGHT2-d; ++y) {
+      interp0->accum[0] = rotate[1] * y;
+      interp0->accum[1] = rotate[3] * y;
+      for (int32_t x = 0; x < SCREEN_WIDTH2-d; ++x) {
+        ((uint16_t*)b1)[bgi] = *(uint16_t *) (interp0->pop[2]);
+        bgi += SCREEN_WIDTH;
+      }
+      bgi = SCREEN_WIDTH2+SCREEN_HEIGHT2*SCREEN_WIDTH-1-y;
+  }
+
+  // Q2
+  theta3 = theta + tmq;
+  if(theta3>theta_max)theta3-=theta_max;
+  rotate[0] = (int32_t) ( (cosf(theta3))*f * (1 << UNIT_LSB));
+  rotate[1] = (int32_t) ((-sinf(theta3))*f * (1 << UNIT_LSB));
+  rotate[2] = (int32_t) ( (sinf(theta3))*f * (1 << UNIT_LSB));
+  rotate[3] = rotate[0];
+  interp0->base[0] = rotate[0];
+  interp0->base[1] = rotate[2];
+  //interp0->base[2] = (uint32_t)e4;
+  bgi = SCREEN_WIDTH2+SCREEN_HEIGHT2*SCREEN_WIDTH;
+  for (int32_t y = 0; y < SCREEN_HEIGHT2-d; ++y) {
+      interp0->accum[0] = rotate[1] * y;
+      interp0->accum[1] = rotate[3] * y;
+      for (int32_t x = 0; x < SCREEN_WIDTH2-d; ++x) {
+        ((uint16_t*)b1)[bgi++] = *(uint16_t *) (interp0->pop[2]);
+      }
+      bgi += SCREEN_WIDTH2+d;
+  }
+}
+#define ACCMID 4
+float af0[ACCMID]={0.0f};
+float af1[ACCMID]={0.0f};
+uint8_t accmi = 0;
 void draw_background()
 {
   if(plosa->gfxmode==GFX_NORMAL||plosa->gfxmode==GFX_ROTATE){
     if(bg_dynamic[plosa->conf_bg]){ // dynamic background
-      //printf("%f %f\n",acc[0], acc[1]);
-      int16_t ya = (int16_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
+      //float acx[3], acy[3];
+      //float aacx[3], aacy[3];
+      //QMI8658_read_xyz(acc, gyro, &tim_count);
+      //aacx[0] = fabs(acc[0]);
+      //aacy[0] = fabs(acc[1]);
+      //acx[0] = acc[0];
+      //acy[0] = acc[1];
+      ////printf("%+4.4f %+4.4f\n",acx[0],acy[0]);
+      //sleep_ms(2);
+      //QMI8658_read_xyz(acc, gyro, &tim_count);
+      //aacx[1] = fabs(acc[0]);
+      //aacy[1] = fabs(acc[1]);
+      //acx[1] = acc[0];
+      //acy[1] = acc[1];
+      ////printf("%+4.4f %+4.4f\n",acx[1],acy[1]);
+      //sleep_ms(2);
+      //QMI8658_read_xyz(acc, gyro, &tim_count);
+      //aacx[2] = fabs(acc[0]);
+      //aacy[2] = fabs(acc[1]);
+      //acx[2] = acc[0];
+      //acy[2] = acc[1];
+      //if(aacx[2]-aacx[1]>20.0f&&aacx[2]-aacx[0]>20.0f){
+      //  acc[0]=acx[1];
+      //  acc[1]=acy[1];
+      //}else if(aacy[2]-aacy[1]>20.0f&&aacy[2]-aacy[0]>20.0f){
+      //  acc[1]=acy[1];
+      //  acc[0]=acx[1];
+      //}
+
       int16_t xa = (int16_t)get_acc12f(acc[0],acc[1],50.0f); //(acc[0]/50.0f);
-      //printf("%d %d\n",xa,ya);
+      int16_t ya = (int16_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
       if(xa>EYE_MAX){xa=EYE_MAX;}
       if(xa<-EYE_MAX){xa=-EYE_MAX;}
       if(ya>EYE_MAX){ya=EYE_MAX;}
@@ -1490,28 +1717,59 @@ void draw_background()
         xold = xoldt;
         yold = yoldt;
       }
-      if(xa >15){xa= 15;}
-      if(ya >15){ya= 15;}
-      if(xa<-15){xa=-15;}
-      if(ya<-15){ya=-15;}
+      if(xa >10){xa= 10;}
+      if(ya >10){ya= 10;}
+      if(xa<-10){xa=-10;}
+      if(ya<-10){ya=-10;}
       gyrox=xa;
       gyroy=ya;
-      if(plosa->gfxmode==GFX_ROTATE){
-       Vec2 vbo = {120+xa,120-ya};
-       Vec2 vbsz = {190,190};
-       Vec2 vbuv = {190,190};
-       lcd_blit_deg2(vbo,vbuv,vbsz,flagdeg,backgrounds[plosa->conf_bg],colt[plosa->theme]->alpha,true);
-      }else{
-       //printf("EYE %d %d\n",EYE_X+xa,EYE_Y-ya);
-       lcd_blit(EYE_X+xa,EYE_Y-ya,EYE_SZ,EYE_SZ,BLACK,backgrounds[plosa->conf_bg]);
-      }
-      }else{
-      mcpy(b0,backgrounds[plosa->conf_bg],LCD_SZ);
+      //printf("%d %d\n",xa,ya);
+      draw_rotatecenter((uint16_t*)backgrounds[plosa->conf_bg],-ya*SCREEN_WIDTH2*2+xa);
+    }else{
+      if(bg_size[plosa->conf_bg] > 240){
+        uint16_t* psrc = (uint16_t*)backgrounds[plosa->conf_bg];
+        uint16_t* ptgt = (uint16_t*)b0;
+        int i=0;
+        for(int y=0;y<LCD_H;y++){
+          for(int x=0;x<LCD_W;x++){              ptgt[x] = *psrc++;          }
+          psrc+=bg_size[plosa->conf_bg]-LCD_W;
+          ptgt+=LCD_W;
+        }
+      }else{        mcpy(b0,backgrounds[plosa->conf_bg],LCD_SZ);      }
     }
   }else if(plosa->gfxmode==GFX_ROTOZOOM){
-   lcd_roto(backgrounds[plosa->conf_bg],bg_size[plosa->conf_bg],bg_size[plosa->conf_bg]);
-   lcd_rotoa();
- }
+    int16_t ya = (int16_t)get_acc02f(acc[0],acc[1],50.0f); //(acc[1]/50.0f);
+    int16_t xa = (int16_t)get_acc12f(acc[0],acc[1],50.0f); //(acc[0]/50.0f);
+    //printf("%d %d / ",xa,ya);
+    if(xa>EYE_MAX){xa=EYE_MAX;}
+    if(xa<-EYE_MAX){xa=-EYE_MAX;}
+    if(ya>EYE_MAX){ya=EYE_MAX;}
+    if(ya<-EYE_MAX){ya=-EYE_MAX;}
+    if(plosa->SMOOTH_BACKGROUND){
+      xoldt = xa;
+      yoldt = ya;
+      xa+=xold;
+      ya+=yold;
+      xa>>=1;
+      ya>>=1;
+      xold = xoldt;
+      yold = yoldt;
+    }
+    if(xa >10){xa= 10;}
+    if(ya >10){ya= 10;}
+    if(xa<-10){xa=-10;}
+    if(ya<-10){ya=-10;}
+    gyrox=xa;
+    gyroy=ya;
+    //printf("%d %d\n",xa,ya);
+    int32_t off = -ya*SCREEN_WIDTH+xa;
+    if(bg_size[plosa->conf_bg]==256){
+      draw_rotozoom((uint16_t*)backgrounds[plosa->conf_bg]);
+    }else{
+      draw_rotozoom((uint16_t*)backgrounds[0]);
+    }
+  }
+
 }
 
 void draw_gfx(){
@@ -1560,9 +1818,9 @@ void draw_gfx(){
   }
   //sprintf(dbuf,"%d",flagdeg%90);
   //lcd_str(114, 42, dbuf, &Font20, YELLOW, BLACK);
-  //printf("acc_x   = %4.3fmg , acc_y  = %4.3fmg , acc_z  = %4.3fmg\r\n", acc[0], acc[1], acc[2]);
-  //printf("gyro_x  = %4.3fdps, gyro_y = %4.3fdps, gyro_z = %4.3fdps\r\n", gyro[0], gyro[1], gyro[2]);
-  //printf("tim_count = %d\r\n", tim_count);
+  //printf("tim_count = %d ", tim_count);
+  //printf("acc_x=%4.3fmg acc_y=%4.3fmg acc_z=%4.3fmg\n",       gyro[0], gyro[1], gyro[2]);
+  //printf("gyro_x=%+4.3fdps gyro_y=%+4.3fdps gyro_z=%+4.3fdps\n", acc[0], acc[1], acc[2]);
   int xi,yi;
   Vec2 vc_s,vc_e;
   float scf = DEGS/360.0f;
@@ -1933,6 +2191,19 @@ int main(void)
     }
     QMI8658_init();
 
+    interp_config lane0_cfg = interp_default_config();
+    interp_config_set_shift(&lane0_cfg, UNIT_LSB - 1); // -1 because 2 bytes per pixel
+    interp_config_set_mask(&lane0_cfg, 1, 1 + (LOG_IMAGE_SIZE - 1));
+    interp_config_set_add_raw(&lane0_cfg, true); // Add full accumulator to base with each POP
+    //interp_config_set_signed(&lane0_cfg, true);
+    interp_config lane1_cfg = interp_default_config();
+    interp_config_set_shift(&lane1_cfg, UNIT_LSB - (1 + LOG_IMAGE_SIZE));
+    interp_config_set_mask(&lane1_cfg, 1 + LOG_IMAGE_SIZE, 1 + (2 * LOG_IMAGE_SIZE - 1));
+    interp_config_set_add_raw(&lane1_cfg, true);
+    //interp_config_set_signed(&lane1_cfg, true);
+    interp_set_config(interp0, 0, &lane0_cfg);
+    interp_set_config(interp0, 1, &lane1_cfg);
+    interp0->base[2] = (uint32_t) backgrounds[0];
 
     acc[0]=0.0f;
     acc[1]=0.0f;
@@ -1943,12 +2214,13 @@ int main(void)
     #define WL_SIZE 14
     CModeT cmt = CMT_None;
     bool set_time = false;
-    bool qmis = false;
+    uint8_t qmis = 0;
     int16_t last_tx, last_ty;
     int16_t diff_tx, diff_ty;
     W_spinner* spinrx = NULL;
     W_spinner* spinry = NULL;
     uint32_t flag_last_time = 0;
+
     while(true){
       if(flag){ //#FLAG
         //printf("FLAG!\n");
@@ -2508,11 +2780,11 @@ int main(void)
           }
         }
       }
-
-      qmis = !qmis;
-      if(qmis){
-        QMI8658_read_xyz(acc, gyro, &tim_count);
-      }
+      get_acc_ec();
+      //QMI8658_read_xyz(acc, gyro, &tim_count);
+      //if(++qmis>2){
+      //  qmis = 0;
+      //}
       //check if not moving
       #define GYRMAX 300.0f
       #define ACCMAX 500.0f
@@ -2659,6 +2931,7 @@ int main(void)
                 plosa->rotoz = (bool)!plosa->rotoz;
                 if(plosa->rotoz){
                   plosa->gfxmode=GFX_ROTOZOOM;
+                  plosa->fspin=0.02f;
                 }else{
                   plosa->gfxmode=GFX_NORMAL;
                 }
@@ -2978,8 +3251,11 @@ void doit_bg(){
 
 void doit_rotate(){
   if(plosa->rota){
-    ++plosa->spin;
-    if(plosa->spin >= MAX_SPIN){
+    plosa->spin+=1;
+    plosa->fspin+=0.005f;
+    //if(plosa->fspin >= MAX_FSPIN){
+    if(plosa->fspin >= 0.035f){
+      plosa->fspin = 0.0f;
       plosa->spin = 0;
       plosa->gfxmode = GFX_NORMAL;
       plosa->rota = false;
@@ -2987,9 +3263,9 @@ void doit_rotate(){
   }else{
     plosa->rota = true;
     plosa->gfxmode = GFX_ROTATE;
-    if(plosa->spin==0){ plosa->spin = 1; }
+    if(plosa->fspin==0){ plosa->fspin = 0.005f; plosa->spin=1;}
   }
-  printf("doit_rota: [%d] %d\n",plosa->rota?1:0,plosa->spin);
+  printf("doit_rota: [%d] %0.6f\n",plosa->rota?1:0,plosa->fspin);
 }
 void doit_clockhand_style(){
   if(plosa->pstyle<PS_TEXTURE){ // rotate normal/alpha/texture
