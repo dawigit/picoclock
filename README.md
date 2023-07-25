@@ -2,6 +2,8 @@
 ### WAVESHARE RP2040-LCD-1.28 / WAVESHARE RP2040-TOUCH-LCD-1.28
 
 ![s_berry](https://github.com/dawigit/picoclock/blob/main/img/s_berry.png)
+![s_jp](https://github.com/dawigit/picoclock/blob/main/img/s_jp.png)
+![s_kr](https://github.com/dawigit/picoclock/blob/main/img/s_kr.png)
 
 #### TOUCH
 ![s_qdtm](https://github.com/dawigit/picoclock/blob/main/img/s_qdtm.png) ![s_rotozcy](https://github.com/dawigit/picoclock/blob/main/img/s_rotozcy.png) ![s_rotozg](https://github.com/dawigit/picoclock/blob/main/img/s_rotozg.png) ![s_rotozr](https://github.com/dawigit/picoclock/blob/main/img/s_rotozr.png)
