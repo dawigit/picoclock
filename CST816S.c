@@ -29,9 +29,9 @@ uint8_t CST816S_I2C_Read(uint8_t reg)
 
 uint8_t CST816S_WhoAmI()
 {
-    printf("whoami");
+    //printf("whoami");
     uint8_t cid = CST816S_I2C_Read(CST816_ChipID);
-    printf(" = %02x\n",cid);
+    //printf(" = %02x\n",cid);
     return ( cid == 0xB5);
 }
 
@@ -87,13 +87,13 @@ uint8_t CST816S_init(uint8_t mode)
 {
     uint8_t bRet, Rev;
     CST816S_Reset();
-    printf("CST816T reset done\n");
+    //printf("CST816T reset done\n");
     bRet = CST816S_WhoAmI();
     if (bRet)
     {
-        printf("Success:Detected CST816T.\r\n");
+        //printf("Success:Detected CST816T.\r\n");
         Rev = CST816S_Read_Revision();
-        printf("CST816T Revision = %d\r\n", Rev);
+        //printf("CST816T Revision = %d\r\n", Rev);
         CST816S_Stop_Sleep();
     }
     else

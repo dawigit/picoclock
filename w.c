@@ -15,7 +15,7 @@ void init_root(){
   wroot.d = NULL;
   W_box* wb = (W_box*)malloc(sizeof(W_box));
   if(wb){
-    printf("init_root_wb\n");
+    //printf("init_root_wb\n");
     wb->nc = 0;
     wb->size = 0;
     wb->ch = NULL;
@@ -32,13 +32,13 @@ bool resize(W* box, uint16_t new_size){
     return false;
   }  // out of memory?
   if(!wb->ch){  // empty array
-    printf("ch NULL\n");
+    //printf("ch NULL\n");
     wb->ch = rch;
     wb->size = new_size;
     return true;
   }else{
     if(wb->nc){
-      printf("resize (%d) [%d]\n",new_size,wb->nc);
+      //printf("resize (%d) [%d]\n",new_size,wb->nc);
       for(uint16_t nci=0; nci<wb->nc; nci++){ rch[nci] = wb->ch[nci]; } // copy children
       free(wb->ch);
       wb->ch = rch;
@@ -77,11 +77,11 @@ W* wfindxy(W* w, int16_t x, int16_t y){
 void whide(W* w){w->ws = ws_hidden;}
 void wshow(W* w){w->ws = ws_shown;}
 void whidem(W** w, uint16_t n){
-  printf("whidem: %08x %d\n",w,n);
+  //printf("whidem: %08x %d\n",w,n);
   for(uint16_t i=0;i<n;i++){ w[i]->ws = ws_hidden;}
 }
 void wshowm(W** w, uint16_t n){
-  printf("wshowm: %08x %d\n",w,n);
+  //printf("wshowm: %08x %d\n",w,n);
   for(uint16_t i=0;i<n;i++){ w[i]->ws = ws_shown; }
 }
 
@@ -102,7 +102,7 @@ bool wadd(W* p, W* ch){
       if(!rok){ return false; } // out of mem
     }
     wb->ch[wb->nc] = ch;
-    printf("WADD: 0x%08x [%d]\n",ch,ch->t);
+    //printf("WADD: 0x%08x [%d]\n",ch,ch->t);
     ++wb->nc;
     return true;
   }
@@ -113,7 +113,7 @@ bool wadd(W* p, W* ch){
 W* wadd_box(W* p, int16_t x, int16_t y, int16_t w, int16_t h){
   W* wn = wnew();
   if(wn){
-    printf("wn 0x%08x\n",wn);
+    //printf("wn 0x%08x\n",wn);
     wn->p = p;
     wn->x = x;
     wn->y = y;
@@ -144,7 +144,7 @@ W* wadd_image(W* p, uint16_t* data, int16_t x, int16_t y, int16_t w, int16_t h)
 {
   W* wn = wnew();
   if(wn){
-    printf("wn 0x%08x\n",wn);
+    //printf("wn 0x%08x\n",wn);
     wn->p = p;
     wn->x = x;
     wn->y = y;
@@ -164,7 +164,7 @@ W* wadd_imager(W* p, uint16_t* (*get_image)(), int16_t x, int16_t y, int16_t w, 
 {
   W* wn = wnew();
   if(wn){
-    printf("wn 0x%08x\n",wn);
+    //printf("wn 0x%08x\n",wn);
     wn->p = p;
     wn->x = x;
     wn->y = y;
@@ -183,7 +183,7 @@ W* wadd_imager(W* p, uint16_t* (*get_image)(), int16_t x, int16_t y, int16_t w, 
 W* wadd_imagef(W* p, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t* data, uint8_t (*image_function)(), uint8_t* index, uint8_t max_index){
   W* wn = wnew();
   if(wn){
-    printf("wn 0x%08x\n",wn);
+    //printf("wn 0x%08x\n",wn);
     W_imagef* wif = malloc(sizeof(W_imagef));
     if(!wif){free(wn);return NULL;}
     wn->p = p;

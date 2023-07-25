@@ -1,6 +1,6 @@
 static __attribute__((section (".noinit")))char losabuf[4096];
 
-//#define DEVMODE 1
+#define DEVMODE 1
 
 #include "stdio.h"
 #include "pico/stdlib.h"
@@ -36,6 +36,7 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "img/font34.h"
 #include "img/font40.h"
 #include "img/font48.h"
+#include "img/fa32.h"
 
 #ifndef DEVMODE
 #include "img/bega.h"
@@ -64,6 +65,10 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "img/flag_ch32.h"
 #include "img/flag_gb16.h"
 #include "img/flag_gb32.h"
+#include "img/flag_jp16.h"
+#include "img/flag_jp32.h"
+#include "img/flag_kr16.h"
+#include "img/flag_kr32.h"
 
 #include "img/config.h"
 //#include "img/conf_accept.h"
@@ -76,7 +81,7 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "img/conf_clock.h"
 #include "img/conf_bender.h"
 
-//textures
+//textures (clock hands)
 #include "img/w2.h"
 #include "img/tiles_blue.h"
 #include "img/flow.h"
@@ -180,6 +185,7 @@ char b_hour[4];
 char b_min[4];
 char b_sec[4];
 
+char* fp_cn = NULL;
 
 bool deepsleep=false;
 int16_t flagdeg=90;
@@ -354,17 +360,13 @@ float read_battery(){
 #define BATTERY_V_dif BATTERY_V_max-BATTERY_V_min
 
 #define TFONT Font20
-#define CNFONT Font30
+#define CNFONT fa32
+//#define CNFONT font24a
 #define TFO Font40
 #define TFOS Font24
 #define TFOW Font40
 
-
 #define mcpy(d,s,sz) for(int i=0;i<sz;i++){d[i]=s[i];}
-//#define THEMES 4
-
-//#define EYE irisa190
-
 
 #define FRAME_DELAY 50
 #define LOOPWAIT 25
@@ -409,7 +411,7 @@ float read_battery(){
 
 #define POS_DOW_X 20
 #define POS_DOW_Y 100
-#define POS_CNDOW_X 25
+#define POS_CNDOW_X 22
 #define POS_CNDOW_Y 64
 
 #define POS_TIME_X 48
@@ -573,16 +575,16 @@ H  - M - S - DOW
 #define CH_Red 0xD943
 #define CH_White 0xFFFF
 
-#define THEMES 6
+#define THEMES 8
 
 CMode cmode = CM_None;
 int16_t xold,xoldt;
 int16_t yold,yoldt;
 
 //uint8_t theme = DEFAULT_THEME;
-const PosMat_t* positions[THEMES] = {&p_cn,&p_us,&p_us,&p_us,&p_us,&p_us};
-const uint8_t* flags[THEMES] = {cn32,usa32,ger32,tr32,flag_gb32,flag_ch32};
-const uint8_t* stars[THEMES] = {cn16,usa16,ger16,tr16,flag_gb16,flag_ch16};
+const PosMat_t* positions[THEMES] = {&p_cn,&p_us,&p_us,&p_us,&p_us,&p_us,&p_cn,&p_cn};
+const uint8_t* flags[THEMES] = {cn32,usa32,ger32,tr32,flag_gb32,flag_ch32,flag_jp32,flag_kr32};
+const uint8_t* stars[THEMES] = {cn16,usa16,ger16,tr16,flag_gb16,flag_ch16,flag_jp16,flag_kr16};
 
 // define number of backgrounds and backgrounds + extra data
 uint16_t* tbg = NULL;
@@ -609,8 +611,8 @@ Vec2 texsize[TEXTURES] = {128,20, 128,20, 128,19, 128,25, 120,26  };
 Vec2 psize_h[TEXTURES] = {75,20,   75,20,  75,19,  80,25,  75,20  };
 Vec2 psize_m[TEXTURES] = {102,16,  102,10, 102,10, 118,25, 102,10 };
 
-const uint16_t edit_colors[THEMES] = {ORANGE,YELLOW,ORANGE,ORANGE,ORANGE,ORANGE};
-const uint16_t change_colors[THEMES] = {YELLOW,YELLOW,YELLOW,YELLOW,YELLOW,YELLOW};
+const uint16_t edit_colors[THEMES] = {ORANGE,YELLOW,ORANGE,ORANGE,ORANGE,ORANGE,ORANGE,ORANGE};
+const uint16_t change_colors[THEMES] = {YELLOW,YELLOW,YELLOW,YELLOW,YELLOW,YELLOW,YELLOW,YELLOW};
 
 uint8_t theme_bg_dynamic_mode = 0;
 
@@ -620,6 +622,8 @@ ColorTheme_t colt3={BLACK,GER_Red,BLACK,GER_Gold,GER_Red,GER_Gold,WHITE,WHITE,WH
 ColorTheme_t colt4={BLACK,TR_Red,TR_Red,TR_White,NWHITE,TR_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
 ColorTheme_t colt5={BLACK,GB_Blue,GB_Red,GB_White,NWHITE,GB_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
 ColorTheme_t colt6={BLACK,CH_Red,CH_Red,CH_White,NWHITE,GB_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
+ColorTheme_t colt7={BLACK,CH_Red,CH_Red,CH_White,NWHITE,GB_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
+ColorTheme_t colt8={BLACK,GB_Red,GB_Blue,CH_White,NWHITE,GB_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
 
 ColorTheme_t* colt[THEMES];
 
@@ -805,7 +809,7 @@ bool draw_flagconfig_enabled = false;
 DOImage* doi_config;
 DOImage* doi_config_cn;
 
-DOImage** adoi_config[THEMES] = {&doi_config_cn,&doi_config,&doi_config,&doi_config,&doi_config,&doi_config};
+DOImage** adoi_config[THEMES] = {&doi_config_cn,&doi_config,&doi_config,&doi_config,&doi_config,&doi_config,&doi_config_cn,&doi_config_cn};
 
 float acc[3], gyro[3];
 unsigned int tim_count = 0;
@@ -813,16 +817,27 @@ float last_z = 0.0f;
 
 uint16_t cn_chars=0;
 char ftst[128*4] = {0};
+uint32_t ftid[128] = {0};
+uint32_t ftidi = 0;
+uint16_t ftsti = 0;
+//char* week_[7] = {"\0","\0","\0","\0","\0","\0","\0"};
 
+char* week_ua[7] = {"Няд\0","Пнд\0","Аўт\0","Сер\0","Чцв\0","Пят\0","Суб\0"};
+char* week_ru[7] = {"Вс\0","Пн\0","Вт\0","Ср\0","Чт\0","Пт\0","Сб\0"};
+
+char* week_kr[7] = {"일요일\0","월요일\0","화요일\0","수요일\0","목요일\0","금요일\0","토요일\0"};
+char* week_jp[7] = {"日曜日\0","月曜日\0","火曜日\0","水曜日\0","木曜日\0","金曜日\0","土曜日\0"};
 char* week_cn[7] = {"星期日\0","星期一\0","星期二\0","星期三\0","星期四\0","星期五\0","星期六\0"};
-char* week_usa[7] = {"Sun\0","Mon\0","Tue\0","Wed\0","Thu\0","Fri\0","Sat\0"};
-char* week_ger[7] = {"Son\0","Mon\0","Die\0","Mit\0","Don\0","Fre\0","Sam\0"};
+char* week_us[7] = {"Sun\0","Mon\0","Tue\0","Wed\0","Thu\0","Fri\0","Sat\0"};
+char* week_de[7] = {"Son\0","Mon\0","Die\0","Mit\0","Don\0","Fre\0","Sam\0"};
 char* week_tr[7] = {"PAZ\0","PZT\0","SAL\0","CAR\0","PER\0","CUM\0","CMT\0"};
 char* week_gb[7] = {"Sun\0","Mon\0","Tue\0","Wed\0","Thu\0","Fri\0","Sat\0"};
 char* week_ch[7] = {"Son\0","Mon\0","Die\0","Mit\0","Don\0","Fre\0","Sam\0"};
-char** week[THEMES] = {week_cn,week_usa,week_ger,week_tr,week_gb,week_ch};
+char** week[THEMES] = {week_cn,week_us,week_de,week_tr,week_gb,week_ch,week_jp,week_kr}; //,week_ru,week_ua};
 char* wcn[7];
- // dummy month0
+
+char** nlatc[4]={week_cn,week_jp,week_ru,week_ua};
+// dummy month0
 uint8_t last[13] = {0,31,28,31,30,31,30,31,31,30,31,30,31};
 
 char* hours[24] = {"00","01","02","03","04","05","06","07","08","09",
@@ -872,7 +887,6 @@ void __no_inline_not_in_flash_func(flash_data)(){
 }
 
 void check_save_data(){
-
   uint8_t acrc = crc(&plosa->theme, LOSASIZE);
   bool crc_status = (acrc==plosa->save_crc);
   sprintf(crcstatus,"CRC: [%02x][%02x] %s\n\0",acrc,plosa->save_crc,(crc_status)?"OK":"ERR");
@@ -934,6 +948,7 @@ void check_save_data(){
     if(plosa->gfxmode>GFX_ROTATE){plosa->gfxmode=GFX_NORMAL;}
     if(plosa->spin>7){plosa->spin=7;}
     if(plosa->fspin>THETA_MAX){plosa->fspin=0.0f;}
+    if(plosa->fspin<-THETA_MAX){plosa->fspin=0.0f;}
     if(plosa->texture>=TEXTURES){plosa->texture=0;}
     if(plosa->configpos>=MAX_CONF){plosa->configpos = 0;}
     if(plosa->pstyle>=PS_TEXTURE){plosa->pstyle = PS_TEXTURE;}
@@ -1033,7 +1048,6 @@ void i2c_scan(){
         LCD_RST_PIN = 13;
       }
 			printf(ret < 0 ? "." : "@");
-
 			printf(addr % 16 == 15 ? "\n" : "  ");
 	}
 }
@@ -1072,24 +1086,54 @@ void set_colt_colors(){
   dcolors[7]=colt[plosa->theme]->col_time;
 }
 
+inline uint32_t get_ac(char** p){
+  char n;
+  uint32_t r=0;
+  char* pc=*p;
+  n=*pc;
+  //printf("pc=%08x %02x ",pc,*pc);
+  if(     (0b11000000&n)==0b10000000){ r= n; *p+=1;}
+  else if((0b11100000&n)==0b11000000){ r= (pc[0]<<8) + pc[1]; *p+=2;}
+  else if((0b11110000&n)==0b11100000){ r= (pc[0]<<16)+(pc[1]<<8) +pc[2]; *p+=3;}
+  else if((0b11111000&n)==0b11110000){ r= (pc[0]<<24)+(pc[1]<<16)+(pc[2]<<8)+pc[3]; *p+=4;}
+  //printf("%08x -> pc=%08x\n",r,*p);
+  return r;
+}
+
+uint8_t get_acid(char** p){
+  uint32_t r = get_ac(p);
+  for(uint8_t i=0;i<ftidi;++i){
+    if(ftid[i]==r)return i+1;
+  }
+  return 0;
+}
+
+uint32_t find_ac(uint32_t c){
+  for(uint32_t i=0;i<ftidi;++i){ if(ftid[i]==c)return i; }
+  return 0xffffffff;
+}
+void convert_as(char* source, char* target){
+  uint32_t si=0, ti=0;
+  while(*source){target[ti++]=get_acid(&source);}
+  target[ti]=0;
+  //printf("convert_as: ");
+  for(int i=0;i<ti;++i){
+    //printf("%02x ",target[i]);
+  }
+  //printf("\n");
+}
+
 uint8_t find_cc(uint8_t a, uint8_t b, uint8_t c){
   uint fo=0;
   for(int i=0; i<cn_chars+1;i++){
-    //printf("[%02x%02x%02x] %02x %02x %02x\n",a,b,c,ftst[fo],ftst[fo+1],ftst[fo+2]);
-    if( (ftst[fo+0]==a) && (ftst[fo+1]==b) && (ftst[fo+2]==c) ){
-      //printf("find_cc: %d %d\n",i,i+228);
-      return i;
-    }
+    if( (ftst[fo+0]==a) && (ftst[fo+1]==b) && (ftst[fo+2]==c) ){ return i; }
     fo+=4;
   }
 }
-
 void convert_cs(char* source, char* target){
   uint32_t si=0, ti=0;
   while(source[si]){
-    //printf("%02x %02x %02x\n",source[si],source[si+1],source[si+2]);
     target[ti]=find_cc(source[si],source[si+1],source[si+2]);
-    //printf("%d [%d]\n",target[ti],target[ti]+228);
     si+=3;
     target[ti]+=(256-32);
     ++ti;
@@ -1098,46 +1142,25 @@ void convert_cs(char* source, char* target){
   target[ti]=0;
 }
 
-void print_font_table(){
+void print_font_table4(char* pc){
   uint8_t fts=0;
   uint8_t n=0;
   uint8_t nbytes=0;
   uint32_t ft[128];
   uint32_t sti=0;
   char ftc[5] = {0};
-  uint8_t cbu[5];
-  printf("TESTING...");
-  printf("symcheck\n");
-  char* pc;
-  for(int i=0;i<7;i++){
-    int c=0;
-    pc = week_cn[i];
-    while(pc[c]){
-      n=pc[c];
-
-      if((0b10000000&n)==0b00000000){nbytes=1;}
-      if((0b11100000&n)==0b11000000){nbytes=2;}
-      if((0b11110000&n)==0b11100000){nbytes=3;}
-      if((0b11111000&n)==0b11110000){nbytes=4;}
-      //printf("n=%02x (%02b) [%d]",n,(n&0b10000000),nbytes);
-      switch(nbytes){
-        case 1: ft[fts]=n;c+=1;break;
-        case 2: ft[fts]=(pc[c+1]<<8)+(pc[c+0]);c+=2;break;
-        case 3: ft[fts]=(pc[c+0]<<16)+(pc[c+1]<<8) +(pc[c+2]);c+=3;break;
-        case 4: ft[fts]=(pc[c+0]<<24)+(pc[c+1]<<16)+(pc[c+2]<<8)+(pc[c+3]);c+=4;
-      }
-      //printf("ft=%d\n",ft[fts]);
-      bool dupe=false;
-      for(int j=0;j<fts;j++){
-        if(ft[j]==ft[fts]){dupe=true;break;}
-      }
-      if(!dupe){++fts;}
+  printf("symcheck1\n");
+  uint32_t c = 0;
+  while(*pc){
+    ft[fts]=get_ac(&pc);
+    bool dupe=false;
+    for(int j=0;j<fts;j++){
+      if(ft[j]==ft[fts]){dupe=true;break;}
     }
+    if(!dupe){++fts;}
   }
-
   uint32_t i,k;
   uint32_t temp;
-
   n=fts;
   for(i = 0; i<n-1; i++) {
     for(k = 0; k<n-1-i; k++) {
@@ -1148,25 +1171,114 @@ void print_font_table(){
       }
     }
   }
-  pc=(char*)&ft[0];
+  for(i=0;i<fts;++i){    printf("1: (%02d) %08x\n",i,ft[i]);  }
+  char* ppc = (char*)&ft[0];
   sti=0;
+  char cls[512] = {0};
+  uint32_t clsi = 0;
   for(i=0;i<fts;i++){
     //printf("%02d : %d %02x %02x %02x %02x\n",i,ft[i],pc[0],pc[1],pc[2],pc[3]);
-    ftc[0]=pc[2];
-    ftc[1]=pc[1];
-    ftc[2]=pc[0];
-    ftc[3]=pc[3];
-    printf("S: %02x %02x %02x %s\n",ftc[0],ftc[1],ftc[2],ftc);
-    ftst[sti+0]=ftc[0];
-    ftst[sti+1]=ftc[1];
-    ftst[sti+2]=ftc[2];
-    ftst[sti+3]='\n';
-    pc+=4;
-    sti+=4;
+    ftc[0]=ppc[3];
+    ftc[1]=ppc[2];
+    ftc[2]=ppc[1];
+    ftc[3]=ppc[0];
+    printf("S1[%02d]: %02x %02x %02x %02x %s\n",i,ftc[0],ftc[1],ftc[2],ftc[3],&ftc[1]);
+    cls[clsi+0]=ftc[1];
+    cls[clsi+1]=ftc[2];
+    cls[clsi+2]=ftc[3];
+    clsi+=3;  //ftid[ftidi++]=(uint32_t)ftc[0]<<24+ftc[1]<<16+ftc[2]<<8+ftc[3];
+    ftid[ftidi++]=(uint32_t)ft[i];
+    ppc+=4;
   }
-  ftst[sti]=0;
-  printf("CHARLIST:\n%s\n",ftst);
-  cn_chars=fts;
+  if(!cn_chars){
+    //ftst[ftsti]=0;
+    cls[clsi]=0;
+    cn_chars=fts;
+  }
+  printf("CHARLIST:\n%s (%d)\n\n\n",cls,strlen(cls));
+  char* clst = &cls[0];
+  while(*clst){
+    printf("B %08x 0x%02x\n",clst,get_acid(&clst));
+  }
+
+}
+
+
+void print_font_table2(char* pc){
+  uint8_t n=0;
+  uint8_t nbytes=0;
+  uint32_t fts=0;
+  uint32_t ft[128];
+  uint32_t sti=0;
+  char ftc[5] = {0};
+  printf("symcheck2\n");
+  uint32_t c = 0;
+  char* p = pc;
+  while(*p){
+    ft[fts]=get_ac(&p);
+    bool dupe=false;
+    for(int j=0;j<fts;j++){
+      if(ft[j]==ft[fts]){dupe=true;break;}
+    }
+    if(!dupe){++fts;}
+  }
+  uint32_t i,k;
+  uint32_t temp;
+  n=fts;
+  for(i = 0; i<n-1; i++) {
+    for(k = 0; k<n-1-i; k++) {
+      if(ft[k] > ft[k+1]) {
+        temp = ft[k];
+        ft[k] = ft[k+1];
+        ft[k+1] = temp;
+      }
+    }
+  }
+  for(i=0;i<fts;++i){    printf("2: (%02d) %08x\n",i,ft[i]);  }
+  char* ppc = (char*)&ft[0];
+  sti=0;
+  char cls[512] = {0};
+  uint32_t clsi=0;
+  for(i=0;i<fts;i++){
+    ftc[0]=0;
+    ftc[1]=0;
+    ftc[2]=ppc[1];
+    ftc[3]=ppc[0];
+    printf("S2[%02d]: %02x %02x %02x %02x %s\n",i,ftc[0],ftc[1],ftc[2],ftc[3],&ftc[2]);
+    //ftst[ftsti+0]=ftc[0];
+    //ftst[ftsti+1]=ftc[1];
+    //ftst[ftsti+2]=ftc[2];
+    //ftst[ftsti+3]='\n';
+    //ftsti+=4;
+    ppc+=4;
+    cls[clsi+0]=ftc[2];
+    cls[clsi+1]=ftc[3];
+    clsi+=2;
+    //ftid[ftidi++]=(uint32_t)(ftc[0]<<24+ftc[1]<<16+ftc[2]<<8+ftc[3]);
+    ftid[ftidi++]=(uint32_t)ft[i];
+  }
+  cls[clsi]=0;
+  printf("CHARLIST2H:\n%s (%d)\n",cls,strlen(cls));
+
+  for(i=0;i<ftidi;++i){
+    uint32_t v = ftid[i];
+    char s[5];
+    if(v>0xffff){
+      s[0]=v>>16;
+      s[1]=(v>>8)&0xff;
+      s[2]=v&0xff;
+      s[3]=0;
+    }else{
+      s[0]=(v>>8)&0xff;
+      s[1]=v&0xff;
+      s[2]=0;
+    }
+    printf("A %02d %08x '%s'\n",i,v,s);
+  }
+  char* clst = &cls[0];
+  while(*clst){
+    printf("B 0x%02x\n",get_acid(&clst));
+  }
 }
 
 
@@ -1235,7 +1347,7 @@ void command(char* c){
         if(plosa->theme>=THEMES){
           plosa->theme=THEMES-1;
         }
-        if(plosa->theme == 0){  wshow(w_dotw_cn);whide(w_dotw); // china
+        if(plosa->theme==0||plosa->theme==6||plosa->theme==7){  wshow(w_dotw_cn);whide(w_dotw); // china
         }else{ whide(w_dotw_cn); wshow(w_dotw); }
 
         blinker_off(wblinker);
@@ -1247,7 +1359,7 @@ void command(char* c){
       if(strstr(left,"thy")){ theta_y = (int32_t)atoi(right);return;}
       if(strstr(left,"thd")){ theta_d = (float)atof(right);return;}
       if(strstr(left,"tgo")){ theta_go = (bool)atof(right);}
-      if(strstr(left,"th")){ theta = (float)atof(right);return;}
+      if(strstr(left,"tht")){ theta = (float)atof(right);return;}
       if(strstr(left,"texture")){
         plosa->texture = (uint8_t)atoi(right);
         if(plosa->texture>=TEXTURES){plosa->texture=TEXTURES-1;}
@@ -1305,14 +1417,12 @@ void command(char* c){
       if(plosa->dt.dotw>6){plosa->dt.dotw=0;}
 
       printf("\n- STATUS [%s]-\n\nmode[8]: %s\n",(rp2040_touch)?"WS_TOUCH_LCD_1.28":"WS_LCD_1.28",plosa->mode);
-
       printf("dt: %02d:%02d:%04d\r\n",plosa->dt.day,plosa->dt.month,plosa->dt.year);
       printf("dt: %s %02d:%02d:%02d\r\n",week[plosa->theme][plosa->dt.dotw],plosa->dt.hour,plosa->dt.min,plosa->dt.sec);
       printf("bat: %s %fmA %fload %fmax %fmin %fread\r\n", plosa->bat.mode,plosa->bat.mA,plosa->bat.load,plosa->bat.max,plosa->bat.min,plosa->bat.read);
       printf("editpos: %d\r\n",plosa->editpos);
       printf("theme: %d\r\n",plosa->theme);
       printf("BRIGHTNESS : %d\r\n",plosa->BRIGHTNESS);
-
       printf("is_sleeping: %s\r\n",(plosa->is_sleeping)?"1":"0");
       printf("sensors: %s\r\n",plosa->sensors?"1":"0");
       printf("gyrocross: %s\r\n",plosa->gyrocross?"1":"0");
@@ -1329,6 +1439,7 @@ void command(char* c){
     if(strstr(left,"i2c_scan")){   i2c_scan();}
     if(strstr(left,"bat_reinit")){ bat_reinit(); }
     if(strstr(left,"boot")){reset_usb_boot(0,0);}
+    if(strstr(left,"PFT4")){print_font_table4(fp_cn);}
     if(strstr(left,"narkose")){QMI8658_enableWakeOnMotion();}
     if(strstr(left,"qmiinit")){QMI8658_init();sleep_ms(2500);printf("init done\n");}
     if(strstr(left,"qmireset")){QMI8658_reset();}
@@ -1349,7 +1460,6 @@ void command(char* c){
         putchar_raw(snaphead[i+1]);
         putchar_raw(snaphead[i]);
       }
-
       for(uint32_t i=0;i<LCD_SZ;i+=2){
         putchar_raw(b0[i+1]);
         putchar_raw(b0[i]);
@@ -1577,9 +1687,12 @@ void draw_rotatecenter(uint16_t* src, int32_t bgio){
   int32_t xs = 0, ys = 0;
   uint16_t* b1 = (uint16_t*)b0 + bgio*2;
   float f = theta_d;
+  float the = theta - tmq;
+  if(the>theta_max)the-=theta_max;
+  while(the < 0) the += theta_max;
   int32_t rotate[4] = {
-    (int32_t) ( (cosf(theta))*f * (1 << UNIT_LSB) ), (int32_t) ((-sinf(theta))*f * (1 << UNIT_LSB)),
-    (int32_t) ( (sinf(theta))*f * (1 << UNIT_LSB) ), (int32_t) ((cosf(theta) )*f * (1 << UNIT_LSB))
+    (int32_t) ( (cosf(the))*f * (1 << UNIT_LSB) ), (int32_t) ((-sinf(the))*f * (1 << UNIT_LSB)),
+    (int32_t) ( (sinf(the))*f * (1 << UNIT_LSB) ), (int32_t) (( cosf(the))*f * (1 << UNIT_LSB))
   };
   theta+=plosa->fspin;
   if(theta>theta_max)theta-=theta_max;
@@ -1603,7 +1716,7 @@ void draw_rotatecenter(uint16_t* src, int32_t bgio){
 
   // Q4
   bgi = SCREEN_WIDTH2+SCREEN_HEIGHT2*SCREEN_WIDTH;
-  theta1 = theta + 3*tmq;
+  theta1 = the + 3*tmq;
   if(theta1>theta_max)theta1-=theta_max;
   rotate[0] = (int32_t) ( (cosf(theta1))*f * (1 << UNIT_LSB));
   rotate[1] = (int32_t) ((-sinf(theta1))*f * (1 << UNIT_LSB));
@@ -1622,7 +1735,7 @@ void draw_rotatecenter(uint16_t* src, int32_t bgio){
 
   // Q3
   bgi = SCREEN_WIDTH2+SCREEN_HEIGHT2*SCREEN_WIDTH-2;
-  theta2 = theta + 2*tmq;
+  theta2 = the + 2*tmq;
   if(theta2>theta_max)theta2-=theta_max;
   rotate[0] = (int32_t) ( (cosf(theta2))*f * (1 << UNIT_LSB));
   rotate[1] = (int32_t) ((-sinf(theta2))*f * (1 << UNIT_LSB));
@@ -1641,7 +1754,7 @@ void draw_rotatecenter(uint16_t* src, int32_t bgio){
   }
 
   // Q2
-  theta3 = theta + tmq;
+  theta3 = the + tmq;
   if(theta3>theta_max)theta3-=theta_max;
   rotate[0] = (int32_t) ( (cosf(theta3))*f * (1 << UNIT_LSB));
   rotate[1] = (int32_t) ((-sinf(theta3))*f * (1 << UNIT_LSB));
@@ -1905,8 +2018,14 @@ void draw_text(){
   }
   //sprintf(dbuf, "DPS: %02d",dpsc);
   //lcd_str(120, 220    , dbuf , &Font12, YELLOW,  CYAN);
-  if(!plosa->theme){
-    convert_cs(week[plosa->theme][plosa->dt.dotw],cn_buffer);
+  if(plosa->theme==0||plosa->theme==6||plosa->theme==7){
+    convert_as(week[plosa->theme][plosa->dt.dotw],cn_buffer);
+    //uint8_t* cnp = (uint8_t*)cn_buffer;
+    //printf("CNP\n");
+    //while(*cnp){
+    //  printf("%02x\n",*cnp);
+    //  cnp++;
+    //}
     lcd_strc(POS_CNDOW_X, POS_CNDOW_Y, cn_buffer, &CNFONT, colors[0], BLACK);
     //printf("cn_buffer: %s\n",cn_buffer);
   }else{
@@ -1944,7 +2063,7 @@ void draw_content(){
       //draw_doimage(*adoi_config[plosa->theme]);
     }
     if(plosa->editpos==0){
-      if(plosa->theme==0){
+      if(plosa->theme==0||plosa->theme==6||plosa->theme==7){
         lcd_frame(POS_CNDOW_X-6,POS_CNDOW_Y,POS_CNDOW_X+CNFONT.w+3,POS_CNDOW_Y+CNFONT.h*3+1,cmode_color,3);
       }else{
         fx_circle(tpos[plosa->editpos].x+32,tpos[plosa->editpos].y+16,45,cmode_color,5,xold,yold);
@@ -2128,6 +2247,8 @@ int main(void)
     colt[3]=&colt4;
     colt[4]=&colt5;
     colt[5]=&colt6;
+    colt[6]=&colt7;
+    colt[7]=&colt8;
 
     bool o_clk;
     bool o_dt;
@@ -2137,7 +2258,17 @@ int main(void)
     if(!(plosa->dt.year%4)){last[2]=29;}else{last[2]=28;}
     rtc_set_datetime(&plosa->dt);
     printf("init realtime clock done\n");
-    print_font_table();
+    fp_cn = malloc(512);
+    fp_cn[0] = 0;
+    for(int i=0;i<7;i++){
+      printf("'%s' %d\n",week_ua[i],strlen(week_ua[i]));
+      printf("'%s' %d\n",week_ru[i],strlen(week_ru[i]));
+    }
+    for(int i=0;i<7;i++){ fp_cn=strcat(fp_cn,week_cn[i]); }
+    for(int i=0;i<7;i++){ fp_cn=strcat(fp_cn,week_jp[i]); }
+    for(int i=0;i<7;i++){ fp_cn=strcat(fp_cn,week_kr[i]); }
+    printf("PFT: '%s' [%d]\n",fp_cn,strlen(fp_cn));
+    print_font_table4(fp_cn);
 
     //CST816S_init(CST816S_Gesture_Mode);
 
@@ -2500,7 +2631,7 @@ int main(void)
               }
               if(flag_found){
                 plosa->theme = fi;
-                if(plosa->theme == 0){ // china
+                if(plosa->theme==0||plosa->theme==6||plosa->theme==7){ // china/jp/ko alt fonts
                   wshow(w_dotw_cn);
                   whide(w_dotw);
                 }else{
@@ -2932,7 +3063,7 @@ int main(void)
             hg_enabled = false;
             cmode=CM_None;
             wshowm(wl,WL_SIZE);
-            if(plosa->theme == 0){  wshow(w_dotw_cn);whide(w_dotw); // china
+            if(plosa->theme==0||plosa->theme==6||plosa->theme==7){  wshow(w_dotw_cn);whide(w_dotw); // china
             }else{ whide(w_dotw_cn); wshow(w_dotw); }
           }
         }else if(cmode==CM_Changepos){
@@ -2970,7 +3101,7 @@ int main(void)
           if(!(plosa->dt.year%4)){last[2]=29;}else{last[2]=28;}
           hg_enabled = false;
           wshowm(wl,WL_SIZE);
-          if(plosa->theme == 0){  wshow(w_dotw_cn);whide(w_dotw); // china
+          if(plosa->theme==0||plosa->theme==6||plosa->theme==7){  wshow(w_dotw_cn);whide(w_dotw); // china
           }else{ whide(w_dotw_cn); wshow(w_dotw); }
           wshowm(wl,WL_SIZE);
 
@@ -3178,8 +3309,11 @@ void reblink2(W* w0, W* w1, W* wt){
 }
 
 char* get_dotw_all(uint8_t index){
-  if(!plosa->theme){
-    convert_cs(week[plosa->theme][index],cn_buffer);
+  if(plosa->theme==0||plosa->theme==6||plosa->theme==7){
+    convert_as(week[plosa->theme][index],cn_buffer);
+    uint8_t* cnp = (uint8_t*)cn_buffer;
+    printf("CNP\n");
+    while(*cnp){printf("%02x\n",*cnp);cnp++;}
     return cn_buffer;
   }else{
     return week[plosa->theme][index];
@@ -3188,7 +3322,7 @@ char* get_dotw_all(uint8_t index){
 
 char* get_dotw(){
   //printf("get_dotw: [%d] '%s'\n",plosa->dt.dotw, week[plosa->theme][plosa->dt.dotw]);
-  if(plosa->theme){
+  if(plosa->theme>0 && plosa->theme<6){
     return week[plosa->theme][plosa->dt.dotw];
   }else{
     return "\0";
@@ -3196,14 +3330,20 @@ char* get_dotw(){
 }
 
 char* get_dotw_cn(){
-  if(!plosa->theme){
-    convert_cs(week[plosa->theme][plosa->dt.dotw],cn_buffer);
+  if(plosa->theme==0||plosa->theme==6||plosa->theme==7){
+    convert_as(week[plosa->theme][plosa->dt.dotw],cn_buffer);
   }else{sprintf(cn_buffer,"\0");}
+  //uint8_t* cnp = (uint8_t*)cn_buffer;
+  //printf("CNP\n");
+  //while(*cnp){
+  //  printf("%02x\n",*cnp);
+  //  cnp++;
+  //}
   return cn_buffer;
 }
 
 char* get_dotw_cn_i(uint8_t i){
-  convert_cs(week[0][i],cn_buffer);
+  convert_as(week[0][i],cn_buffer);
   return strdup(cn_buffer);
 }
 
@@ -3381,7 +3521,7 @@ void wtest(){
     cv = gvdl(cdeg,CIRCMENU_RADIUS);
     cdeg=chkdeg(cdeg+maxcd);
     W* w = wadd_imagef(cim_config,cv.x-16+LCD_W2,cv.y-16+LCD_H2,32,32,(uint16_t*)config_images[i],config_functions[i],config_dex[i],config_maxdex[i]);
-    printf("CIMC: %d %08x [%08x]\n",i,w,config_functions[i]);
+    //printf("CIMC: %d %08x [%08x]\n",i,w,config_functions[i]);
   }
   W_box* wb = (W_box*)cim_config->d;
   printf("wb %d\n",wb->nc);
@@ -3403,7 +3543,7 @@ void wtest(){
   wl[i++] = img_config;
   wl[i++] = wb_dotw;
 
-  if(plosa->theme == 0){  wshow(w_dotw_cn);whide(w_dotw); // china
+  if(plosa->theme==0||plosa->theme==6||plosa->theme==7){  wshow(w_dotw_cn);whide(w_dotw); // china
   }else{ whide(w_dotw_cn); wshow(w_dotw); }
 
 }

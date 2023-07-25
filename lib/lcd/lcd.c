@@ -442,6 +442,21 @@ void lcd_blit(uint8_t x, uint8_t y, uint8_t xs, uint8_t ys, uint16_t alpha, cons
   }
 }
 
+void lcd_blit_mod(uint8_t x, uint8_t y, uint8_t xs, uint8_t ys, uint8_t modulo, uint16_t alpha, const uint8_t* src){
+  //__builtin_bswap16(alpha);
+  uint16_t* s = (uint16_t*)src;
+  uint32_t o = y*LCD_W+x;
+  uint32_t i=0;
+  for(uint16_t iy=0;iy<ys;iy++){
+    for(uint16_t ix=0;ix<xs;ix++){
+      if(s[i]!=alpha){ img[(o+ix)]=s[i]; }
+      i++;
+    }
+    o+=LCD_W;
+    i+=modulo;
+  }
+}
+
 void lcd_copyalpha(uint16_t* dst, uint16_t* src, uint8_t xs, uint8_t ys, uint16_t alpha){
   uint32_t o=0,i=0;
   //__builtin_bswap16(alpha);
@@ -484,25 +499,30 @@ void lcd_char(uint8_t x, uint8_t y, uint8_t c, sFONT* font, uint16_t cf, uint16_
   uint16_t fw = font->w;
 	uint16_t fh = font->h;
 	uint32_t size = fw*fh;
-  if(!cn){c-=' ';}
-  uint32_t offset = c * fh * (fw / 8 + ((fw%8)?1:0));
-	const unsigned char *ptr = &font->data[offset];
-  uint32_t i,j,yo;
-	uint8_t cd;
-	j=0;
-	cd=0;
-	for(yo=0;yo<fh;yo++){
-		cd = *ptr;
-		for(i=0;i<fw;i++){
-			if(cd & 0x80){	pbuf[j] = cf;
-			}else{					pbuf[j] = cb; }
-			j++;
-			cd<<=1;
-			if(i % 8 == 7){ ++ptr; cd = *ptr;}
-		}
-		++ptr;
-	}
-  lcd_blit(x,y,font->w,font->h,cb,(const uint8_t*)pbuf);
+  uint32_t offset;
+  if(!cn){  c-=' '; offset = c * fh * (fw / 8 + ((fw%8)?1:0));
+  }else{ --c; offset = c * fh * fw * 2; }
+  const unsigned char *ptr = &font->data[offset];
+  if(!cn){
+   uint32_t i,j,yo;
+	 uint8_t cd;
+	 j=0;
+	 cd=0;
+	 for(yo=0;yo<fh;yo++){
+	 	cd = *ptr;
+	 	for(i=0;i<fw;i++){
+	 		if(cd & 0x80){	pbuf[j] = cf;
+	 		}else{					pbuf[j] = cb; }
+	 		j++;
+	 		cd<<=1;
+	 		if(i % 8 == 7){ ++ptr; cd = *ptr;}
+	 	}
+	 	++ptr;
+	 }
+   lcd_blit(x,y,font->w,font->h,cb,(const uint8_t*)pbuf);
+ }else{
+   lcd_blit(x,y,font->w,font->h,cb,(const uint8_t*)ptr);
+ }
 }
 
 void lcd_char_offset(uint8_t x, uint8_t y, uint8_t c, sFONT* font,
@@ -511,25 +531,30 @@ void lcd_char_offset(uint8_t x, uint8_t y, uint8_t c, sFONT* font,
   uint16_t fw = font->w;
 	uint16_t fh = font->h-o_bottom;
 	uint32_t size = fw*fh;
-  if(!cn){c-=' ';}
-  uint32_t offset = c * font->h * (fw / 8 + ((fw%8)?1:0));
-	const unsigned char *ptr = &font->data[offset] + (fw / 8 + ((fw%8)?1:0))*o_top;
-  uint32_t i,j,yo;
-	uint8_t cd;
-	j=0;
-	cd=0;
-	for(yo=o_top;yo<fh;yo++){
-		cd = *ptr;
-		for(i=0;i<fw;i++){
-			if(cd & 0x80){	pbuf[j] = cf;
-			}else{					pbuf[j] = cb; }
-			j++;
-			cd<<=1;
-			if(i % 8 == 7){ ++ptr; cd = *ptr;}
-		}
-		++ptr;
-	}
-  lcd_blit(x,y,font->w,font->h-(o_top+o_bottom),cb,(const uint8_t*)pbuf);
+  uint32_t offset = 0;
+  if(!cn){  c-=' '; offset = c * font->h * (fw / 8 + ((fw%8)?1:0));
+}else{ --c; offset = c * font->h * fw * 2; }
+  const unsigned char *ptr = &font->data[offset] + (fw / 8 + ((fw%8)?1:0))*o_top;
+  if(!cn){
+    uint32_t i,j,yo;
+    uint8_t cd;
+    j=0;
+    cd=0;
+    for(yo=o_top;yo<fh;yo++){
+    	cd = *ptr;
+    	for(i=0;i<fw;i++){
+    		if(cd & 0x80){	pbuf[j] = cf;
+    		}else{					pbuf[j] = cb; }
+    		j++;
+    		cd<<=1;
+    		if(i % 8 == 7){ ++ptr; cd = *ptr;}
+    	}
+    	++ptr;
+    }
+    lcd_blit(x,y,font->w,font->h-(o_top+o_bottom),cb,(const uint8_t*)pbuf);
+  }else{
+    lcd_blit(x,y,font->w,font->h-(o_top+o_bottom),cb,(const uint8_t*)ptr);
+  }
 }
 
 void lcd_char_offset_lr(uint8_t x, uint8_t y, uint8_t c, sFONT* font,
@@ -537,13 +562,12 @@ void lcd_char_offset_lr(uint8_t x, uint8_t y, uint8_t c, sFONT* font,
 {
   uint16_t fw = font->w;
 	uint16_t fh = font->h;
-  //if(o_left)fw-=o_left;
-	//uint32_t size = fw*fh;
-  if(!cn){c-=' ';}
-  uint32_t offset = c * font->h * (fw / 8 + ((fw%8)?1:0));
+  uint32_t offset = 0;
+  if(!cn){  c-=' '; offset = c * fh * (fw / 8 + ((fw%8)?1:0));
+  }else{ --c; offset = c * fh * fw * 2; }
 	const unsigned char *ptr = &font->data[offset] + (fw / 8 + ((fw%8)?1:0));
   uint32_t j,yo,ori,oris;
-	uint8_t i,cd;
+  uint8_t i,cd;
   if(o_right){
     ori = o_right;
     oris = fw - o_right;
@@ -551,22 +575,26 @@ void lcd_char_offset_lr(uint8_t x, uint8_t y, uint8_t c, sFONT* font,
     ori = fw;
     oris = 0;
   }
-  j=0;
-	cd=0;
-	for(yo=0;yo<fh;yo++){
-		cd = *ptr;
-		for(i=0;i<fw;i++){
-      if(i>=o_left && i<ori){
-        if(cd & 0x80){	pbuf[j] = cf;
-        }else{					pbuf[j] = cb; }
-        j++;
+  if(!cn){
+    j=0;
+    cd=0;
+    for(yo=0;yo<fh;yo++){
+      cd = *ptr;
+      for(i=0;i<fw;i++){
+        if(i>=o_left && i<ori){
+          if(cd & 0x80){	pbuf[j] = cf;
+          }else{					pbuf[j] = cb; }
+          j++;
+        }
+        cd<<=1;
+        if(i % 8 == 7){ ++ptr; cd = *ptr;}
       }
-			cd<<=1;
-			if(i % 8 == 7){ ++ptr; cd = *ptr;}
-		}
-		++ptr;
-	}
-  lcd_blit(x,y,font->w-(o_left+oris),font->h,cb,(const uint8_t*)pbuf);
+      ++ptr;
+    }
+    lcd_blit(x,y,font->w-(o_left+oris),font->h,cb,(const uint8_t*)pbuf);
+  }else{
+    lcd_blit_mod(x,y,font->w-(o_left+oris),font->h,(o_left+oris),cb,(const uint8_t*)ptr+o_left*2);
+  }
 }
 
 

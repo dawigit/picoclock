@@ -152,6 +152,7 @@ void lcd_pixel(uint16_t X, uint16_t Y, uint16_t color);
 void lcd_setimg(uint16_t* image);
 void lcd_copyalpha(uint16_t* dst, uint16_t* src, uint8_t xs, uint8_t ys, uint16_t alpha);
 void lcd_blit(uint8_t x, uint8_t y, uint8_t xs, uint8_t ys, uint16_t alpha, const uint8_t* src);
+void lcd_blit_mod(uint8_t x, uint8_t y, uint8_t xs, uint8_t ys, uint8_t modulo, uint16_t alpha, const uint8_t* src);
 void lcd_line(uint8_t xs, uint8_t ys, uint8_t xe, uint8_t ye, uint16_t color, uint8_t ps);
 void lcd_aline(uint8_t xs, uint8_t ys, uint8_t xe, uint8_t ye, uint16_t color, uint8_t ps);
 void lcd_char(uint8_t x, uint8_t y, uint8_t c, sFONT* font, uint16_t cf, uint16_t cb, bool cn);
