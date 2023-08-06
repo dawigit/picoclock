@@ -73,24 +73,28 @@ typedef struct {
 
 typedef struct {
   char* text;
-  sFONT* font;
+  font_t** fonts;
   uint16_t cf;
   uint16_t cb;
   uint16_t cfr;
   uint8_t fs;
   int8_t marge;
   int8_t pad;
+  uint8_t fid;
+  uint8_t o;
 } W_text;
 
 typedef struct {
   char* (*get_text)();
-  sFONT* font;
+  font_t** fonts;
   uint16_t cf;
   uint16_t cb;
   uint16_t cfr;
   uint8_t fs;
   int8_t marge;
   int8_t pad;
+  uint8_t fid;
+  uint8_t o;
 } W_textr;
 
 typedef struct {
@@ -118,7 +122,7 @@ typedef struct {
   uint8_t nc;
   void** e;
   char* (*get_text)(uint8_t i);
-  sFONT* font;
+  font_t** fonts;
   uint16_t cf;
   uint16_t cb;
   uint16_t cfr;
@@ -126,6 +130,7 @@ typedef struct {
   int16_t velocity;
   bool moved;
   bool fixed;
+  uint8_t fid;
 } W_spinner;
 
 
@@ -182,10 +187,10 @@ W* wadd_image(W* p, uint16_t* data, int16_t x, int16_t y, int16_t w, int16_t h);
 W* wadd_imager(W* p, uint16_t* (*get_image)(), int16_t x, int16_t y, int16_t w, int16_t h);
 W* wadd_imagef(W* p, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t* data, uint8_t (*image_function)(), uint8_t* index, uint8_t max_index);
 W* wadd_text(W* p, int16_t x, int16_t y, int16_t w, int16_t h,
-  char* text, sFONT* font, uint16_t cf, uint16_t cb, uint16_t cfr,uint8_t fs);
+  char* text, font_t** fonts, uint16_t cf, uint16_t cb, uint16_t cfr,uint8_t fs, uint8_t fid, uint8_t o);
 
 W* wadd_textr(W* p, int16_t x, int16_t y, int16_t w, int16_t h,
-  char* (*get_value)(), sFONT* font, uint16_t cf, uint16_t cb, uint16_t cfr,uint8_t fs);
+  char* (*get_value)(), font_t** fonts, uint16_t cf, uint16_t cb, uint16_t cfr,uint8_t fs, uint8_t fid, uint8_t o);
 
 W* wadd_none(W* p, void (*do_func)());
 W* wadd_blinker(W* p, int16_t x, int16_t y, int16_t w, int16_t h, int16_t ps,
@@ -197,8 +202,9 @@ void whidem(W** w, uint16_t n);
 void wshowm(W** w, uint16_t n);
 
 
-W* wspinner_add(W*p, int16_t x, int16_t y, int16_t w, int16_t h, W_st st,
-  uint8_t pos, uint8_t nc, void** e, char* (*get_text)(uint8_t i), sFONT* font, uint16_t cf, uint16_t cb, uint16_t cfr);
+W* wadd_spinner(W*p, int16_t x, int16_t y, int16_t w, int16_t h, W_st st,
+ uint8_t pos, uint8_t nc, void** e, char* (*get_text)(uint8_t i), font_t** fonts,
+ uint8_t fid, uint16_t cf, uint16_t cb, uint16_t cfr);
 
 void wspinner_draw(W* w);
 void wspinner_draw_h(W* w);

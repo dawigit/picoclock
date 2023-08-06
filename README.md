@@ -1,9 +1,10 @@
 # picoclock
 ### WAVESHARE RP2040-LCD-1.28 / WAVESHARE RP2040-TOUCH-LCD-1.28
 
+![s_flag](https://github.com/dawigit/picoclock/blob/main/img/s_flag.png)
 ![s_berry](https://github.com/dawigit/picoclock/blob/main/img/s_berry.png)
-![s_jp](https://github.com/dawigit/picoclock/blob/main/img/s_jp.png)
-![s_kr](https://github.com/dawigit/picoclock/blob/main/img/s_kr.png)
+![s_ru](https://github.com/dawigit/picoclock/blob/main/img/s_ru.png)
+![s_ua](https://github.com/dawigit/picoclock/blob/main/img/s_ua.png)
 
 #### TOUCH
 ![s_qdtm](https://github.com/dawigit/picoclock/blob/main/img/s_qdtm.png) ![s_rotozcy](https://github.com/dawigit/picoclock/blob/main/img/s_rotozcy.png) ![s_rotozg](https://github.com/dawigit/picoclock/blob/main/img/s_rotozg.png) ![s_rotozr](https://github.com/dawigit/picoclock/blob/main/img/s_rotozr.png)
@@ -13,7 +14,6 @@
 #### NON-TOUCH
 ![s_gb](https://github.com/dawigit/picoclock/blob/main/img/s_gb.png) ![s_ch](https://github.com/dawigit/picoclock/blob/main/img/s_ch.png)  
 ![s_configicon](https://github.com/dawigit/picoclock/blob/main/img/s_configicon.png) ![s_configmenu](https://github.com/dawigit/picoclock/blob/main/img/s_configmenu.png)
-![s_flag](https://github.com/dawigit/picoclock/blob/main/img/s_flag.png)
 
 https://github.com/dawigit/picoclock/tree/main/img/ancestral#readme old images
 
@@ -86,6 +86,9 @@ Find the '--address' with:
 - 'spin'		[set degrees (-359,0,359) +/- when 'rota' is eanbled]
 - 'deg'			[set the degree when (0-359) 'rota' is enabled]
 - 'editpos'		[set editposition (0-8)]
+
+### float values
+- 'fspin'   [set fspin (+/-0.005) is a very slow rotation]
 
 #### no args
 - 'cir0'		[dynamic circle off]

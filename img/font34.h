@@ -2668,8 +2668,11 @@ const char Font34_table[31940] = {
 };
 unsigned int Font34_len = 31940;
 
-sFONT Font34 = {
-  Font34_table,  32,   34};
+font_t Font34 = {
+  Font34_table,
+  32, 34,
+  0, 0
+};
 
 
   // Character bitmaps for Courier New 15pt
@@ -4767,10 +4770,11 @@ sFONT Font34 = {
   };
 
 
-  sFONT Font20 = {
+  font_t Font20 = {
     Font20_Table,
     14, /* Width */
     20, /* Height */
+    0,0
   };
 
 
@@ -6107,10 +6111,11 @@ sFONT Font34 = {
   	0x00, //
   };
 
-  sFONT Font12 = {
+  font_t Font12 = {
     Font12_Table,
     7, /* Width */
     12, /* Height */
+    0,0
   };
 
   const uint8_t Font16_Table[] =
@@ -7826,10 +7831,11 @@ sFONT Font34 = {
   	0x00, 0x00, //
   };
 
-  sFONT Font16 = {
+  font_t Font16 = {
     Font16_Table,
     11, /* Width */
     16, /* Height */
+    0,0
   };
 
 
@@ -10306,9 +10312,10 @@ sFONT Font34 = {
   	0x00, 0x00, 0x00, //
   };
 
-  sFONT Font24 = {
+  font_t Font24 = {
     Font24_Table,
     17, /* Width */
     24, /* Height */
+    0,0
   };
 //#endif

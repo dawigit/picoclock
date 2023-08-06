@@ -4,6 +4,16 @@ static const uint8_t SPEED = 2;
 static const uint8_t PIXEL_SIZE = 2;
 static uint16_t angle;
 
+char co0[256];
+char co1[256];
+char co2[256];
+char co3[256];
+char co4[256];
+
+uint32_t lcd_ftid[128] = {0};
+uint32_t lcd_ftidi = 0;
+uint32_t lcd_fti_asian = 0;
+
 uint16_t* img=NULL;
 uint8_t slice_num;
 bool lcd_alpha=false;
@@ -431,19 +441,20 @@ void lcd_setimg(uint16_t* image){
 void lcd_blit(uint8_t x, uint8_t y, uint8_t xs, uint8_t ys, uint16_t alpha, const uint8_t* src){
   //__builtin_bswap16(alpha);
   uint16_t* s = (uint16_t*)src;
-  uint32_t o = y*LCD_W+x;
+  uint32_t o = (uint32_t)y*LCD_W+(uint32_t)x;
   uint32_t i=0;
-  for(uint16_t iy=0;iy<ys;iy++){
-    for(uint16_t ix=0;ix<xs;ix++){
-      if(s[i]!=alpha){ img[(o+ix)]=s[i]; }
+  for(uint8_t iy=0;iy<ys;iy++){
+    for(uint8_t ix=0;ix<xs;ix++){
+      if(s[i]!=alpha){ img[(o+(uint32_t)ix)]=s[i]; }
       i++;
     }
     o+=LCD_W;
   }
 }
 
-void lcd_blit_mod(uint8_t x, uint8_t y, uint8_t xs, uint8_t ys, uint8_t modulo, uint16_t alpha, const uint8_t* src){
+void lcd_blit_mod(uint8_t x, uint8_t y, uint8_t xs, uint8_t ys, uint32_t modulo, uint16_t alpha, const uint8_t* src){
   //__builtin_bswap16(alpha);
+  //printf("lcdbm: %d %d %d %d %d %08x\n",x,y,xs,ys,modulo,src);
   uint16_t* s = (uint16_t*)src;
   uint32_t o = y*LCD_W+x;
   uint32_t i=0;
@@ -495,7 +506,7 @@ void lcd_line(uint8_t xs, uint8_t ys, uint8_t xe, uint8_t ye, uint16_t color, ui
   }
 }
 
-void lcd_char(uint8_t x, uint8_t y, uint8_t c, sFONT* font, uint16_t cf, uint16_t cb, bool cn){
+void lcd_char(uint8_t x, uint8_t y, uint8_t c, font_t* font, uint16_t cf, uint16_t cb, bool cn){
   uint16_t fw = font->w;
 	uint16_t fh = font->h;
 	uint32_t size = fw*fh;
@@ -520,51 +531,43 @@ void lcd_char(uint8_t x, uint8_t y, uint8_t c, sFONT* font, uint16_t cf, uint16_
 	 	++ptr;
 	 }
    lcd_blit(x,y,font->w,font->h,cb,(const uint8_t*)pbuf);
- }else{
-   lcd_blit(x,y,font->w,font->h,cb,(const uint8_t*)ptr);
- }
+  }else{ lcd_blit(x,y,font->w,font->h,cb,(const uint8_t*)ptr); }
 }
 
-void lcd_char_offset(uint8_t x, uint8_t y, uint8_t c, sFONT* font,
-  uint16_t cf, uint16_t cb, bool cn, uint16_t o_top, uint16_t o_bottom)
+void lcd_char_offset(uint8_t x, uint8_t y, uint8_t c, font_t* font,
+  uint16_t cf, uint16_t cb, uint16_t o_top, uint16_t o_bottom)
 {
   uint16_t fw = font->w;
 	uint16_t fh = font->h-o_bottom;
 	uint32_t size = fw*fh;
   uint32_t offset = 0;
-  if(!cn){  c-=' '; offset = c * font->h * (fw / 8 + ((fw%8)?1:0));
-}else{ --c; offset = c * font->h * fw * 2; }
+  offset = c * font->h * (fw / 8 + ((fw%8)?1:0));
   const unsigned char *ptr = &font->data[offset] + (fw / 8 + ((fw%8)?1:0))*o_top;
-  if(!cn){
-    uint32_t i,j,yo;
-    uint8_t cd;
-    j=0;
-    cd=0;
-    for(yo=o_top;yo<fh;yo++){
-    	cd = *ptr;
-    	for(i=0;i<fw;i++){
-    		if(cd & 0x80){	pbuf[j] = cf;
-    		}else{					pbuf[j] = cb; }
-    		j++;
-    		cd<<=1;
-    		if(i % 8 == 7){ ++ptr; cd = *ptr;}
-    	}
-    	++ptr;
-    }
-    lcd_blit(x,y,font->w,font->h-(o_top+o_bottom),cb,(const uint8_t*)pbuf);
-  }else{
-    lcd_blit(x,y,font->w,font->h-(o_top+o_bottom),cb,(const uint8_t*)ptr);
+  uint32_t i,j,yo;
+  uint8_t cd;
+  j=0;
+  cd=0;
+  for(yo=o_top;yo<fh;yo++){
+  	cd = *ptr;
+  	for(i=0;i<fw;i++){
+  		if(cd & 0x80){	pbuf[j] = cf;
+  		}else{					pbuf[j] = cb; }
+  		j++;
+  		cd<<=1;
+  		if(i % 8 == 7){ ++ptr; cd = *ptr;}
+  	}
+  	++ptr;
   }
+  lcd_blit(x,y,font->w,font->h-(o_top+o_bottom),cb,(const uint8_t*)pbuf);
 }
 
-void lcd_char_offset_lr(uint8_t x, uint8_t y, uint8_t c, sFONT* font,
-  uint16_t cf, uint16_t cb, bool cn, uint8_t o_left, uint8_t o_right)
+void lcd_char_offset_lr(uint8_t x, uint8_t y, uint8_t c, font_t* font,
+  uint16_t cf, uint16_t cb, uint8_t o_left, uint8_t o_right)
 {
   uint16_t fw = font->w;
 	uint16_t fh = font->h;
   uint32_t offset = 0;
-  if(!cn){  c-=' '; offset = c * fh * (fw / 8 + ((fw%8)?1:0));
-  }else{ --c; offset = c * fh * fw * 2; }
+  offset = c * fh * fw * 2;
 	const unsigned char *ptr = &font->data[offset] + (fw / 8 + ((fw%8)?1:0));
   uint32_t j,yo,ori,oris;
   uint8_t i,cd;
@@ -575,30 +578,26 @@ void lcd_char_offset_lr(uint8_t x, uint8_t y, uint8_t c, sFONT* font,
     ori = fw;
     oris = 0;
   }
-  if(!cn){
-    j=0;
-    cd=0;
-    for(yo=0;yo<fh;yo++){
-      cd = *ptr;
-      for(i=0;i<fw;i++){
-        if(i>=o_left && i<ori){
-          if(cd & 0x80){	pbuf[j] = cf;
-          }else{					pbuf[j] = cb; }
-          j++;
-        }
-        cd<<=1;
-        if(i % 8 == 7){ ++ptr; cd = *ptr;}
+  j=0;
+  cd=0;
+  for(yo=0;yo<fh;yo++){
+    cd = *ptr;
+    for(i=0;i<fw;i++){
+      if(i>=o_left && i<ori){
+        if(cd & 0x80){	pbuf[j] = cf;
+        }else{					pbuf[j] = cb; }
+        j++;
       }
-      ++ptr;
+      cd<<=1;
+      if(i % 8 == 7){ ++ptr; cd = *ptr;}
     }
-    lcd_blit(x,y,font->w-(o_left+oris),font->h,cb,(const uint8_t*)pbuf);
-  }else{
-    lcd_blit_mod(x,y,font->w-(o_left+oris),font->h,(o_left+oris),cb,(const uint8_t*)ptr+o_left*2);
+    ++ptr;
   }
+  lcd_blit(x,y,font->w-(o_left+oris),font->h,cb,(const uint8_t*)pbuf);
 }
 
 
-void lcd_string(uint8_t x, uint8_t y, char* data, sFONT* font,bool cn, uint16_t cf, uint16_t cb){
+void lcd_string(uint8_t x, uint8_t y, char* data, font_t* font,bool cn, uint16_t cf, uint16_t cb){
   uint8_t c,px=x,py=y;
   cf = __builtin_bswap16(cf);
   cb = __builtin_bswap16(cb);
@@ -613,7 +612,141 @@ void lcd_string(uint8_t x, uint8_t y, char* data, sFONT* font,bool cn, uint16_t 
   }
 }
 
-void lcd_stringo(uint8_t x, uint8_t y, char* data, sFONT* font, bool cn, uint16_t cf, uint16_t cb, uint8_t o){
+void lcd_charm_otb(uint8_t x, uint8_t y, uint8_t c, font_t* font,
+  uint16_t cf, uint16_t cb,uint16_t ot, uint16_t ob)
+{
+  uint8_t fw = (uint8_t)font->w;
+	uint8_t fh = (uint8_t)font->h;
+	uint32_t offset = 0;
+  offset = (uint32_t)c*fw*fh+ot*fw;
+  offset<<=1;
+  const unsigned char *ptr = font->data;
+  ptr+=offset;
+  uint32_t o = y*240+x;
+  //printf(" OTB:%d %d %d %d ot%d ob%d %08x :",x,y,fw,fh,ot,ob,ptr);
+  lcd_blit(x,y, fw, fh-(ot+ob), cb,(const uint8_t*)ptr);
+}
+
+
+void lcd_charm_olr(uint8_t x, uint8_t y, uint8_t c, font_t* font,
+  uint16_t cf, uint16_t cb,uint32_t ol, uint32_t or)
+{
+  uint32_t fw = (uint32_t)font->w;
+	uint32_t fh = (uint32_t)font->h;
+	uint32_t offset = 0;
+  uint32_t oris = fw - or;
+  if(!or)oris=0;
+  offset = (uint32_t)c*fw*fh+ol;
+  offset<<=1;
+  const unsigned char *ptr = font->data;
+  //uint32_t o = y*240+x;
+  //printf("OLR:%02x {%08x} %d %d %d %d ol%d or%d  %08x [%08x]:\n",c,font,x,y,fw,fh,ol,or,ptr,offset);
+  ptr+=offset;
+  lcd_blit_mod(x,y, fw-(ol+oris), fh, ol+oris, cb,(const uint8_t*)ptr);
+}
+
+
+void lcd_charm(uint8_t x, uint8_t y, uint8_t c, font_t* font, uint16_t cf, uint16_t cb){
+  uint8_t fw = (uint8_t)font->w;
+	uint8_t fh = (uint8_t)font->h;
+	uint32_t offset = 0;
+  offset = (uint32_t)c*fw*fh;
+  offset<<=1;
+  const unsigned char *ptr = font->data;
+  ptr+=offset;
+  uint32_t o = y*240+x;
+  //printf(" :%d %d %d %d %02d o%08x off*%08x*:",x,y,fw,fh,c,o,offset);
+  lcd_blit(x,y,fw,fh,cb,(const uint8_t*)ptr);
+}
+
+void lcd_stringm(uint8_t x, uint8_t y, char* data, font_t** fonts,
+  uint16_t cf, uint16_t cb, uint8_t o)
+{
+  //printf("lcd_stringm '%s'\n",data);
+  uint8_t px=x;
+  uint8_t py=y;
+  char* p = data;
+  char n;
+  while(*p){
+    uint8_t fid=0;
+    uint32_t r=0;
+    n=*p;
+    //printf("[%08x] %02x {%02d}",p,n,o);
+    if(n>127){
+     if(     (0b11000000&n)==0b10000000){ r= n; p+=1; fid=0;}
+     else if((0b11100000&n)==0b11000000){ r= (p[0]<<8) + p[1]; p+=2; fid=1;}
+     else if((0b11110000&n)==0b11100000){ r= (p[0]<<16)+(p[1]<<8) + p[2]; p+=3; fid=2;}
+     else if((0b11111000&n)==0b11110000){ r= (p[0]<<24)+(p[1]<<16)+(p[2]<<8)+p[3]; p+=4;fid=3;}
+    }
+    //printf(" r=%08x ",r);
+    if(fid){
+      n = lcd_get_acid32(r);
+      //printf(" n=%08x ",n);
+      if(fid == 2)n-=lcd_fti_asian;
+      lcd_charm(px,py,n,fonts[fid],cf,cb);
+    }else{
+      lcd_charm(px,py,n-' ',fonts[fid],cf,cb);
+      ++p;
+    }
+    //printf("%08x %08x %d (%d) '%c' {%d/%d}\n",p,r,fid,n,n,px,py);
+    //printf("lcd_string: '%c'\n",c);
+    switch(o){
+        case 0: px+=(uint8_t)fonts[fid]->w;break;
+        case 1: py+=(uint8_t)fonts[fid]->h;break;
+        case 2: px-=(uint8_t)fonts[fid]->w;break;
+        case 3: py-=(uint8_t)fonts[fid]->h;break;
+        default: break;
+    }
+  }
+  //printf("\n");
+}
+
+void lcd_stringmo(uint8_t x, uint8_t y, char* data, font_t** fonts,
+  uint16_t cf, uint16_t cb, uint8_t o, uint8_t ol, uint8_t or, uint8_t ot, uint8_t ob)
+{
+  //printf("lcd_stringmo '%s'\n",data);
+  uint8_t px=x;
+  uint8_t py=y;
+  char* p = data;
+  char n;
+  while(*p){
+    uint8_t fid=0;
+    uint32_t r=0;
+    n=*p;
+    //printf("[%08x] %02x {%02d}",p,n,o);
+    if(n>127){
+     if(     (0b11000000&n)==0b10000000){ r= n; p+=1; fid=0;}
+     else if((0b11100000&n)==0b11000000){ r= (p[0]<<8) + p[1]; p+=2; fid=1;}
+     else if((0b11110000&n)==0b11100000){ r= (p[0]<<16)+(p[1]<<8) + p[2]; p+=3; fid=2;}
+     else if((0b11111000&n)==0b11110000){ r= (p[0]<<24)+(p[1]<<16)+(p[2]<<8)+p[3]; p+=4;fid=3;}
+   }
+    //printf(" %08x ",r);
+    if(fid){
+      n = lcd_get_acid32(r);
+      if(fid == 2)n-=lcd_fti_asian;
+      if(ot||ob){       lcd_charm_otb(px,py,n,fonts[fid],cf,cb,ot,ob); }
+      else if(ol||or){  lcd_charm_olr(px,py,n,fonts[fid],cf,cb,ol,or); }
+    }else{
+      if(ot||ob){       lcd_charm_otb(px,py,n-' ',fonts[fid],cf,cb,ot,ob); }
+      else if(ol||or){  lcd_charm_olr(px,py,n-' ',fonts[fid],cf,cb,ol,or); }
+      else{             lcd_charm(px,py,n-' ',fonts[fid],cf,cb); }
+      ++p;
+    }
+  switch(o){
+        case 0: px+=(uint8_t)fonts[fid]->w;break;
+        case 1: py+=(uint8_t)fonts[fid]->h;break;
+        case 2: px-=(uint8_t)fonts[fid]->w;break;
+        case 3: py-=(uint8_t)fonts[fid]->h;break;
+        default: break;
+    }
+  }
+  //printf("\n");
+}
+
+
+
+
+void lcd_stringo(uint8_t x, uint8_t y, char* data, font_t* font, bool cn, uint16_t cf, uint16_t cb, uint8_t o){
   uint8_t c,px=x,py=y;
   uint16_t fw = font->w;
   uint16_t fh = font->h;
@@ -635,82 +768,31 @@ void lcd_stringo(uint8_t x, uint8_t y, char* data, sFONT* font, bool cn, uint16_
   }
 }
 
-
-
-
-void lcd_string_offset(uint8_t x, uint8_t y, char* data, sFONT* font, bool cn,
-  uint16_t cf, uint16_t cb, uint8_t o, uint8_t o_top, uint8_t o_bottom)
-{
-  uint8_t c,px=x,py=y;
-  uint16_t fw = font->w;
-  uint16_t fh = font->h;
-  cf = __builtin_bswap16(cf);
-  cb = __builtin_bswap16(cb);
-
-  while(*data){
-    c=*data;
-    //printf("lcd_string: '%c'\n",c);
-    lcd_char_offset(px,py,c,font,cf,cb,o,o_top,o_bottom);
-    ++data;
-    switch(o){
-      case o_east:  px += fw; break;
-      case o_west:  px -= fw; break;
-      case o_south: py += fh; break;
-      case o_north: py -= fh; break;
-    }
-  }
-}
-
-void lcd_string_offset_lr(uint8_t x, uint8_t y, char* data, sFONT* font, bool cn,
-  uint16_t cf, uint16_t cb, uint8_t o, uint8_t o_left, uint8_t o_right)
-{
-  uint8_t c,px=x,py=y;
-  uint16_t fw = font->w;
-  uint16_t fh = font->h;
-  cf = __builtin_bswap16(cf);
-  cb = __builtin_bswap16(cb);
-  printf("lcr_lr: %d %d\n",o_left,o_right);
-
-  while(*data){
-    c=*data;
-    //printf("lcd_string: '%c'\n",c);
-    lcd_char_offset_lr(px,py,c,font,cf,cb,cn,o_left,o_right);
-    ++data;
-    switch(o){
-      case o_east:  px += fw; break;
-      case o_west:  px -= fw; break;
-      case o_south: py += fh; break;
-      case o_north: py -= fh; break;
-    }
-  }
-}
-
-
-void lcd_str(uint8_t x, uint8_t y, char* data, sFONT* font, uint16_t cf, uint16_t cb){
+void lcd_str(uint8_t x, uint8_t y, char* data, font_t* font, uint16_t cf, uint16_t cb){
   //cf = __builtin_bswap16(cf);
   //cb = __builtin_bswap16(cb);
   lcd_string(x,y,data,font,false,cf,cb);
 }
 
-void lcd_strc(uint8_t x, uint8_t y, char* data, sFONT* font, uint16_t cf, uint16_t cb){
+void lcd_strc(uint8_t x, uint8_t y, char* data, font_t* font, uint16_t cf, uint16_t cb){
   //cf = __builtin_bswap16(cf);
   //cb = __builtin_bswap16(cb);
   lcd_string(x,y,data,font,true,cf,cb);
 }
 
-void lcd_number(uint8_t x, uint8_t y, uint32_t n ,sFONT* font, uint16_t cf, uint16_t cb){
+void lcd_number(uint8_t x, uint8_t y, uint32_t n ,font_t* font, uint16_t cf, uint16_t cb){
   sprintf(cbuf,"%d\0",n);
   lcd_str(x,y,&cbuf[0],font,cf,cb);
 }
 
-void lcd_float(uint8_t x, uint8_t y, float f ,sFONT* font, uint16_t cf, uint16_t cb){
+void lcd_float(uint8_t x, uint8_t y, float f ,font_t* font, uint16_t cf, uint16_t cb){
   lcd_floats(x,y,f,font,cf,cb,false);
 }
-void lcd_floatshort(uint8_t x, uint8_t y, float f ,sFONT* font, uint16_t cf, uint16_t cb){
+void lcd_floatshort(uint8_t x, uint8_t y, float f ,font_t* font, uint16_t cf, uint16_t cb){
   lcd_floats(x,y,f,font,cf,cb,true);
 }
 
-void lcd_floats(uint8_t x, uint8_t y, float f ,sFONT* font, uint16_t cf, uint16_t cb, bool column){
+void lcd_floats(uint8_t x, uint8_t y, float f ,font_t* font, uint16_t cf, uint16_t cb, bool column){
   if(column){ // 4 columns@all
     sprintf(cbuf,"%+4.2f\0",f);
   }else{ // 8 columns@all
@@ -1774,4 +1856,101 @@ UTFCodes_t* lcd_utfdecode(char* rubu){
 		++so;
 	}
   return u;
+}
+
+uint8_t lcd_get_acid(char** p){
+  char** pt = p;
+  uint32_t r = lcd_get_ac(pt);
+  for(uint8_t i=0;i<lcd_ftidi;++i){
+    if(lcd_ftid[i]==r)return i+1;
+  }
+  return 0;
+}
+
+inline uint8_t lcd_get_acid32(uint32_t r){
+  for(uint8_t i=0;i<lcd_ftidi;++i){ if(lcd_ftid[i]==r)return i; }
+  return 0;
+}
+
+
+inline uint32_t lcd_get_ac(char** p){
+  char n;
+  uint32_t r=0;
+  char* pc=*p;
+  n=*pc;
+  //printf("pc=%08x %02x ",pc,*pc);
+  if(     (0b11000000&n)==0b10000000){ r= n;}
+  else if((0b11100000&n)==0b11000000){ r= (pc[0]<<8) + pc[1]; *p+=2;}
+  else if((0b11110000&n)==0b11100000){ r= (pc[0]<<16)+(pc[1]<<8) +pc[2]; *p+=3;}
+  else if((0b11111000&n)==0b11110000){ r= (pc[0]<<24)+(pc[1]<<16)+(pc[2]<<8)+pc[3]; *p+=4;}
+  //printf("%08x -> pc=%08x\n",r,*p);
+  return r;
+}
+
+
+void lcd_makeutf8table(char* pc){
+  uint8_t fts=0;
+  uint8_t n=0;
+  uint8_t nbytes=0;
+  uint32_t ft[128];
+  uint32_t sti=0;
+  char ftc[5] = {0};
+  printf("lcd_makeutf8table\n");
+  uint32_t c = 0;
+  while(*pc){
+    ft[fts]=lcd_get_ac(&pc);
+    bool dupe=false;
+    for(int j=0;j<fts;j++){
+      if(ft[j]==ft[fts]){dupe=true;break;}
+    }
+    if(!dupe){++fts;}
+  }
+  uint32_t i,k;
+  uint32_t temp;
+  n=fts;
+  for(i = 0; i<n-1; i++) {
+    for(k = 0; k<n-1-i; k++) {
+      if(ft[k] > ft[k+1]) {
+        temp = ft[k];
+        ft[k] = ft[k+1];
+        ft[k+1] = temp;
+      }
+    }
+  }
+  for(i=0;i<fts;++i){    printf("1: (%02d) %08x\n",i,ft[i]);  }
+  char* ppc = (char*)&ft[0];
+  sti=0;
+  char cls[512] = {0};
+  uint32_t clsi = 0;
+  for(i=0;i<fts;i++){
+    //printf("%02d : %d %02x %02x %02x %02x\n",i,ft[i],pc[0],pc[1],pc[2],pc[3]);
+    ftc[0]=ppc[3];
+    ftc[1]=ppc[2];
+    ftc[2]=ppc[1];
+    ftc[3]=ppc[0];
+    printf("S1[%02d]: %02x %02x %02x %02x %s {%08x}\n",i,ftc[0],ftc[1],ftc[2],ftc[3],&ftc[1],ft[i]);
+    if(ft[i]>0xffff){
+      cls[clsi+0]=ftc[1];
+      cls[clsi+1]=ftc[2];
+      cls[clsi+2]=ftc[3];
+      clsi+=3;  //ftid[ftidi++]=(uint32_t)ftc[0]<<24+ftc[1]<<16+ftc[2]<<8+ftc[3];
+    }else{
+      cls[clsi+0]=ftc[2];
+      cls[clsi+1]=ftc[3];
+      clsi+=2;
+    }
+
+    if(lcd_fti_asian==0 && (uint32_t)ft[i]>0xffff){
+      lcd_fti_asian=lcd_ftidi;
+      printf("** LCD_FTI_ASIAN=%d\n",lcd_fti_asian);
+    }
+    lcd_ftid[lcd_ftidi++]=(uint32_t)ft[i];
+    ppc+=4;
+  }
+  printf("CHARLIST:\n%s\n\n\n",cls);
+  char* clst = &cls[0];
+  while(*clst){
+    printf("B %08x 0x%02x\n",clst,lcd_get_acid(&clst));
+  }
+
 }

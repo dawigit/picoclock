@@ -23,6 +23,12 @@ pico_enable_stdio_uart(main 0)
 # create map/bin/hex/uf2 file etc.
 pico_add_extra_outputs(main)
 
+option(USE_DEVMODE "using DEVMODE" OFF)
+if (USE_DEVMODE)
+  add_definitions(-DDEVMODE)
+endif()
+
+
 target_link_libraries(main
 lcd QMI8658
 pico_stdlib

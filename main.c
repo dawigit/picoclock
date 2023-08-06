@@ -32,11 +32,20 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "lib/draw.h"
 #include "QMI8658.h"
 #include "CST816S.h"
-#include "img/font30.h"
 #include "img/font34.h"
 #include "img/font40.h"
-#include "img/font48.h"
+//#include "img/font48.h"
 #include "img/fa32.h"
+#include "img/fa40.h"
+#include "img/fkyr32.h"
+#include "img/fkyr40.h"
+#include "img/fei24.h"
+#include "img/fei32.h"
+#include "img/fei40.h"
+
+#include "img/e8.h"
+#include "img/i8.h"
+#include "img/b256.h"
 
 #ifndef DEVMODE
 #include "img/bega.h"
@@ -45,30 +54,33 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "img/bg2_256.h"
 #include "img/bg3_256.h"
 #include "img/bg4_256.h"
-#include "img/bg5_256.h"
-#include "img/bg6_256.h"
-#include "img/i8.h"
+//#include "img/bg5_256.h"
+//#include "img/bg6_256.h"
 #endif
-#include "img/e8.h"
-#include "img/b256.h"
 
 //#include "img/maple.h"
-#include "img/usa32.h"
 #include "img/cn32.h"
-#include "img/ger32.h"
-#include "img/tr32.h"
-#include "img/usa16.h"
 #include "img/cn16.h"
-#include "img/ger16.h"
-#include "img/tr16.h"
-#include "img/flag_ch16.h"
-#include "img/flag_ch32.h"
-#include "img/flag_gb16.h"
-#include "img/flag_gb32.h"
 #include "img/flag_jp16.h"
 #include "img/flag_jp32.h"
 #include "img/flag_kr16.h"
 #include "img/flag_kr32.h"
+#include "img/usa32.h"
+#include "img/usa16.h"
+#include "img/ger32.h"
+#include "img/ger16.h"
+#include "img/tr32.h"
+#include "img/tr16.h"
+#include "img/flag_gb16.h"
+#include "img/flag_gb32.h"
+#include "img/flag_ch16.h"
+#include "img/flag_ch32.h"
+#include "img/flag_hr16.h"
+#include "img/flag_hr32.h"
+#include "img/flag_ru16.h"
+#include "img/flag_ru32.h"
+#include "img/flag_ua16.h"
+#include "img/flag_ua32.h"
 
 #include "img/config.h"
 //#include "img/conf_accept.h"
@@ -169,9 +181,9 @@ static LOSA_t* plosa=(LOSA_t*)losabuf;
 
 datetime_t default_time = {
   .year  = 2023,
-  .month = 7,
-  .day   = 19,
-  .dotw  = 3, // 0 is Sunday, so 5 is Friday
+  .month = 8,
+  .day   = 5,
+  .dotw  = 4, // 0 is Sunday, so 5 is Friday
   .hour  = 11,
   .min   = 12,
   .sec   = 0
@@ -299,8 +311,8 @@ float resultsummid(){
   float sum=0.0f;
   for(uint8_t i=0;i<BAT_NUMRES;i++){sum+=result[i];}
   return sum/BAT_NUMRES;
-
 }
+
 float resultminmaxmid(){
   float min=99.0f, max=0.0f;
   for(uint8_t i=0;i<BAT_NUMRES;i++){
@@ -359,12 +371,22 @@ float read_battery(){
 #define BATTERY_V_min BATTERY_BERBAS_150mA_min
 #define BATTERY_V_dif BATTERY_V_max-BATTERY_V_min
 
-#define TFONT Font20
-#define CNFONT fa32
+#define FKYR3x fkyr32
+
+//font_t** fonts20[3] = {Font20,NULL,NULL};
+font_t* f24[3] = {&fei24,&fkyr32,NULL};
+font_t* f32[3] = {&fei32,&fkyr32,&fa32};
+font_t* f40[3] = {&fei40,&fkyr40,&fa40};
+
+#define TFONT fei24
+//#define CNFONT fa32
 //#define CNFONT font24a
 #define TFO Font40
-#define TFOS Font24
+#define TFOS fei24
 #define TFOW Font40
+
+
+
 
 #define mcpy(d,s,sz) for(int i=0;i<sz;i++){d[i]=s[i];}
 
@@ -399,7 +421,7 @@ float read_battery(){
 #define POS_BAT_YS 10
 #define POS_BAT_PS 2
 
-#define POS_DATE_X 46
+#define POS_DATE_X 54
 #define POS_DATE_Y 66
 
 #define POS_DAY_X_S POS_DATE_X
@@ -411,10 +433,10 @@ float read_battery(){
 
 #define POS_DOW_X 20
 #define POS_DOW_Y 100
-#define POS_CNDOW_X 22
-#define POS_CNDOW_Y 64
+#define POS_CNDOW_X 18
+#define POS_CNDOW_Y 68
 
-#define POS_TIME_X 48
+#define POS_TIME_X 64
 #define POS_TIME_Y 156
 
 #define TFW 14
@@ -467,19 +489,19 @@ typedef struct ColorTheme_t{
   uint16_t bat_level_critical;
 } ColorTheme_t;
 
-typedef struct PXY_t{
+typedef struct PXY_t {
   uint8_t x;
   uint8_t y;
 } PXY_t;
 
-typedef struct ThemePos_t{
+typedef struct ThemePos_t {
   PXY_t pos_dow;
   PXY_t pos_day;
   PXY_t pos_month;
   PXY_t pos_year;
   PXY_t pos_h;
   PXY_t pos_m;
-   PXY_t pos_s;
+  PXY_t pos_s;
 } ThemePos_t;
 
 #define TFOWI 26
@@ -494,7 +516,7 @@ typedef struct ThemePos_t{
     POS_TIME_X,      POS_TIME_Y,
     POS_TIME_X+2*TFOSWI-8,POS_TIME_Y,
     POS_TIME_X+4*TFOSWI,POS_TIME_Y,
-    POS_CX-100,POS_CY,
+    POS_CX+88,POS_CY,
     POS_CX, POS_CY
   };
 
@@ -528,7 +550,7 @@ H  - M - S - DOW
 */
 
 // pos points to position matrix, containing possible 'editpos' (positions)
-  typedef struct PosMat_t{
+  typedef struct PosMat_t {
     uint8_t dim_x;
     uint8_t dim_y;
     uint8_t* pos;
@@ -575,31 +597,62 @@ H  - M - S - DOW
 #define CH_Red 0xD943
 #define CH_White 0xFFFF
 
-#define THEMES 8
+#define KR_White 0xffff
+#define KR_Red RGB565(0xCD,0x2E,0x3A)
+#define KR_Blue RGB565(0x00,0x47,0xA0)
+
+#define JP_Red   RGB565(0xEE,0x00,0x00)
+#define JP_White RGB565(0xff,0xff,0xff)
+
+#define HR_Yellow RGB565(0xf7,0xdb,0x17)
+#define HR_Blue   RGB565(0x17,0x17,0x96)
+#define HR_Cyan   RGB565(0x00,0x93,0xdd)
+#define HR_Red    RGB565(0xff,0x00,0x00)
+
+#define RU_Blue   RGB565(0x00,0x36,0xA7)
+#define RU_Red    RGB565(0xD6,0x27,0x18)
+#define RU_White  0xffff
+
+#define UA_Yellow RGB565(0xFF,0xD8,0x00)
+#define UA_StrongAzure RGB565(0x00,0x56,0xB9)
+
+
+#define THEMES 11
+
+typedef struct theme_t {
+  const uint8_t* flag16;
+  const uint8_t* flag32;
+  ColorTheme_t colt;
+  char* week[7];
+  font_t* afont;
+  uint16_t editcolor;
+  uint16_t changecolor;
+} theme_t;
 
 CMode cmode = CM_None;
 int16_t xold,xoldt;
 int16_t yold,yoldt;
 
 //uint8_t theme = DEFAULT_THEME;
-const PosMat_t* positions[THEMES] = {&p_cn,&p_us,&p_us,&p_us,&p_us,&p_us,&p_cn,&p_cn};
-const uint8_t* flags[THEMES] = {cn32,usa32,ger32,tr32,flag_gb32,flag_ch32,flag_jp32,flag_kr32};
-const uint8_t* stars[THEMES] = {cn16,usa16,ger16,tr16,flag_gb16,flag_ch16,flag_jp16,flag_kr16};
+const PosMat_t* positions[THEMES] = {&p_cn,&p_cn,&p_cn,&p_us,&p_us,&p_us,&p_us,&p_us,&p_us,&p_us,&p_us};
+const uint8_t* flags[THEMES] = {cn32,flag_jp32,flag_kr32,usa32,ger32,tr32,flag_gb32,flag_ch32,flag_hr32,flag_ru32,flag_ua32};
+const uint8_t* stars[THEMES] = {cn16,flag_jp16,flag_kr16,usa16,ger16,tr16,flag_gb16,flag_ch16,flag_hr16,flag_ru16,flag_ua16};
 
 // define number of backgrounds and backgrounds + extra data
 uint16_t* tbg = NULL;
 #ifdef DEVMODE
-  #define MAX_BG 2
-  const char* backgrounds[MAX_BG] = {e8,b256};
-  const int16_t bg_size[MAX_BG] = {256,256};
-  const bool bg_dynamic[MAX_BG] = {true,true};
+  #define MAX_BG 3
+  const char* backgrounds[MAX_BG] = {e8,i8,b256};
+  const int16_t bg_size[MAX_BG] = {256,256,256};
+  const bool bg_dynamic[MAX_BG] = {true,true,true};
 #else
-  #define MAX_BG 11
+  #define MAX_BG 9
   const char* backgrounds[MAX_BG] = {e8,i8,b256,bega,sand,
-    bg1_256,bg2_256,bg3_256, bg4_256,bg5_256,bg6_256
+    //bg1_256,bg2_256,bg3_256, bg4_256,bg5_256,bg6_256
+    bg1_256,bg2_256,bg3_256, bg4_256
   };
-  const int16_t bg_size[MAX_BG] = {256,256,256,240,240,256,256,256,256,256,256};
-  const bool bg_dynamic[MAX_BG] = {true,true,true,false,false,false,false,false,false,false,false};
+  const int16_t bg_size[MAX_BG] = {256,256,256,240,240,256,256,256,256};
+  const bool bg_dynamic[MAX_BG] = {true,true,true,false,false,false,false,false,false};
 #endif
 
 
@@ -611,21 +664,69 @@ Vec2 texsize[TEXTURES] = {128,20, 128,20, 128,19, 128,25, 120,26  };
 Vec2 psize_h[TEXTURES] = {75,20,   75,20,  75,19,  80,25,  75,20  };
 Vec2 psize_m[TEXTURES] = {102,16,  102,10, 102,10, 118,25, 102,10 };
 
-const uint16_t edit_colors[THEMES] = {ORANGE,YELLOW,ORANGE,ORANGE,ORANGE,ORANGE,ORANGE,ORANGE};
-const uint16_t change_colors[THEMES] = {YELLOW,YELLOW,YELLOW,YELLOW,YELLOW,YELLOW,YELLOW,YELLOW};
+const uint16_t edit_colors[THEMES] = {ORANGE,YELLOW,ORANGE,ORANGE,ORANGE,ORANGE  ,ORANGE,ORANGE,ORANGE,ORANGE,ORANGE};
+const uint16_t change_colors[THEMES] = {YELLOW,YELLOW,YELLOW,YELLOW,YELLOW,YELLOW,YELLOW,YELLOW,YELLOW,YELLOW,YELLOW};
 
 uint8_t theme_bg_dynamic_mode = 0;
 
-ColorTheme_t colt1={BLACK,CN_Red,CN_Red,CN_Gold,CN_Red,CN_Gold,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
-ColorTheme_t colt2={BLACK,USA_Old_Glory_Red,USA_Old_Glory_Blue,NWHITE,USA_Old_Glory_Red,WHITE,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
-ColorTheme_t colt3={BLACK,GER_Red,BLACK,GER_Gold,GER_Red,GER_Gold,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
-ColorTheme_t colt4={BLACK,TR_Red,TR_Red,TR_White,NWHITE,TR_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
-ColorTheme_t colt5={BLACK,GB_Blue,GB_Red,GB_White,NWHITE,GB_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
-ColorTheme_t colt6={BLACK,CH_Red,CH_Red,CH_White,NWHITE,GB_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
-ColorTheme_t colt7={BLACK,CH_Red,CH_Red,CH_White,NWHITE,GB_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
-ColorTheme_t colt8={BLACK,GB_Red,GB_Blue,CH_White,NWHITE,GB_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
+//ColorTheme_t colt_cn={BLACK,CN_Red,CN_Red,CN_Gold,CN_Red,CN_Gold,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
+//ColorTheme_t colt_us={BLACK,USA_Old_Glory_Red,USA_Old_Glory_Blue,NWHITE,USA_Old_Glory_Red,WHITE,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
+//ColorTheme_t colt_de={BLACK,GER_Red,BLACK,GER_Gold,GER_Red,GER_Gold,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
+//ColorTheme_t colt_tr={BLACK,TR_Red,TR_Red,TR_White,NWHITE,TR_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
+//ColorTheme_t colt_gb={BLACK,GB_Blue,GB_Red,GB_White,NWHITE,GB_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
+//ColorTheme_t colt_ch={BLACK,CH_Red,CH_Red,CH_White,NWHITE,GB_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
+//ColorTheme_t colt_jp={BLACK,CH_Red,CH_Red,CH_White,NWHITE,GB_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
+//ColorTheme_t colt_kr={BLACK,GB_Red,GB_Blue,CH_White,NWHITE,GB_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED};
+//ColorTheme_t* colt[THEMES];
+//char* week_[7] = {"\0","\0","\0","\0","\0","\0","\0"};
+//char* week_ua[7] = {"Няд\0","Пнд\0","Аўт\0","Сер\0","Чцв\0","Пят\0","Суб\0"};
+//char* week_ru[7] = {"Вс\0","Пн\0","Вт\0","Ср\0","Чт\0","Пт\0","Сб\0"};
+//char* week_cn[7] = {"星期日\0","星期一\0","星期二\0","星期三\0","星期四\0","星期五\0","星期六\0"};
+//char* week_jp[7] = {"日曜日\0","月曜日\0","火曜日\0","水曜日\0","木曜日\0","金曜日\0","土曜日\0"};
+//char* week_kr[7] = {"일요일\0","월요일\0","화요일\0","수요일\0","목요일\0","금요일\0","토요일\0"};
+//char* week_us[7] = {"Sun\0","Mon\0","Tue\0","Wed\0","Thu\0","Fri\0","Sat\0"};
+//char* week_de[7] = {"Son\0","Mon\0","Die\0","Mit\0","Don\0","Fre\0","Sam\0"};
+//char* week_tr[7] = {"PAZ\0","PZT\0","SAL\0","CAR\0","PER\0","CUM\0","CMT\0"};
+//char* week_gb[7] = {"Sun\0","Mon\0","Tue\0","Wed\0","Thu\0","Fri\0","Sat\0"};
+//char* week_ch[7] = {"Son\0","Mon\0","Die\0","Mit\0","Don\0","Fre\0","Sam\0"};
+//char** week[THEMES] = {week_cn,week_jp,week_kr,week_us,week_de,week_tr,week_gb,week_ch}; //,week_ru,week_ua};
 
-ColorTheme_t* colt[THEMES];
+theme_t themes[THEMES] = {
+  //cn
+  cn16,cn32,(ColorTheme_t){BLACK,CN_Red,CN_Red,CN_Gold,CN_Red,CN_Gold,WHITE,WHITE,WHITE,WHITE,YELLOW,RED},
+    "星期日\0","星期一\0","星期二\0","星期三\0","星期四\0","星期五\0","星期六\0", &fa32,YELLOW,ORANGE
+    //"三二四\0","星期一\0","星期二\0","星期三\0","星期四\0","星期五\0","星期六\0", &fa32,YELLOW,ORANGE
+  //jp
+  ,flag_jp16,flag_jp32,BLACK,JP_Red,JP_Red,JP_White,NWHITE,JP_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED,
+    "日曜日\0","月曜日\0","火曜日\0","水曜日\0","木曜日\0","金曜日\0","土曜日\0",&fa32,YELLOW,ORANGE
+  //kr
+  ,flag_kr16,flag_kr32,{BLACK,KR_Red,KR_Blue,KR_White,NWHITE,KR_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED},
+  {"일요일\0","월요일\0","화요일\0","수요일\0","목요일\0","금요일\0","토요일\0"},&fa32,YELLOW,ORANGE,
+ usa16, usa32,{BLACK,USA_Old_Glory_Red,USA_Old_Glory_Blue,NWHITE,USA_Old_Glory_Red,WHITE,WHITE,WHITE,WHITE,WHITE,YELLOW,RED}
+ ,{"Sun\0","Mon\0","Tue\0","Wed\0","Thu\0","Fri\0","Sat\0"}, NULL, YELLOW, ORANGE,
+//de
+ ger16, ger32,{BLACK,GER_Red,BLACK,GER_Gold,GER_Red,GER_Gold,WHITE,WHITE,WHITE,WHITE,YELLOW,RED}
+ ,{"Son\0","Mon\0","Die\0","Mit\0","Don\0","Fre\0","Sam\0"}, NULL, YELLOW, ORANGE,
+//tr
+ tr16, tr32,{BLACK,TR_Red,TR_Red,TR_White,NWHITE,TR_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED},
+ {"PAZ\0","PZT\0","SAL\0","CAR\0","PER\0","CUM\0","CMT\0"}, NULL, YELLOW, ORANGE,
+//gb
+ flag_gb16, flag_gb32,{BLACK,GB_Blue,GB_Red,GB_White,NWHITE,GB_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED},
+ {"Sun\0","Mon\0","Tue\0","Wed\0","Thu\0","Fri\0","Sat\0"}, NULL, YELLOW, ORANGE,
+//ch
+ flag_ch16, flag_ch32, {BLACK,CH_Red,CH_Red,CH_White,NWHITE,GB_Red,WHITE,WHITE,WHITE,WHITE,YELLOW,RED},
+ {"Son\0","Mon\0","Die\0","Mit\0","Don\0","Fre\0","Sam\0"}, NULL, YELLOW, ORANGE,
+ //hr
+  flag_hr16, flag_hr32, {BLACK,HR_Red,HR_Blue,HR_Cyan,HR_Yellow,HR_Yellow,HR_Cyan,WHITE,WHITE,WHITE,YELLOW,RED},
+  {"ned\0","pon\0","uto\0","sri\0","čet\0","pet\0","sub\0"}, &fkyr40, YELLOW, ORANGE,
+ //ru
+  flag_ru16, flag_ru32, {BLACK,RU_Red,RU_Blue,RU_White,NWHITE,RU_Red,RU_Blue,WHITE,WHITE,WHITE,YELLOW,RED},
+  {"Вс","Пн","Вт","Ср","Чт","Пт","Сб"}, &fkyr40, YELLOW, ORANGE,
+ //ua
+  flag_ua16, flag_ua32, {BLACK,UA_Yellow,UA_StrongAzure,UA_StrongAzure,NWHITE,UA_Yellow,UA_StrongAzure,WHITE,WHITE,WHITE,YELLOW,RED},
+  {"Няд","Пнд","Аўт","Сер","Чцв","Пят","Суб"}, &fkyr40, YELLOW, ORANGE
+};
+
 
 typedef enum {
   CP_EXIT=0,
@@ -644,12 +745,7 @@ float theta = 0.0f;
 float theta1 = 0.0f;
 float theta2 = 0.0f;
 float theta3 = 0.0f;
-int32_t theta_x = 10;
-int32_t theta_y = 0;
-int32_t texu = 0;
-int32_t texv = 0;
 float theta_d = 1.2f;
-bool theta_go = false;
 
 void update_pos_matrix(){
   if(pos_matrix_x>=positions[plosa->theme]->dim_x){
@@ -809,7 +905,7 @@ bool draw_flagconfig_enabled = false;
 DOImage* doi_config;
 DOImage* doi_config_cn;
 
-DOImage** adoi_config[THEMES] = {&doi_config_cn,&doi_config,&doi_config,&doi_config,&doi_config,&doi_config,&doi_config_cn,&doi_config_cn};
+DOImage** adoi_config[THEMES] = {&doi_config_cn,&doi_config_cn,&doi_config_cn,&doi_config,&doi_config,&doi_config,&doi_config,&doi_config,&doi_config,&doi_config,&doi_config};
 
 float acc[3], gyro[3];
 unsigned int tim_count = 0;
@@ -818,25 +914,13 @@ float last_z = 0.0f;
 uint16_t cn_chars=0;
 char ftst[128*4] = {0};
 uint32_t ftid[128] = {0};
+uint32_t ftid_kyr = 0;
 uint32_t ftidi = 0;
+uint32_t ftidik = 0;
 uint16_t ftsti = 0;
-//char* week_[7] = {"\0","\0","\0","\0","\0","\0","\0"};
+uint16_t ftstik = 0;
 
-char* week_ua[7] = {"Няд\0","Пнд\0","Аўт\0","Сер\0","Чцв\0","Пят\0","Суб\0"};
-char* week_ru[7] = {"Вс\0","Пн\0","Вт\0","Ср\0","Чт\0","Пт\0","Сб\0"};
-
-char* week_kr[7] = {"일요일\0","월요일\0","화요일\0","수요일\0","목요일\0","금요일\0","토요일\0"};
-char* week_jp[7] = {"日曜日\0","月曜日\0","火曜日\0","水曜日\0","木曜日\0","金曜日\0","土曜日\0"};
-char* week_cn[7] = {"星期日\0","星期一\0","星期二\0","星期三\0","星期四\0","星期五\0","星期六\0"};
-char* week_us[7] = {"Sun\0","Mon\0","Tue\0","Wed\0","Thu\0","Fri\0","Sat\0"};
-char* week_de[7] = {"Son\0","Mon\0","Die\0","Mit\0","Don\0","Fre\0","Sam\0"};
-char* week_tr[7] = {"PAZ\0","PZT\0","SAL\0","CAR\0","PER\0","CUM\0","CMT\0"};
-char* week_gb[7] = {"Sun\0","Mon\0","Tue\0","Wed\0","Thu\0","Fri\0","Sat\0"};
-char* week_ch[7] = {"Son\0","Mon\0","Die\0","Mit\0","Don\0","Fre\0","Sam\0"};
-char** week[THEMES] = {week_cn,week_us,week_de,week_tr,week_gb,week_ch,week_jp,week_kr}; //,week_ru,week_ua};
-char* wcn[7];
-
-char** nlatc[4]={week_cn,week_jp,week_ru,week_ua};
+//char** nlatc[4]={week_cn,week_jp,week_ru,week_ua};
 // dummy month0
 uint8_t last[13] = {0,31,28,31,30,31,30,31,31,30,31,30,31};
 
@@ -1076,14 +1160,14 @@ void set_dcolors(){
 }
 
 void set_colt_colors(){
-  dcolors[0]=colt[plosa->theme]->col_dotw;
-  dcolors[1]=colt[plosa->theme]->col_date;
-  dcolors[2]=colt[plosa->theme]->col_date;
-  dcolors[3]=colt[plosa->theme]->col_date;
-  dcolors[4]=colt[plosa->theme]->col_time;
-  dcolors[5]=colt[plosa->theme]->col_time;
-  dcolors[6]=colt[plosa->theme]->col_time;
-  dcolors[7]=colt[plosa->theme]->col_time;
+  dcolors[0]=themes[plosa->theme].colt.col_dotw;
+  dcolors[1]=themes[plosa->theme].colt.col_date;
+  dcolors[2]=themes[plosa->theme].colt.col_date;
+  dcolors[3]=themes[plosa->theme].colt.col_date;
+  dcolors[4]=themes[plosa->theme].colt.col_time;
+  dcolors[5]=themes[plosa->theme].colt.col_time;
+  dcolors[6]=themes[plosa->theme].colt.col_time;
+  dcolors[7]=themes[plosa->theme].colt.col_time;
 }
 
 inline uint32_t get_ac(char** p){
@@ -1101,7 +1185,8 @@ inline uint32_t get_ac(char** p){
 }
 
 uint8_t get_acid(char** p){
-  uint32_t r = get_ac(p);
+  char** pt = p;
+  uint32_t r = get_ac(pt);
   for(uint8_t i=0;i<ftidi;++i){
     if(ftid[i]==r)return i+1;
   }
@@ -1114,13 +1199,15 @@ uint32_t find_ac(uint32_t c){
 }
 void convert_as(char* source, char* target){
   uint32_t si=0, ti=0;
+  printf("c_as: '%s'\n",source);
   while(*source){target[ti++]=get_acid(&source);}
   target[ti]=0;
-  //printf("convert_as: ");
+  printf("convert_as: ");
   for(int i=0;i<ti;++i){
-    //printf("%02x ",target[i]);
+    if(target[i]>=ftid_kyr)target[i]-=ftid_kyr;
+    printf("%02x ",target[i]);
   }
-  //printf("\n");
+  printf("\n");
 }
 
 uint8_t find_cc(uint8_t a, uint8_t b, uint8_t c){
@@ -1347,18 +1434,13 @@ void command(char* c){
         if(plosa->theme>=THEMES){
           plosa->theme=THEMES-1;
         }
-        if(plosa->theme==0||plosa->theme==6||plosa->theme==7){  wshow(w_dotw_cn);whide(w_dotw); // china
+        if(plosa->theme<3){  wshow(w_dotw_cn);whide(w_dotw); // china
         }else{ whide(w_dotw_cn); wshow(w_dotw); }
 
         blinker_off(wblinker);
         if(wblinker_ref){wblinker_ref=NULL;}
       }
-      if(strstr(left,"texu")){ texu = (int32_t)atoi(right);return;}
-      if(strstr(left,"texv")){ texv = (int32_t)atoi(right);return;}
-      if(strstr(left,"thx")){ theta_x = (int32_t)atoi(right);return;}
-      if(strstr(left,"thy")){ theta_y = (int32_t)atoi(right);return;}
       if(strstr(left,"thd")){ theta_d = (float)atof(right);return;}
-      if(strstr(left,"tgo")){ theta_go = (bool)atof(right);}
       if(strstr(left,"tht")){ theta = (float)atof(right);return;}
       if(strstr(left,"texture")){
         plosa->texture = (uint8_t)atoi(right);
@@ -1369,7 +1451,10 @@ void command(char* c){
         if(plosa->editpos>EDITPOSITIONS){plosa->editpos=EDITPOSITIONS;}
         repos(plosa->editpos);
       }
-      if(strstr(left,"spin")){ plosa->spin = (uint8_t)atoi(right);}
+      if(strstr(left,"spin")){
+        plosa->spin = (uint8_t)atoi(right);
+        plosa->fspin = 0.005f*plosa->spin;
+      }
       if(strstr(left,"fspin")){ plosa->fspin = (float)atof(right);}
       if(strstr(left,"bmax")){ plosa->bat.max = (float)atof(right);}
       if(strstr(left,"bmin")){ plosa->bat.min = (float)atof(right);}
@@ -1382,20 +1467,21 @@ void command(char* c){
       }
       if(strstr(left,"deg")){
         flagdeg=(int16_t)atoi(right);
+        theta=to_rad(flagdeg);
       }
       if(strstr(left,"blit")){
         int16_t d = (int16_t)atoi(right);
         Vec2 dp1 = {128,20};
         Vec2 dp0 = {102,20};
-        draw_pointer_mode(dp0,dp1,d, colt[plosa->theme]->col_m,textures[plosa->texture],BLACK,PS_TEXTURE);
+        draw_pointer_mode(dp0,dp1,d, themes[plosa->theme].colt.col_m,textures[plosa->texture],BLACK,PS_TEXTURE);
       }
       if(strstr(left,"hour")){ uint8_t tv = (uint8_t)atoi(right);if(tv>=0&&tv<24){plosa->dt.hour = tv;tc=true;}}
       if(strstr(left,"min")){  uint8_t tv = (uint8_t)atoi(right);if(tv>=0&&tv<60){plosa->dt.min  = tv;tc=true;}}
       if(strstr(left,"sec")){  uint8_t tv = (uint8_t)atoi(right);if(tv>=0&&tv<60){plosa->dt.sec  = tv;tc=true;}}
 
-      if(strstr(left,"day")){   uint8_t tv = (uint8_t)atoi(right);if(tv>0&&tv<=last[plosa->dt.month]){plosa->dt.day = tv;tc=true;}}
-      if(strstr(left,"mon")){ uint8_t tv = (uint8_t)atoi(right);if(tv>0&&tv<13){plosa->dt.month  = tv;tc=true;}}
-      if(strstr(left,"year")){  uint16_t tv = (uint16_t)atoi(right);if(tv>=0){plosa->dt.year  = tv;tc=true;}}
+      if(strstr(left,"day")){  uint8_t tv = (uint8_t)atoi(right);if(tv>0&&tv<=last[plosa->dt.month]){plosa->dt.day = tv;tc=true;}}
+      if(strstr(left,"mon")){  uint8_t tv = (uint8_t)atoi(right);if(tv>0&&tv<13){plosa->dt.month  = tv;tc=true;}}
+      if(strstr(left,"year")){ uint16_t tv = (uint16_t)atoi(right);if(tv>=0){plosa->dt.year  = tv;tc=true;}}
       if(strstr(left,"dotw")||strstr(left,"WDAY")){ uint8_t tv = (uint8_t)atoi(right);if(tv>=0&&tv<7){plosa->dt.dotw  = tv;tc=true;}}
       if(tc){rtc_set_datetime(&plosa->dt);}
       return;
@@ -1415,10 +1501,9 @@ void command(char* c){
       if(plosa->theme>=THEMES){plosa->theme=0;}
       if(plosa->editpos>8){plosa->editpos=0;}
       if(plosa->dt.dotw>6){plosa->dt.dotw=0;}
-
       printf("\n- STATUS [%s]-\n\nmode[8]: %s\n",(rp2040_touch)?"WS_TOUCH_LCD_1.28":"WS_LCD_1.28",plosa->mode);
       printf("dt: %02d:%02d:%04d\r\n",plosa->dt.day,plosa->dt.month,plosa->dt.year);
-      printf("dt: %s %02d:%02d:%02d\r\n",week[plosa->theme][plosa->dt.dotw],plosa->dt.hour,plosa->dt.min,plosa->dt.sec);
+      printf("dt: %s %02d:%02d:%02d\r\n",themes[plosa->theme].week[plosa->dt.dotw],plosa->dt.hour,plosa->dt.min,plosa->dt.sec);
       printf("bat: %s %fmA %fload %fmax %fmin %fread\r\n", plosa->bat.mode,plosa->bat.mA,plosa->bat.load,plosa->bat.max,plosa->bat.min,plosa->bat.read);
       printf("editpos: %d\r\n",plosa->editpos);
       printf("theme: %d\r\n",plosa->theme);
@@ -1510,34 +1595,53 @@ int16_t get_acc12f(float f0, float f1, float FACT){
 int16_t get_acc02(float f0, float f1){return get_acc02f(f0,f1,25.0f);}
 int16_t get_acc12(float f0, float f1){return get_acc12f(f0,f1,25.0f);}
 
-int16_t get_acc0(){return get_acc02(acc[0],acc[1]);}
-int16_t get_acc1(){return get_acc12(acc[0],acc[1]);}
+int16_t get_acc0(){return get_acc02(acc[0]*1.5f,acc[1]*1.5f);}
+int16_t get_acc1(){return get_acc12(acc[0]*1.5f,acc[1]*1.5f);}
 
 // dismiss acxy[2] absolute largest
 void get_acc_ec(){
   float limit = 15.0f;
   float acx[3], acy[3];
   float aacx[3], aacy[3];
-  for(int i=0;i<3;++i){
-    QMI8658_read_xyz(acc, gyro, &tim_count);
-    aacx[i] = fabs(acc[0]);
-    aacy[i] = fabs(acc[1]);
-     acx[i] = acc[0];
-     acy[i] = acc[1];
-    //printf(" %+4.4f %+4.4f\n",acx[i],acy[i]);
-    sleep_ms(2);
-  }
-  //printf("%+4.4f %+4.4f",acx[2],acy[2]);
-  if(aacx[0]>aacx[1]&&aacx[0]>aacx[2]) acx[0]=(acx[1]+acx[2])/2.0f; //printf("*x0");
-  if(aacx[1]>aacx[0]&&aacx[1]>aacx[2]) acx[1]=(acx[0]+acx[2])/2.0f; //printf("*x1");
-  if(aacx[2]>aacx[0]&&aacx[2]>aacx[1]) acx[2]=(acx[0]+acx[1])/2.0f; //printf("*x2");
+  float fcx[3], fcy[3];
+  float afcx[3], afcy[3];
+  for(int j=0;j<3;++j){
+    for(int i=0;i<3;++i){
+      QMI8658_read_xyz(acc, gyro, &tim_count);
+      aacx[i] = fabs(acc[0]);
+      aacy[i] = fabs(acc[1]);
+       acx[i] = acc[0];
+       acy[i] = acc[1];
+      //printf(" %+4.4f %+4.4f\n",acx[i],acy[i]);
+      sleep_us(500);
+    }
+    //printf("%+4.4f %+4.4f",acx[2],acy[2]);
+    if(aacx[0]>aacx[1]&&aacx[0]>aacx[2]) acx[0]=(acx[1]+acx[2])/2.0f; //printf("*x0");
+    if(aacx[1]>aacx[0]&&aacx[1]>aacx[2]) acx[1]=(acx[0]+acx[2])/2.0f; //printf("*x1");
+    if(aacx[2]>aacx[0]&&aacx[2]>aacx[1]) acx[2]=(acx[0]+acx[1])/2.0f; //printf("*x2");
 
-  if(aacy[0]>aacy[1]&&aacy[0]>aacy[2]) acy[0]=(acx[1]+acx[2])/2.0f; //printf("*y0");
-  if(aacy[1]>aacy[0]&&aacy[1]>aacy[2]) acy[1]=(acx[0]+acx[2])/2.0f; //printf("*y1");
-  if(aacy[2]>aacy[0]&&aacy[2]>aacy[1]) acy[2]=(acx[0]+acx[1])/2.0f; //printf("*y2");
-  acc[0] = (acx[0]+acx[1]+acx[2])/3.0f;
-  acc[1] = (acy[0]+acy[1]+acy[2])/3.0f;
-  //printf("\n= %+4.4f %+4.4f\n\n",acc[0],acc[1]);
+    if(aacy[0]>aacy[1]&&aacy[0]>aacy[2]) acy[0]=(acx[1]+acx[2])/2.0f; //printf("*y0");
+    if(aacy[1]>aacy[0]&&aacy[1]>aacy[2]) acy[1]=(acx[0]+acx[2])/2.0f; //printf("*y1");
+    if(aacy[2]>aacy[0]&&aacy[2]>aacy[1]) acy[2]=(acx[0]+acx[1])/2.0f; //printf("*y2");
+    //acc[0] = (acx[0]+acx[1]+acx[2])/3.0f;
+    //acc[1] = (acy[0]+acy[1]+acy[2])/3.0f;
+    afcx[j] = fabs((acx[0]+acx[1]+acx[2])/3.0f);
+    afcy[j] = fabs((acy[0]+acy[1]+acy[2])/3.0f);
+    fcx[j] = (acx[0]+acx[1]+acx[2])/3.0f;
+    fcy[j] = (acy[0]+acy[1]+acy[2])/3.0f;
+    //printf("= %+4.4f %+4.4f\n",acc[0],acc[1]);
+  }
+  if(afcx[0]>afcx[1]&&afcx[0]>afcx[2]) fcx[0]=(fcx[1]+fcx[2])/2.0f; //printf("*x0");
+  if(afcx[1]>afcx[0]&&afcx[1]>afcx[2]) fcx[1]=(fcx[0]+fcx[2])/2.0f; //printf("*x1");
+  if(afcx[2]>afcx[0]&&afcx[2]>afcx[1]) fcx[2]=(fcx[0]+fcx[1])/2.0f; //printf("*x2");
+
+  if(afcy[0]>afcy[1]&&afcy[0]>afcy[2]) fcy[0]=(fcx[1]+fcx[2])/2.0f; //printf("*y0");
+  if(afcy[1]>afcy[0]&&afcy[1]>afcy[2]) fcy[1]=(fcx[0]+fcx[2])/2.0f; //printf("*y1");
+  if(afcy[2]>afcy[0]&&afcy[2]>afcy[1]) fcy[2]=(fcx[0]+fcx[1])/2.0f; //printf("*y2");
+  acc[0] = (fcx[0]+fcx[1]+fcx[2])/3.0f;
+  acc[1] = (fcy[0]+fcy[1]+fcy[2])/3.0f;
+
+
 }
 
 void pacc(){printf("%+4.6f %+4.6f\n",acc[0],acc[1]);}
@@ -1565,13 +1669,14 @@ int16_t draw_getdeg(int16_t deg){
 }
 
 void draw_init(){
-  doi_config = DOImage_new(240-(32+16), 120-16, 32,32 ,BLACK,config);
-  doi_config_cn = DOImage_new(240-(32+16), 120-16, 32,32 ,BLACK,config);
+  doi_config = DOImage_new(120-16, 16, 32,32 ,BLACK,config);
+  doi_config_cn = DOImage_new(120-16, 16, 32,32 ,BLACK,config);
   //doi_config_cn = DOImage_new(18, 120-16, 32,32 ,BLACK,config);
 }
 
 
-void fx_circle(uint16_t x, uint16_t y, uint16_t r, uint16_t c, uint16_t ps, uint16_t xo, uint16_t yo){
+void fx_circle(uint16_t x, uint16_t y, uint16_t r, uint16_t c, uint16_t ps, uint16_t xo, uint16_t yo)
+{
   if(plosa->DYNAMIC_CIRCLES){
     lcd_bez3circ(x,y,r,c,ps,xo,yo);
   }else{
@@ -1581,11 +1686,13 @@ void fx_circle(uint16_t x, uint16_t y, uint16_t r, uint16_t c, uint16_t ps, uint
 
 #define CIRCMENU_RADIUS 88
 
-int16_t draw_circmenu(int16_t cdf, uint8_t num_items, const uint8_t** src_menuitems){
+int16_t draw_circmenu(int16_t cdf, uint8_t num_items, const uint8_t** src_menuitems)
+{
   int16_t cdeg;
   int16_t cdegc;
   int16_t maxcd = (int16_t)(DEGS/num_items);
   cdeg=chkdeg(cdf);
+  cdf=chkdeg(cdf);
   for(uint16_t i=0;i<num_items;i++){
     Vec2 cv = gvdl(cdeg,CIRCMENU_RADIUS);
     lcd_blit(cv.x-16+LCD_W2,cv.y-16+LCD_H2,32,32,BLACK,src_menuitems[i]);
@@ -1613,7 +1720,7 @@ void draw_clock_hands(){
   dp0 = psize_m[plosa->texture];
   if(plosa->pstyle==PS_NORMAL){    dp0 = vset(102,3);
   }else if(plosa->pstyle==PS_ALPHA){    dp0 = vset(102,4);  }
-  draw_pointer_mode(dp0,dp1,tu,colt[plosa->theme]->col_m,textures[plosa->texture],BLACK,plosa->pstyle);
+  draw_pointer_mode(dp0,dp1,tu,themes[plosa->theme].colt.col_m,textures[plosa->texture],BLACK,plosa->pstyle);
   tu=(int16_t)plosa->dt.hour;
   if(tu>=12){tu-=12;}
   tu=(int16_t)(tu*mindeg*5);
@@ -1622,7 +1729,7 @@ void draw_clock_hands(){
   dp0 = psize_h[plosa->texture];
   if(plosa->pstyle==PS_NORMAL){    dp0 = vset(65,6);
   }else if(plosa->pstyle==PS_ALPHA){    dp0 = vset(65,6);  }
-  draw_pointer_mode(dp0,dp1,tu, colt[plosa->theme]->col_h,textures[plosa->texture],BLACK,plosa->pstyle);
+  draw_pointer_mode(dp0,dp1,tu, themes[plosa->theme].colt.col_h,textures[plosa->texture],BLACK,plosa->pstyle);
 
   tu=(int16_t)(plosa->dt.sec*mindeg);
   //if(!analog_seconds){
@@ -1641,17 +1748,17 @@ void draw_clock_hands(){
         y1 = (uint8_t)y0+yi;
         Vec2 v1={x1,y1};
         lcd_alpha_on();
-        //lcd_bez2curve(0,0,(int8_t)(xi/2)+(int8_t)(acc[1]/25.0f),(int8_t)(yi/2)-(int8_t)(acc[0]/25.0f),xi,yi,114,colt[plosa->theme]->col_s,2);
-        lcd_bez2curve(0,0,(int8_t)(xi/2)+(int8_t)get_acc1(),(int8_t)(yi/2)-(int8_t)get_acc0(),xi,yi,114,colt[plosa->theme]->col_s,2);
+        //lcd_bez2curve(0,0,(int8_t)(xi/2)+(int8_t)(acc[1]/25.0f),(int8_t)(yi/2)-(int8_t)(acc[0]/25.0f),xi,yi,114,themes[plosa->theme].colt.col_s,2);
+        lcd_bez2curve(0,0,(int8_t)(xi/2)+(int8_t)get_acc1(),(int8_t)(yi/2)-(int8_t)get_acc0(),xi,yi,114,themes[plosa->theme].colt.col_s,2);
         lcd_alpha_off();
-        if(plosa->pstyle == PS_ALPHA){          lcd_alpha_line_deg(v1, tu, 7, colt[plosa->theme]->col_s, 1);
-        }else{          lcd_line_deg(v1, tu, 7, colt[plosa->theme]->col_s, 1);        }
+        if(plosa->pstyle == PS_ALPHA){          lcd_alpha_line_deg(v1, tu, 7, themes[plosa->theme].colt.col_s, 1);
+        }else{          lcd_line_deg(v1, tu, 7, themes[plosa->theme].colt.col_s, 1);        }
     }else{
       dp0.x=114;
       dp0.y=1;
-      draw_pointer_mode(dp0,dp0,tu, colt[plosa->theme]->col_s,textures[plosa->texture],BLACK,PS_NORMAL);
+      draw_pointer_mode(dp0,dp0,tu, themes[plosa->theme].colt.col_s,textures[plosa->texture],BLACK,PS_NORMAL);
     }
-    lcd_blit((int)(x0-8+tcos[seci]*100),(int)(y0-8+tsin[seci]*100),16,16,colt[plosa->theme]->alpha,stars[plosa->theme]);
+    lcd_blit((int)(x0-8+tcos[seci]*100),(int)(y0-8+tsin[seci]*100),16,16,themes[plosa->theme].colt.alpha,themes[plosa->theme].flag16);
   //}
 }
 
@@ -1681,7 +1788,7 @@ void draw_rotozoom(uint16_t* src){
 
 void draw_rotatecenter(uint16_t* src, int32_t bgio){
   //pacc();
-  int32_t d = 33;
+  int32_t d = 31;
   float theta_max = 2.f * (float) M_PI;
   float tmq = theta_max/4;
   int32_t xs = 0, ys = 0;
@@ -1878,9 +1985,9 @@ void draw_gfx(){
   //uint16_t bat = (uint16_t)(plosa->bat.max/plosa->bat.read)*100.0f;
   //printf("bat :  %03d\n",bat);
   if(bat>100){bat=100;}
-  uint16_t level_color = colt[plosa->theme]->bat_level;
-  if(bat>10&&bat<30){level_color = colt[plosa->theme]->bat_level_low;}
-  if(bat<10){level_color = colt[plosa->theme]->bat_level_critical;}
+  uint16_t level_color = themes[plosa->theme].colt.bat_level;
+  if(bat>10&&bat<30){level_color = themes[plosa->theme].colt.bat_level_low;}
+  if(bat<10){level_color = themes[plosa->theme].colt.bat_level_critical;}
   lcd_xline(POS_BAT_X+POS_BAT_PS    ,POS_BAT_Y+POS_BAT_PS,   bat+1, __builtin_bswap16(level_color), POS_BAT_YS-(POS_BAT_PS<<1)); // battery level
   if(!usb_loading){
     sprintf(dbuf,"  %02d%%",bat);
@@ -1912,11 +2019,11 @@ void draw_gfx(){
     if(!(i%5)){
       vc_s = gvdl((int16_t)i*mindeg,110);
       vc_s = vadd(vc_s,vO);
-      lcd_linev2(vc_s,vc_e, colt[plosa->theme]->col_cs, 1);
+      lcd_linev2(vc_s,vc_e, themes[plosa->theme].colt.col_cs, 1);
     }else{
       vc_s = gvdl((int16_t)i*mindeg,115);
       vc_s = vadd(vc_s,vO);
-      lcd_linev2(vc_s,vc_e, colt[plosa->theme]->col_cs5, 1);
+      lcd_linev2(vc_s,vc_e, themes[plosa->theme].colt.col_cs5, 1);
     }
   }
 
@@ -1934,7 +2041,7 @@ void draw_gfx(){
       }
     }
   }else{
-    lcd_blit(120-16,120-16,32,32,colt[plosa->theme]->alpha, flags[plosa->theme]); // center
+    lcd_blit(120-16,120-16,32,32,themes[plosa->theme].colt.alpha, themes[plosa->theme].flag32); // center
   }
 
   // graphical view of x/y gyroscope
@@ -2018,43 +2125,35 @@ void draw_text(){
   }
   //sprintf(dbuf, "DPS: %02d",dpsc);
   //lcd_str(120, 220    , dbuf , &Font12, YELLOW,  CYAN);
-  if(plosa->theme==0||plosa->theme==6||plosa->theme==7){
-    convert_as(week[plosa->theme][plosa->dt.dotw],cn_buffer);
-    //uint8_t* cnp = (uint8_t*)cn_buffer;
-    //printf("CNP\n");
-    //while(*cnp){
-    //  printf("%02x\n",*cnp);
-    //  cnp++;
-    //}
-    lcd_strc(POS_CNDOW_X, POS_CNDOW_Y, cn_buffer, &CNFONT, colors[0], BLACK);
-    //printf("cn_buffer: %s\n",cn_buffer);
+  if(plosa->theme<3){
+    lcd_stringm(POS_CNDOW_X, POS_CNDOW_Y, themes[plosa->theme].week[plosa->dt.dotw], f40, colors[0], BLACK,1);
   }else{
-    lcd_str(POS_DOW_X, POS_DOW_Y, week[plosa->theme][plosa->dt.dotw], &TFONT, colors[0], BLACK);
+    lcd_stringm(POS_DOW_X, POS_DOW_Y, themes[plosa->theme].week[plosa->dt.dotw], f40, colors[0], BLACK,0);
   }
   uint8_t yoff_date = POS_DATE_Y;
   uint8_t yoff_time = POS_TIME_Y;
 
   sprintf(dbuf,"%02d",plosa->dt.day);
-  lcd_str(POS_DATE_X+0*TFW, yoff_date, dbuf, &TFONT, colors[1], BLACK);
-  lcd_str(POS_DATE_X+2*TFW, yoff_date, ".", &TFONT, WHITE, BLACK);
+  lcd_stringm(POS_DATE_X+0*TFW, yoff_date, dbuf, f40, colors[1], BLACK, 0);
+  lcd_stringm(POS_DATE_X+2*TFW, yoff_date, ".", f40, WHITE, BLACK, 0);
   sprintf(dbuf,"%02d",plosa->dt.month);
-  lcd_str(POS_DATE_X+3*TFW, yoff_date, dbuf, &TFONT, colors[2], BLACK);
-  lcd_str(POS_DATE_X+5*TFW, yoff_date, ".", &TFONT, WHITE, BLACK);
+  lcd_stringm(POS_DATE_X+3*TFW, yoff_date, dbuf, f40, colors[2], BLACK, 0);
+  lcd_stringm(POS_DATE_X+5*TFW, yoff_date, ".", f40, WHITE, BLACK, 0);
   sprintf(dbuf,"%04d",plosa->dt.year);
-  lcd_str(POS_DATE_X+6*TFW, yoff_date, dbuf, &TFONT, colors[3], BLACK);
+  lcd_stringm(POS_DATE_X+6*TFW, yoff_date, dbuf, f40, colors[3], BLACK, 0);
 
   sprintf(dbuf,"%02d",plosa->dt.hour);
-  lcd_str(POS_TIME_X,       yoff_time, dbuf, &TFONT, colors[4], BLACK);
-  lcd_str(POS_TIME_X+2*TFW, yoff_time, ":", &TFONT, WHITE, BLACK);
+  lcd_stringm(POS_TIME_X,       yoff_time, dbuf, f40, colors[4], BLACK, 0);
+  lcd_stringm(POS_TIME_X+2*TFW, yoff_time, ":", f40, WHITE, BLACK, 0);
   sprintf(dbuf,"%02d",plosa->dt.min);
-  lcd_str(POS_TIME_X+3*TFW, yoff_time, dbuf, &TFONT, colors[5], BLACK);
-  lcd_str(POS_TIME_X+5*TFW, yoff_time, ":", &TFONT, WHITE, BLACK);
+  lcd_stringm(POS_TIME_X+3*TFW, yoff_time, dbuf, f40, colors[5], BLACK, 0);
+  lcd_stringm(POS_TIME_X+5*TFW, yoff_time, ":", f40, WHITE, BLACK, 0);
   sprintf(dbuf,"%02d",plosa->dt.sec);
-  lcd_str(POS_TIME_X+6*TFW, yoff_time, dbuf, &TFONT, colors[6], BLACK);
+  lcd_stringm(POS_TIME_X+6*TFW, yoff_time, dbuf, f40, colors[6], BLACK, 0);
 }
 
 void draw_content(){
-  if(cmode==CM_Editpos || cmode==CM_Changepos || cmode==CM_Config){
+  if(cmode==CM_Editpos || cmode==CM_Changepos || cmode==CM_Config || cmode==CM_Changetheme){
     uint16_t cmode_color = GREEN;
     if(cmode==CM_Changepos){
       blink_counter++;
@@ -2063,8 +2162,8 @@ void draw_content(){
       //draw_doimage(*adoi_config[plosa->theme]);
     }
     if(plosa->editpos==0){
-      if(plosa->theme==0||plosa->theme==6||plosa->theme==7){
-        lcd_frame(POS_CNDOW_X-6,POS_CNDOW_Y,POS_CNDOW_X+CNFONT.w+3,POS_CNDOW_Y+CNFONT.h*3+1,cmode_color,3);
+      if(plosa->theme<3){
+        lcd_frame(POS_CNDOW_X-6,POS_CNDOW_Y,POS_CNDOW_X+(f32[0])->w+3,POS_CNDOW_Y+(f32[0])->h*3+1,cmode_color,3);
       }else{
         fx_circle(tpos[plosa->editpos].x+32,tpos[plosa->editpos].y+16,45,cmode_color,5,xold,yold);
       }
@@ -2081,21 +2180,18 @@ void draw_content(){
     }else if(plosa->editpos==6){  // sec
       fx_circle(tpos[plosa->editpos].x+82,tpos[plosa->editpos].y+5,30,cmode_color,5,xold,yold);
     }else if(plosa->editpos==EPOS_CONFIG){
-      //if(cmode==CM_Changepos){
-      //      draw_doimage(*adoi_config[plosa->theme]);
-      //}
-      int16_t x= (*adoi_config[plosa->theme])->vpos.x+15;
-      int16_t y= (*adoi_config[plosa->theme])->vpos.y+16;
-      fx_circle(x,y,22,cmode_color,3,xold,yold);
+      if(cmode==CM_Config){
+        fx_circle(120,32,22,LGRAY,3,xold,yold);
+      }else{
+        fx_circle(tpos[plosa->editpos].x,tpos[plosa->editpos].y,22,cmode_color,3,xold,yold);
+      }
 
       Vec2 dp1 = texsize[plosa->texture];
       draw_clock_hands();
 
     }else if(plosa->editpos==EPOS_CENTER){
-      if(cmode==CM_Config){
-        int16_t x= (*adoi_config[plosa->theme])->vpos.x+15;
-        int16_t y= (*adoi_config[plosa->theme])->vpos.y+16;
-        fx_circle(x,y,22,cmode_color,3,xold,yold);
+      if(cmode==CM_Changetheme){
+        fx_circle(120,32,19,cmode_color,3,xold,yold);
         Vec2 dp1 = texsize[plosa->texture];
         draw_clock_hands();
       }else{
@@ -2130,7 +2226,6 @@ void draw_content(){
     }
     int16_t cdegd = (DEGS-config_deg)%maxcd;
     int16_t sln = (DEGS-config_deg)/maxcd;
-    sln+=2;
     if(sln<0)sln+=(int8_t)num_items;
     if(sln>=num_items)sln-=num_items;
     plosa->configpos = (uint8_t) sln;
@@ -2156,25 +2251,32 @@ void draw_content(){
 
     flags_deg = draw_getdeg(flags_deg);
     int16_t magnet = draw_circmenu(flags_deg, num_items, flags);
+    int16_t ma = (flags_deg%maxcd);
+    //printf("m: %d ma: %d\n",magnet,ma);
+    int16_t MAG = 45;
+    magnet = ma;
+
     if(magnet != 0){
       //printf("magnet = %d\n",magnet);
-      int16_t MAG = 15;
-      if(magnet < MAG && magnet >-MAG){
-          if(magnet/2 == 0){ flags_deg -= magnet; }
-          else{              flags_deg -= (magnet/2); }
-      }else{ flags_deg -= magnet/8; }
+      if(magnet < MAG ){
+        if(magnet < MAG/4){ flags_deg -= magnet; }
+        else if(magnet < MAG/2){ flags_deg -= (magnet/2); }
+        else{ flags_deg -= magnet/8; }
+      }else if(magnet >= MAG && magnet < MAG*2){
+        magnet-=MAG;
+        if(magnet < MAG/4){ flags_deg += magnet; }
+        else if(magnet < MAG/2){ flags_deg += (magnet/2); }
+        else{ flags_deg += magnet/8; }
+      }
     }
-    int16_t fdeg = flags_deg - (maxcd+maxcd/2);
+    int16_t fdeg = flags_deg;// - (maxcd+maxcd/2);
     fdeg = chkdeg(fdeg);
 
     int16_t cdegd = (DEGS-fdeg)%maxcd;
     int16_t sln = (DEGS-fdeg)/maxcd;
-    if(sln<0)sln+=(int8_t)num_items;
-    if(sln>=num_items)sln-=num_items;
-    plosa->configpos = (uint8_t) sln;
-    if(cdegd > (maxcd/2)){ ++plosa->configpos; }
-    if(plosa->configpos >= num_items){ plosa->configpos = 0; }
     //printf("sln *%d %d (%d / %d) [%d %d]\n",plosa->configpos, sln, cdegd, maxcd, fdeg, flags_deg);
+    plosa->configpos = (uint8_t) sln;
+    if(plosa->configpos >= num_items){ plosa->configpos = 0; }
   }
 }
 
@@ -2241,14 +2343,14 @@ int main(void)
     lcd_setimg((uint16_t*)b0);
     //printf("INIT: %b FIXED: %b [%08x] mode='%s'\n",init,fixed,plosa,plosa->mode);
 
-    colt[0]=&colt1;
-    colt[1]=&colt2;
-    colt[2]=&colt3;
-    colt[3]=&colt4;
-    colt[4]=&colt5;
-    colt[5]=&colt6;
-    colt[6]=&colt7;
-    colt[7]=&colt8;
+    //colt[0]=&colt_cn;
+    //colt[1]=&colt_jp;
+    //colt[2]=&colt_kr;
+    //colt[3]=&colt_us;
+    //colt[4]=&colt_de;
+    //colt[5]=&colt_tr;
+    //colt[6]=&colt_gb;
+    //colt[7]=&colt_ch;
 
     bool o_clk;
     bool o_dt;
@@ -2259,17 +2361,27 @@ int main(void)
     rtc_set_datetime(&plosa->dt);
     printf("init realtime clock done\n");
     fp_cn = malloc(512);
-    fp_cn[0] = 0;
-    for(int i=0;i<7;i++){
-      printf("'%s' %d\n",week_ua[i],strlen(week_ua[i]));
-      printf("'%s' %d\n",week_ru[i],strlen(week_ru[i]));
-    }
-    for(int i=0;i<7;i++){ fp_cn=strcat(fp_cn,week_cn[i]); }
-    for(int i=0;i<7;i++){ fp_cn=strcat(fp_cn,week_jp[i]); }
-    for(int i=0;i<7;i++){ fp_cn=strcat(fp_cn,week_kr[i]); }
-    printf("PFT: '%s' [%d]\n",fp_cn,strlen(fp_cn));
-    print_font_table4(fp_cn);
 
+    // 16 bit characters (kyrillic)
+
+    fp_cn[0] = 0;
+    for(int i=0;i<7;i++){ fp_cn=strcat(fp_cn,themes[9].week[i]); }
+    for(int i=0;i<7;i++){ fp_cn=strcat(fp_cn,themes[10].week[i]); }
+    fp_cn=strcat(fp_cn,"č");
+    lcd_makeutf8table(fp_cn);
+    //printf("PFT: '%s' [%d]\n",fp_cn,strlen(fp_cn));
+    //print_font_table2(fp_cn);
+
+    // 24 bit characters (asian)
+    fp_cn[0] = 0;
+    for(int i=0;i<7;i++){ fp_cn=strcat(fp_cn,themes[0].week[i]); }
+    for(int i=0;i<7;i++){ fp_cn=strcat(fp_cn,themes[1].week[i]); }
+    for(int i=0;i<7;i++){ fp_cn=strcat(fp_cn,themes[2].week[i]); }
+    lcd_makeutf8table(fp_cn);
+    //printf("PFT: '%s' [%d]\n",fp_cn,strlen(fp_cn));
+    //print_font_table4(fp_cn);
+
+    ftid_kyr = ftidi;
     //CST816S_init(CST816S_Gesture_Mode);
 
     gpio_init(QMIINT1);
@@ -2352,9 +2464,9 @@ int main(void)
           fire = false;
         }
         if(wf){
-          printf("*");
+          //printf("*");
           if(wf->t == wt_spinner){
-            printf("SP %d %d {%d}\n",time_us_32(),wf->lt, (time_us_32()-wf->lt)/MS);
+            //printf("SP %08x %08x {%08x}\n",time_us_32(),wf->lt, (time_us_32()-wf->lt)/MS);
             if(!fire && (((time_us_32()-wf->lt)/MS)<100)){
               fire=true;
               if(wf->st == st_spinner_char_v){
@@ -2458,7 +2570,7 @@ int main(void)
           }
           if(wf->t == wt_text){
             W_text* wt = (W_text*)wf->d;
-            printf("wf = 0x%08x %d %d [%d W_text %d] '%s'\n",wf,wf->x,wf->y,wf->t,wf->ws,wt->text);
+            //printf("wf = 0x%08x %d %d [%d W_text %d] '%s'\n",wf,wf->x,wf->y,wf->t,wf->ws,wt->text);
             reblink2(wblinker,wblinkerg,wf);
             if(cmt == CMT_None){ cmt = CMT_Select; }
 
@@ -2572,6 +2684,7 @@ int main(void)
               cmt = CMT_Select;
             }
             if(wf == w_dotw && wblinkerg->ws == ws_shown){
+              wspinner_set(wsp_dotw,plosa->dt.dotw);
               whidem(wl,WL_SIZE);
               wshow(wb_dotw);
               wshow(wsp_dotw);
@@ -2583,6 +2696,7 @@ int main(void)
             }
 
             if(wf == w_dotw_cn && wblinkerg->ws == ws_shown){
+              wspinner_set(wsp_dotw_cn,plosa->dt.dotw);
               whidem(wl,WL_SIZE);
               wshow(wb_dotw);
               wshow(wsp_dotw_cn);
@@ -2631,7 +2745,7 @@ int main(void)
               }
               if(flag_found){
                 plosa->theme = fi;
-                if(plosa->theme==0||plosa->theme==6||plosa->theme==7){ // china/jp/ko alt fonts
+                if(plosa->theme<3){ // china/jp/ko alt fonts
                   wshow(w_dotw_cn);
                   whide(w_dotw);
                 }else{
@@ -2643,7 +2757,7 @@ int main(void)
                 wshowm(wl,WL_SIZE);
                 whide(wblinkerg);
               }
-              printf("cim_flags [%d] %08x\n",flag_found?fi:-1,flag_last_time);
+              printf("cim_flags(%d) [%d] %08x\n",plosa->theme,flag_found?fi:-1,flag_last_time);
             }
           }else if(wf->t == wt_imagef){
             blink_once(wblinker_once,wf);
@@ -2673,9 +2787,10 @@ int main(void)
         else if(diff_ty==0){spinry = NULL;}
       }
       if(spinrx && diff_tx){
-        printf("spinrx: %08x %d\n",spinrx,diff_tx);
         spinrx->fpos+=diff_tx;
+        printf("spinrx.: %08x %d %4.4f\n",spinrx,diff_tx,spinrx->fpos);
         wspinner_adjust(spinrx);
+        printf("spinrx,: %08x %d %4.4f\n",spinrx,diff_tx,spinrx->fpos);
         if(diff_tx>0){diff_tx--;}
         else if(diff_tx<0){diff_tx++;}
         else if(diff_tx==0){spinrx = NULL;}
@@ -2686,7 +2801,6 @@ int main(void)
         if(((time_us_32()-last_blink)/MS) > 250){
             whide(wblinker_once);
         }
-
       }
 
       if(cmt == CMT_MoveDone){
@@ -2698,8 +2812,8 @@ int main(void)
 
       if(cmt == CMT_EditDOTW){
         W_spinner* wsp = (W_spinner*)wsp_dotw->d;
-        if(wsp->moved && (wsp->fpos%wsp->font->h)==0){
-          wsp->pos = (wsp->fpos/wsp->font->h);
+        if(wsp->moved && (wsp->fpos%wsp->fonts[wsp->fid]->h)==0){
+          wsp->pos = (wsp->fpos/wsp->fonts[wsp->fid]->h);
           if(plosa->dt.dotw != wsp->pos){
             plosa->dt.dotw = wsp->pos; //(uint8_t)(wsp->fpos/wsp->font->h);
             if(plosa->dt.dotw>6)plosa->dt.dotw=0;
@@ -2711,13 +2825,13 @@ int main(void)
       }
       if(cmt == CMT_EditDOTW_CN){
         W_spinner* wsp = (W_spinner*)wsp_dotw_cn->d;
-        if(wsp->moved && (wsp->fpos%wsp->font->w)==0){
-          wsp->pos = (wsp->fpos/wsp->font->w);
+        if(wsp->moved && (wsp->fpos%wsp->fonts[wsp->fid]->w)==0){
+          wsp->pos = (wsp->fpos/wsp->fonts[wsp->fid]->w);
           if(plosa->dt.dotw != wsp->pos){
             plosa->dt.dotw = wsp->pos; //(uint8_t)(wsp->fpos/wsp->font->h);
             if(plosa->dt.dotw>6)plosa->dt.dotw=0;
+            printf("set DOTW_CN: %d [%d]\n", plosa->dt.dotw,wsp->pos);
             rtc_set_datetime(&plosa->dt);
-            printf("set DOTW_CN: %d [%d]\n", plosa->dt.dotw);
             wsp->moved = false;
           }
         }
@@ -2728,8 +2842,8 @@ int main(void)
           brepos(wblinkerg, w_day);
         }
         W_spinner* wsp = (W_spinner*)wsp_day->d;
-        if(wsp->moved && (wsp->fpos%wsp->font->h)==0){
-          wsp->pos = (wsp->fpos/wsp->font->h);
+        if(wsp->moved && (wsp->fpos%wsp->fonts[wsp->fid]->h)==0){
+          wsp->pos = (wsp->fpos/wsp->fonts[wsp->fid]->h);
           plosa->dt.day = wsp->pos+1; //(uint8_t)(wsp->fpos/wsp->font->h);
           if(plosa->dt.day>last[plosa->dt.month])plosa->dt.day=0;
           rtc_set_datetime(&plosa->dt);
@@ -2754,8 +2868,8 @@ int main(void)
           brepos(wblinkerg, w_month);
         }
         W_spinner* wsp = (W_spinner*)wsp_month->d;
-        if(wsp->moved && (wsp->fpos%wsp->font->h)==0){
-          wsp->pos = (wsp->fpos/wsp->font->h);
+        if(wsp->moved && (wsp->fpos%wsp->fonts[wsp->fid]->h)==0){
+          wsp->pos = (wsp->fpos/wsp->fonts[wsp->fid]->h);
           plosa->dt.month = wsp->pos+1; //(uint8_t)(wsp->fpos/wsp->font->h);
           if(plosa->dt.month>last[plosa->dt.month])plosa->dt.month=0;
           rtc_set_datetime(&plosa->dt);
@@ -2780,8 +2894,8 @@ int main(void)
           brepos(wblinkerg, w_year);
         }
         W_spinner* wsp = (W_spinner*)wsp_year->d;
-        if(wsp->moved && (wsp->fpos%wsp->font->h)==0){
-          wsp->pos = (wsp->fpos/wsp->font->h);
+        if(wsp->moved && (wsp->fpos%wsp->fonts[wsp->fid]->h)==0){
+          wsp->pos = (wsp->fpos/wsp->fonts[wsp->fid]->h);
           plosa->dt.year = 2000 + wsp->pos; //(uint8_t)(wsp->fpos/wsp->font->h);
           if(!(plosa->dt.year%4)){last[2]=29;}else{last[2]=28;}
           rtc_set_datetime(&plosa->dt);
@@ -2807,8 +2921,8 @@ int main(void)
           brepos(wblinkerg, w_hour);
         }
         W_spinner* wsp = (W_spinner*)wsp_hour->d;
-        if(wsp->moved && (wsp->fpos%wsp->font->h)==0){
-          wsp->pos = (wsp->fpos/wsp->font->h);
+        if(wsp->moved && (wsp->fpos%wsp->fonts[wsp->fid]->h)==0){
+          wsp->pos = (wsp->fpos/wsp->fonts[wsp->fid]->h);
           plosa->dt.hour = wsp->pos; //(uint8_t)(wsp->fpos/wsp->font->h);
           if(plosa->dt.hour>23)plosa->dt.hour=0;
           rtc_set_datetime(&plosa->dt);
@@ -2832,8 +2946,8 @@ int main(void)
           brepos(wblinkerg,w_min);
         }
         W_spinner* wsp = (W_spinner*)wsp_min->d;
-        if(wsp->moved && (wsp->fpos%wsp->font->h)==0){
-          wsp->pos = (wsp->fpos/wsp->font->h);
+        if(wsp->moved && (wsp->fpos%wsp->fonts[wsp->fid]->h)==0){
+          wsp->pos = (wsp->fpos/wsp->fonts[wsp->fid]->h);
           plosa->dt.min = wsp->pos; //(uint8_t)(wsp->fpos/wsp->font->h);
           if(plosa->dt.min>59)plosa->dt.min=0;
           rtc_set_datetime(&plosa->dt);
@@ -2860,8 +2974,8 @@ int main(void)
           brepos(wblinkerg,w_sec);
         }
         W_spinner* wsp = (W_spinner*)wsp_sec->d;
-        if(wsp->moved && (wsp->fpos%wsp->font->h)==0){
-          wsp->pos = (wsp->fpos/wsp->font->h);
+        if(wsp->moved && (wsp->fpos%wsp->fonts[wsp->fid]->h)==0){
+          wsp->pos = (wsp->fpos/wsp->fonts[wsp->fid]->h);
           plosa->dt.sec = wsp->pos; //(uint8_t)(wsp->fpos/wsp->font->h);
           if(plosa->dt.sec>59)plosa->dt.sec=0;
           rtc_set_datetime(&plosa->dt);
@@ -3039,8 +3153,10 @@ int main(void)
                 if(plosa->rota){
                   plosa->gfxmode=GFX_ROTATE;
                   if(plosa->spin==0){plosa->spin=1;}
+                  if(plosa->fspin==0.0f){plosa->fspin=0.002f;}
                 }else{
                   plosa->spin=0;
+                  plosa->fspin=0.0f;
                   plosa->gfxmode=GFX_NORMAL;
                 }
                 break;
@@ -3055,7 +3171,8 @@ int main(void)
                 dosave();
                 break;
             }
-          }else if(draw_flagconfig_enabled){
+          }//}else if(draw_flagconfig_enabled){
+        }else if(cmode == CM_Changetheme){
             plosa->theme = plosa->configpos;
             draw_gfx_enabled=true;
             draw_text_enabled=true;
@@ -3063,9 +3180,8 @@ int main(void)
             hg_enabled = false;
             cmode=CM_None;
             wshowm(wl,WL_SIZE);
-            if(plosa->theme==0||plosa->theme==6||plosa->theme==7){  wshow(w_dotw_cn);whide(w_dotw); // china
+            if(plosa->theme<3){  wshow(w_dotw_cn);whide(w_dotw); // china
             }else{ whide(w_dotw_cn); wshow(w_dotw); }
-          }
         }else if(cmode==CM_Changepos){
           cmode=CM_Editpos;
           hgx = (int16_t)get_acc02f(acc[0],acc[1],1.0f); //acc[0];
@@ -3092,7 +3208,7 @@ int main(void)
             whide(img_config);
             whide(wb_dotw);
             wshow(wn_content);
-            cmode=CM_Config;
+            cmode=CM_Changetheme;
           }
         }else if(cmode==CM_Editpos){
           cmode=CM_None;
@@ -3101,7 +3217,7 @@ int main(void)
           if(!(plosa->dt.year%4)){last[2]=29;}else{last[2]=28;}
           hg_enabled = false;
           wshowm(wl,WL_SIZE);
-          if(plosa->theme==0||plosa->theme==6||plosa->theme==7){  wshow(w_dotw_cn);whide(w_dotw); // china
+          if(plosa->theme<3){  wshow(w_dotw_cn);whide(w_dotw); // china
           }else{ whide(w_dotw_cn); wshow(w_dotw); }
           wshowm(wl,WL_SIZE);
 
@@ -3116,12 +3232,13 @@ int main(void)
         }
         fire=false;
       }
-      if(cmode==CM_Changepos || cmode==CM_Editpos || cmode==CM_Config){
-        int16_t asx = get_acc02f(acc[0],acc[1],1.0f);
-        int16_t asy = get_acc12f(acc[0],acc[1],1.0f);
+      if(cmode==CM_Changepos || cmode==CM_Editpos || cmode==CM_Config || cmode==CM_Changetheme){
+        int16_t asx = get_acc02f(acc[0],acc[1],1.2f);
+        int16_t asy = get_acc12f(acc[0],acc[1],1.2f);
         //int asx = (int)acc[0];
+        //printf("asx %d hgx %d\n",asx,hgx);
         asx-=hgx;
-        asx>>1;asx<<1;
+        asx/=2;asx*=2;
         if( asx > HOURGLASSBORDER || asx < -HOURGLASSBORDER ){
           int16_t a = asx;
           if(a<0){a=-a;}
@@ -3230,10 +3347,8 @@ int main(void)
         }
       }
 
-
       make_buffers();
       wdraw(&wroot);
-
       lcd_display(b0);
 
       if(SHELL_ENABLED){        shell();      }
@@ -3309,46 +3424,31 @@ void reblink2(W* w0, W* w1, W* wt){
 }
 
 char* get_dotw_all(uint8_t index){
-  if(plosa->theme==0||plosa->theme==6||plosa->theme==7){
-    convert_as(week[plosa->theme][index],cn_buffer);
-    uint8_t* cnp = (uint8_t*)cn_buffer;
-    printf("CNP\n");
-    while(*cnp){printf("%02x\n",*cnp);cnp++;}
-    return cn_buffer;
-  }else{
-    return week[plosa->theme][index];
+  if(index>=7){
+    printf("*Iai:%d\n",index);
+    index-=7;
   }
+  return themes[plosa->theme].week[index];
 }
 
 char* get_dotw(){
-  //printf("get_dotw: [%d] '%s'\n",plosa->dt.dotw, week[plosa->theme][plosa->dt.dotw]);
-  if(plosa->theme>0 && plosa->theme<6){
-    return week[plosa->theme][plosa->dt.dotw];
-  }else{
-    return "\0";
-  }
+  return themes[plosa->theme].week[plosa->dt.dotw];
 }
 
 char* get_dotw_cn(){
-  if(plosa->theme==0||plosa->theme==6||plosa->theme==7){
-    convert_as(week[plosa->theme][plosa->dt.dotw],cn_buffer);
-  }else{sprintf(cn_buffer,"\0");}
-  //uint8_t* cnp = (uint8_t*)cn_buffer;
-  //printf("CNP\n");
-  //while(*cnp){
-  //  printf("%02x\n",*cnp);
-  //  cnp++;
-  //}
-  return cn_buffer;
+  return themes[plosa->theme].week[plosa->dt.dotw];
 }
 
 char* get_dotw_cn_i(uint8_t i){
-  convert_as(week[0][i],cn_buffer);
-  return strdup(cn_buffer);
+  if(i>=7){
+    printf("*Icni:%d\n",i);
+    i-=7;
+  }
+  return themes[plosa->theme].week[i];
 }
 
 uint16_t* get_theme_image(){
-  return (uint16_t*)flags[plosa->theme];
+  return (uint16_t*)themes[plosa->theme].flag32;
 }
 
 void doit_bg(){
@@ -3408,7 +3508,6 @@ void doit_exit(){
   wshowm(wl,WL_SIZE);
   whide(cim_config);
   whide(wn_drawclockhands);
-
 }
 
 
@@ -3433,34 +3532,34 @@ void wtest(){
 
   #define TIME_X 40
   #define TIME_Y 140
-  w_timed0 = wadd_text(&wroot,TIME_X+2*TFO.w-12,TIME_Y,TFO.w<<1,TFO.h,":",&TFO,WHITE,BLACK,BLACK,0);
+  w_timed0 = wadd_text(&wroot,TIME_X+2*f40[0]->w-10,TIME_Y-2,f40[0]->w<<1,f40[0]->h,":",f40,WHITE,BLACK,BLACK,0,0,0);
   wset_st(w_timed0,st_text_ghost);
-  w_timed1 = wadd_text(&wroot,TIME_X+4*TFO.w-4,TIME_Y,TFO.w<<1,TFO.h,":",&TFO,WHITE,BLACK,BLACK,0);
+  w_timed1 = wadd_text(&wroot,TIME_X+4*f40[0]->w-2,TIME_Y-2,f40[0]->w<<1,f40[0]->h,":",f40,WHITE,BLACK,BLACK,0,0,0);
   wset_st(w_timed1,st_text_ghost);
-  w_hour = wadd_text(&wroot,TIME_X,TIME_Y,TFO.w<<1,TFO.h,b_hour,&TFO,WHITE,BLACK,BLACK,0);
-  w_min = wadd_text(&wroot,TIME_X+2*TFO.w+8,TIME_Y,TFO.w<<1,TFO.h,b_min,&TFO,WHITE,BLACK,BLACK,0);
-  w_sec = wadd_text(&wroot,TIME_X+4*TFO.w+16,TIME_Y,TFO.w<<1,TFO.h,b_sec,&TFO,WHITE,BLACK,BLACK,0);
+  w_hour = wadd_text(&wroot,TIME_X,TIME_Y,f40[0]->w<<1,f40[0]->h,b_hour,f40,WHITE,BLACK,BLACK,0,0,0);
+  w_min = wadd_text(&wroot,TIME_X+2*f40[0]->w+8,TIME_Y,f40[0]->w<<1,f40[0]->h,b_min,f40,WHITE,BLACK,BLACK,0,0,0);
+  w_sec = wadd_text(&wroot,TIME_X+4*f40[0]->w+16,TIME_Y,f40[0]->w<<1,f40[0]->h,b_sec,f40,WHITE,BLACK,BLACK,0,0,0);
 
 
 
   #define DATE_X 50
   #define DATE_Y 64
 
-  //wb_date = wadd_box(&wroot,DATE_X,DATE_Y,9*TFOS.w,TFOS.h);
-  w_dated0 = wadd_text(&wroot,DATE_X+2*TFOS.w-8,DATE_Y,TFOS.w<<1,TFOS.h,".",&TFOS,WHITE,BLACK,BLACK,0);
+  //wb_date = wadd_box(&wroot,DATE_X,DATE_Y,9*f24[0]->w,f24[0]->h);
+  w_dated0 = wadd_text(&wroot,DATE_X+2*f24[0]->w-8,DATE_Y,f24[0]->w<<1,f24[0]->h,".",f24,WHITE,BLACK,BLACK,0,0,0);
   wset_st(w_dated0,st_text_ghost);
-  w_dated1 = wadd_text(&wroot,DATE_X+4*TFOS.w,DATE_Y,TFOS.w<<1,TFOS.h,".",&TFOS,WHITE,BLACK,BLACK,0);
+  w_dated1 = wadd_text(&wroot,DATE_X+4*f24[0]->w,DATE_Y,f24[0]->w<<1,f24[0]->h,".",f24,WHITE,BLACK,BLACK,0,0,0);
   wset_st(w_dated1,st_text_ghost);
-  w_day = wadd_text(&wroot,DATE_X,DATE_Y,TFOS.w<<1,TFOS.h,b_day,&TFOS,WHITE,BLACK,BLACK,0);
-  w_month = wadd_text(&wroot,DATE_X+2*TFOS.w+8,DATE_Y,TFOS.w<<1,TFOS.h,b_month,&TFOS,WHITE,BLACK,BLACK,0);
-  w_year = wadd_text(&wroot,DATE_X+4*TFOS.w+16,DATE_Y,TFOS.w<<2,TFOS.h,b_year,&TFOS,WHITE,BLACK,BLACK,0);
+  w_day = wadd_text(&wroot,DATE_X,DATE_Y,f24[0]->w<<1,f24[0]->h,b_day,f24,WHITE,BLACK,BLACK,0,0,0);
+  w_month = wadd_text(&wroot,DATE_X+2*f24[0]->w+8,DATE_Y,f24[0]->w<<1,f24[0]->h,b_month,f24,WHITE,BLACK,BLACK,0,0,0);
+  w_year = wadd_text(&wroot,DATE_X+4*f24[0]->w+16,DATE_Y,f24[0]->w<<2,f24[0]->h,b_year,f24,WHITE,BLACK,BLACK,0,0,0);
 
 
   wb_dotw = wadd_box(&wroot,0,0,239,239);
-  w_dotw_cn = wadd_textr(wb_dotw,POS_CNDOW_X, POS_CNDOW_Y,CNFONT.w,CNFONT.h*3,get_dotw_cn,&CNFONT,CN_Red,BLACK,BLACK,0);
+  w_dotw_cn = wadd_textr(wb_dotw,POS_CNDOW_X, POS_CNDOW_Y,(f32[2])->w,(f32[2])->h*3,get_dotw_cn,f32,CN_Red,BLACK,BLACK,0,2,1);
   wset_st(w_dotw_cn,st_text_cn);
   whide(w_dotw_cn);
-  w_dotw = wadd_textr(wb_dotw,POS_DOW_X, POS_DOW_Y,TFOW.w*3,TFOW.h,get_dotw,&TFOW,WHITE,BLACK,BLACK,0);
+  w_dotw = wadd_textr(wb_dotw,POS_DOW_X, POS_DOW_Y,(f40[0])->w*3,(f40[0])->h,get_dotw,f40,WHITE,BLACK,BLACK,0,0,0);
 
   img_center = wadd_imager(&wroot,get_theme_image,120-16,120-16,32,32);
   img_config = wadd_image(&wroot,(uint16_t*)config,240-(32+16),120-16,32,32);
@@ -3471,45 +3570,39 @@ void wtest(){
   wblinker_once = wadd_blinker(&wroot,120,120,24,24,5,ORANGE,YELLOW,3,false);
   whide(wblinker_once);
 
-
-  for(uint8_t i=0;i<7;i++){ wcn[i] = get_dotw_cn_i(i); }
-  wsp_dotw = wspinner_add(&wroot,130-(TFOW.w>>1),120-((3*TFOW.h)>>1),3*TFOW.w+8,3*TFOW.h+8,
-            st_spinner_char_v,plosa->dt.dotw, 7, (void**)NULL,get_dotw_all, &TFOW, WHITE, BLACK, BLUE);
+  wsp_dotw = wadd_spinner(&wroot,130-((f40[0])->w>>1),120-((3* (f40[0])->h)>>1),3* (f40[0])->w+8,3* (f40[0])->h+8,
+            st_spinner_char_v,plosa->dt.dotw, 7, (void**)NULL,get_dotw_all, f40, 0, WHITE, BLACK, BLUE);
   whide(wsp_dotw);
-  wsp_dotw_cn = wspinner_add(&wroot,120-(CNFONT.w>>1),120-((3*CNFONT.h)>>1),3*CNFONT.w+8,3*CNFONT.h,
-            st_spinner_char_h,plosa->dt.dotw, 7, (void**)NULL,get_dotw_all, &CNFONT, WHITE, BLACK, BLUE);
+  wsp_dotw_cn = wadd_spinner(&wroot,120-((f40[2])->w>>1),120-((3* (f40[2])->h)>>1),3* (f40[2])->w+8,3* (f40[2])->h,
+            st_spinner_char_h,plosa->dt.dotw, 7, (void**)NULL,get_dotw_all, f40, 2, WHITE, BLACK, BLUE);
   whide(wsp_dotw_cn);
-
-
-  wsp_day = wspinner_add(&wroot,130-(TFOW.w>>1),120-((3*TFOW.h)>>1),2*TFOW.w+8,3*TFOW.h+8,
-            st_spinner_char_v,plosa->dt.day-1, last[plosa->dt.month], (void**)numbers+1, NULL, &TFOW, WHITE, BLACK, BLUE);
+  wsp_day = wadd_spinner(&wroot,130-((f32[0])->w>>1),120-((3* (f32[0])->h)>>1),2* (f32[0])->w+8,3* (f32[0])->h+8,
+            st_spinner_char_v,plosa->dt.day-1, last[plosa->dt.month], (void**)numbers+1, NULL, f40, 0, WHITE, BLACK, BLUE);
   whide(wsp_day);
-  wsp_month = wspinner_add(&wroot,130-(TFOW.w>>1),120-((3*TFOW.h)>>1),2*TFOW.w+8,3*TFOW.h+8,
-            st_spinner_char_v,plosa->dt.month, 12 , (void**)numbers+1, NULL, &TFOW, WHITE, BLACK, BLUE);
+  wsp_month = wadd_spinner(&wroot,130-((f32[0])->w>>1),120-((3* (f32[0])->h)>>1),2* (f32[0])->w+8,3* (f32[0])->h+8,
+            st_spinner_char_v,plosa->dt.month, 12 , (void**)numbers+1, NULL, f40, 0, WHITE, BLACK, BLUE);
   whide(wsp_month);
-  wsp_year = wspinner_add(&wroot,130-(TFOW.w>>1),120-((3*TFOW.h)>>1),2*TFOW.w+8,3*TFOW.h+8,
-            st_spinner_char_v,plosa->dt.year-2000, 100 , (void**)numbers, NULL, &TFOW, WHITE, BLACK, BLUE);
+  wsp_year = wadd_spinner(&wroot,130-((f32[0])->w>>1),120-((3* (f32[0])->h)>>1),2* (f32[0])->w+8,3* (f32[0])->h+8,
+            st_spinner_char_v,plosa->dt.year-2000, 100 , (void**)numbers, NULL, f40, 0, WHITE, BLACK, BLUE);
   whide(wsp_year);
-
-
-  wsp_hour = wspinner_add(&wroot,130-(TFOW.w>>1),120-((3*TFOW.h)>>1),2*TFOW.w+8,3*TFOW.h+8,
-            st_spinner_char_v,plosa->dt.hour, 24, (void**)hours, NULL, &TFOW, WHITE, BLACK, BLUE);
+  wsp_hour = wadd_spinner(&wroot,130-((f32[0])->w>>1),120-((3* (f32[0])->h)>>1),2* (f32[0])->w+8,3* (f32[0])->h+8,
+            st_spinner_char_v,plosa->dt.hour, 24, (void**)hours, NULL, f40, 0, WHITE, BLACK, BLUE);
   whide(wsp_hour);
-  wsp_min = wspinner_add(&wroot,130+(TFOW.w>>1),120-((3*TFOW.h)>>1),2*TFOW.w+8,3*TFOW.h+8,
-            st_spinner_char_v,plosa->dt.min, 60, (void**)numbers, NULL, &TFOW, WHITE, BLACK, BLUE);
+  wsp_min = wadd_spinner(&wroot,130+((f32[0])->w>>1),120-((3* (f32[0])->h)>>1),2* (f32[0])->w+8,3* (f32[0])->h+8,
+            st_spinner_char_v,plosa->dt.min, 60, (void**)numbers, NULL, f40, 0, WHITE, BLACK, BLUE);
   whide(wsp_min);
-  wsp_sec = wspinner_add(&wroot,130+(TFOW.w>>1),120-((3*TFOW.h)>>1),2*TFOW.w+8,3*TFOW.h+8,
-            st_spinner_char_v,plosa->dt.sec, 60, (void**)numbers, NULL, &TFOW, WHITE, BLACK, BLUE);
+  wsp_sec = wadd_spinner(&wroot,130+((f32[0])->w>>1),120-((3* (f32[0])->h)>>1),2* (f32[0])->w+8,3* (f32[0])->h+8,
+            st_spinner_char_v,plosa->dt.sec, 60, (void**)numbers, NULL, f40, 0, WHITE, BLACK, BLUE);
   whide(wsp_sec);
   //cim_flags = wcim_make(THEMES,0);
-  //wb_time = wadd_box(&wroot,TIME_X,TIME_Y,7*TFO.w,TFO.h);
+  //wb_time = wadd_box(&wroot,TIME_X,TIME_Y,7*f40[0]->w,f40[0]->h);
   int16_t maxcd = (int16_t)(DEGS/THEMES);
   int16_t cdeg = 0;
   cim_flags = wadd_box(&wroot,0,0,240,240);
   for(uint16_t i=0;i<THEMES;i++){
     Vec2 cv = gvdl(cdeg,CIRCMENU_RADIUS);
     cdeg=chkdeg(cdeg+maxcd);
-    wadd_image(cim_flags,(uint16_t*)flags[i],cv.x-16+LCD_W2,cv.y-16+LCD_H2,32,32);
+    wadd_image(cim_flags,(uint16_t*)themes[i].flag32,cv.x-16+LCD_W2,cv.y-16+LCD_H2,32,32);
   }
   whide(cim_flags);
 
@@ -3543,7 +3636,7 @@ void wtest(){
   wl[i++] = img_config;
   wl[i++] = wb_dotw;
 
-  if(plosa->theme==0||plosa->theme==6||plosa->theme==7){  wshow(w_dotw_cn);whide(w_dotw); // china
+  if(plosa->theme<3){  wshow(w_dotw_cn);whide(w_dotw); // china
   }else{ whide(w_dotw_cn); wshow(w_dotw); }
 
 }

@@ -1267,8 +1267,9 @@ unsigned char Font40_table[] = {
 };
 unsigned int Font40_len = 15172;
 
-sFONT Font40 = {
+font_t Font40 = {
   Font40_table,
   26, /* Width */
   40, /* Height */
+  0,0
 };

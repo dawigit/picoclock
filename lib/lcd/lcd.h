@@ -75,6 +75,8 @@
 
 #define to_rad(angleInDegrees) ((angleInDegrees) * M_PI / 180.0f)
 #define to_deg(angleInRadians) ((angleInRadians) * 180.0f / M_PI)
+#define RGB565(r,g,b) ( ((r>>3)<<11) + ((g>>2)<<5) + (b>>3) )
+
 
 #define o_east 0
 #define o_south 1
@@ -88,6 +90,15 @@ typedef struct _tFont
   uint16_t w;
   uint16_t h;
 } sFONT;
+
+typedef struct font_t{
+  const uint8_t *data;
+  uint16_t w;
+  uint16_t h;
+  uint16_t nc;
+  uint16_t m;
+} font_t;
+
 
 #define BX 120
 #define BY 120
@@ -152,25 +163,28 @@ void lcd_pixel(uint16_t X, uint16_t Y, uint16_t color);
 void lcd_setimg(uint16_t* image);
 void lcd_copyalpha(uint16_t* dst, uint16_t* src, uint8_t xs, uint8_t ys, uint16_t alpha);
 void lcd_blit(uint8_t x, uint8_t y, uint8_t xs, uint8_t ys, uint16_t alpha, const uint8_t* src);
-void lcd_blit_mod(uint8_t x, uint8_t y, uint8_t xs, uint8_t ys, uint8_t modulo, uint16_t alpha, const uint8_t* src);
+void lcd_blit_mod(uint8_t x, uint8_t y, uint8_t xs, uint8_t ys, uint32_t modulo, uint16_t alpha, const uint8_t* src);
 void lcd_line(uint8_t xs, uint8_t ys, uint8_t xe, uint8_t ye, uint16_t color, uint8_t ps);
 void lcd_aline(uint8_t xs, uint8_t ys, uint8_t xe, uint8_t ye, uint16_t color, uint8_t ps);
-void lcd_char(uint8_t x, uint8_t y, uint8_t c, sFONT* font, uint16_t cf, uint16_t cb, bool cn);
-void lcd_char_offset(uint8_t x, uint8_t y, uint8_t c, sFONT* font, uint16_t cf, uint16_t cb, bool cn, uint16_t o_top, uint16_t o_bottom);
-void lcd_char_offset_lr(uint8_t x, uint8_t y, uint8_t c, sFONT* font, uint16_t cf, uint16_t cb, bool cn, uint8_t o_left, uint8_t o_right);
-void lcd_str(uint8_t x, uint8_t y, char* data, sFONT* font, uint16_t cf, uint16_t cb);
-void lcd_strc(uint8_t x, uint8_t y, char* data, sFONT* font, uint16_t cf, uint16_t cb);
-void lcd_string(uint8_t x, uint8_t y, char* data ,sFONT* font, bool cn, uint16_t cf, uint16_t cb);
-void lcd_stringo(uint8_t x, uint8_t y, char* data, sFONT* font, bool cn, uint16_t cf, uint16_t cb, uint8_t o);
-void lcd_string_offset(uint8_t x, uint8_t y, char* data, sFONT* font, bool cn,
-  uint16_t cf, uint16_t cb, uint8_t o, uint8_t o_top, uint8_t o_bottom);
-void lcd_string_offset_lr(uint8_t x, uint8_t y, char* data, sFONT* font, bool cn,
-    uint16_t cf, uint16_t cb, uint8_t o, uint8_t o_left, uint8_t o_right);
-
-void lcd_number(uint8_t x, uint8_t y, uint32_t n ,sFONT* font, uint16_t cf, uint16_t cb);
-void lcd_float(uint8_t x, uint8_t y, float f ,sFONT* font, uint16_t cf, uint16_t cb);
-void lcd_floats(uint8_t x, uint8_t y, float f ,sFONT* font, uint16_t cf, uint16_t cb, bool columns);
-void lcd_floatshort(uint8_t x, uint8_t y, float f ,sFONT* font, uint16_t cf, uint16_t cb);
+void lcd_char(uint8_t x, uint8_t y, uint8_t c, font_t* font, uint16_t cf, uint16_t cb, bool cn);
+void lcd_char_offset(uint8_t x, uint8_t y, uint8_t c, font_t* font, uint16_t cf, uint16_t cb, uint16_t o_top, uint16_t o_bottom);
+void lcd_char_offset_lr(uint8_t x, uint8_t y, uint8_t c, font_t* font, uint16_t cf, uint16_t cb, uint8_t o_left, uint8_t o_right);
+void lcd_str(uint8_t x, uint8_t y, char* data, font_t* font, uint16_t cf, uint16_t cb);
+void lcd_strc(uint8_t x, uint8_t y, char* data, font_t* font, uint16_t cf, uint16_t cb);
+void lcd_string(uint8_t x, uint8_t y, char* data ,font_t* font, bool cn, uint16_t cf, uint16_t cb);
+void lcd_stringm(uint8_t x, uint8_t y, char* data, font_t** font, uint16_t cf,uint16_t cb, uint8_t o);
+void lcd_stringmo(uint8_t x, uint8_t y, char* data, font_t** font,
+  uint16_t cf, uint16_t cb, uint8_t o,uint8_t ot, uint8_t ob, uint8_t ol, uint8_t or);
+void lcd_stringo(uint8_t x, uint8_t y, char* data, font_t* font, bool cn, uint16_t cf, uint16_t cb, uint8_t o);
+//void lcd_string_offset(uint8_t x, uint8_t y, char* data, font_t* font, bool cn,
+//  uint16_t cf, uint16_t cb, uint8_t o, uint8_t o_top, uint8_t o_bottom);
+//void lcd_string_offset_lr(uint8_t x, uint8_t y, char* data, font_t* font, bool cn,
+//    uint16_t cf, uint16_t cb, uint8_t o, uint8_t o_left, uint8_t o_right);
+//
+void lcd_number(uint8_t x, uint8_t y, uint32_t n ,font_t* font, uint16_t cf, uint16_t cb);
+void lcd_float(uint8_t x, uint8_t y, float f ,font_t* font, uint16_t cf, uint16_t cb);
+void lcd_floats(uint8_t x, uint8_t y, float f ,font_t* font, uint16_t cf, uint16_t cb, bool columns);
+void lcd_floatshort(uint8_t x, uint8_t y, float f ,font_t* font, uint16_t cf, uint16_t cb);
 void lcd_sleepon();
 void lcd_sleepoff();
 
@@ -239,7 +253,10 @@ void lcd_blit_deg2(Vec2 vo, Vec2 vuv, Vec2 vs, int16_t deg, const uint8_t* src, 
 Vec2* lcd_linev2list2(Vec2 vs, Vec2 ve, int16_t* rsret);
 
 UTFCodes_t* lcd_utfdecode(char* rubu);
-
+uint8_t lcd_get_acid(char** p);
+uint8_t lcd_get_acid32(uint32_t r);
+uint32_t lcd_get_ac(char** pc);
+void lcd_makeutf8table(char *c);
 extern uint8_t slice_num;
 
 #endif //__GC9A01_H

@@ -1,6 +1,6 @@
 #include "w.h"
-extern sFONT Font12;
-extern sFONT Font16;
+extern font_t Font12;
+extern font_t Font16;
 W wroot;
 
 void init_root(){
@@ -207,7 +207,7 @@ W* wadd_imagef(W* p, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t* data,
 
 
 W* wadd_text(W* p, int16_t x, int16_t y, int16_t w, int16_t h,
-  char* text, sFONT* font, uint16_t cf, uint16_t cb, uint16_t cfr,uint8_t fs)
+  char* text, font_t** fonts, uint16_t cf, uint16_t cb, uint16_t cfr,uint8_t fs, uint8_t fid, uint8_t o)
 {
   W* wn = wnew();
   if(wn){
@@ -224,13 +224,15 @@ W* wadd_text(W* p, int16_t x, int16_t y, int16_t w, int16_t h,
     W_text* wt = malloc(sizeof(W_text));
     if(wt){
       wt->text = text;
-      wt->font = font;
+      wt->fonts = fonts;
       wt->cf = cf;
       wt->cb = cb;
       wt->cfr = cfr;
       wt->fs = fs;
       wt->marge = 0;
       wt->pad = 0;
+      wt->fid = fid;
+      wt->o = o;
       wn->d = (void*)wt;
       if(p){ wadd(p,wn); }
     }else{
@@ -242,7 +244,7 @@ W* wadd_text(W* p, int16_t x, int16_t y, int16_t w, int16_t h,
 }
 
 W* wadd_textr(W* p, int16_t x, int16_t y, int16_t w, int16_t h,
-    char* (*get_value)(), sFONT* font, uint16_t cf, uint16_t cb, uint16_t cfr,uint8_t fs)
+    char* (*get_value)(), font_t** fonts, uint16_t cf, uint16_t cb, uint16_t cfr,uint8_t fs, uint8_t fid, uint8_t o)
 {
   W* wn = wnew();
   if(wn){
@@ -259,13 +261,15 @@ W* wadd_textr(W* p, int16_t x, int16_t y, int16_t w, int16_t h,
     W_textr* wt = malloc(sizeof(W_textr));
     if(wt){
       wt->get_text = get_value;
-      wt->font = font;
+      wt->fonts = fonts;
       wt->cf = cf;
       wt->cb = cb;
       wt->cfr = cfr;
       wt->fs = fs;
       wt->marge = 0;
       wt->pad = 0;
+      wt->fid = fid;
+      wt->o = o;
       wn->d = (void*)wt;
       if(p){ wadd(p,wn); }
     }else{
@@ -324,8 +328,9 @@ W* wadd_blinker(W* p, int16_t x, int16_t y, int16_t w, int16_t h, int16_t ps,
   return wn;
 }
 
-W* wspinner_add(W*p, int16_t x, int16_t y, int16_t w, int16_t h, W_st st,
-  uint8_t pos, uint8_t nc, void** e, char* (*get_text)(uint8_t i), sFONT* font, uint16_t cf, uint16_t cb, uint16_t cfr)
+W* wadd_spinner(W* p, int16_t x, int16_t y, int16_t w, int16_t h, W_st st,
+ uint8_t pos, uint8_t nc, void** e, char* (*get_text)(uint8_t i), font_t** fonts,
+ uint8_t fid, uint16_t cf, uint16_t cb, uint16_t cfr)
 {
   W* wn = wnew();
   if(wn){
@@ -343,14 +348,15 @@ W* wspinner_add(W*p, int16_t x, int16_t y, int16_t w, int16_t h, W_st st,
       wsp->nc = nc;
       wsp->e = e;
       wsp->get_text = get_text;
-      wsp->font = font;
+      wsp->fonts = fonts;
       wsp->cf = cf;
       wsp->cb = cb;
       wsp->cfr = cfr;
-      wsp->fpos = (int16_t) font->h*pos;
+      wsp->fpos = (int16_t) fonts[0]->h*pos;
       wsp->velocity = 0;
       wsp->moved = false;
       wsp->fixed = false;
+      wsp->fid = fid;
       //wsp->fpos = 0;
       wn->d = (void*)wsp;
       if(p){ wadd(p,wn); }
@@ -410,24 +416,12 @@ void wdraw(W* w){
     }
     lcd_blit((uint8_t)w->x,(uint8_t)w->y, (uint8_t)w->w,(uint8_t)w->h, BLACK,(uint8_t*)wif->image_data);
   }else if(w->t == wt_text){
-      //lcd_string(uint8_t x, uint8_t y, char* data, sFONT* font,bool cn, uint16_t cf, uint16_t cb)
-      wdwt = (W_text*)w->d;
-      if(w->st == st_text_cn || w->st == st_text_cn_ghost){
-        lcd_strc((uint8_t)w->x,(uint8_t)w->y,wdwt->text,wdwt->font,wdwt->cf,wdwt->cb);
-      }else{
-        lcd_string((uint8_t)w->x,(uint8_t)w->y,wdwt->text,wdwt->font,false,wdwt->cf,wdwt->cb);
-      }
+    wdwt = (W_text*)w->d;
+    lcd_stringm((uint8_t)w->x,(uint8_t)w->y,wdwt->text,wdwt->fonts,wdwt->cf,wdwt->cb,wdwt->o);
   }else if(w->t == wt_textr){
-    //lcd_string(uint8_t x, uint8_t y, char* data, sFONT* font,bool cn, uint16_t cf, uint16_t cb)
     wdwtr = (W_textr*)w->d;
-    char* t;
-    if(w->st == st_text_cn || w->st == st_text_cn_ghost){
-      t = wdwtr->get_text();
-      lcd_strc((uint8_t)w->x,(uint8_t)w->y,t,wdwtr->font,wdwtr->cf,wdwtr->cb);
-    }else{
-      t = wdwtr->get_text();
-      lcd_string((uint8_t)w->x,(uint8_t)w->y,t,wdwtr->font,false,wdwtr->cf,wdwtr->cb);
-    }
+    char* t = wdwtr->get_text();
+    lcd_stringm((uint8_t)w->x,(uint8_t)w->y,t,wdwtr->fonts,wdwtr->cf,wdwtr->cb,wdwtr->o);
   }else if(w->t == wt_blinker_circle){
     W_blinker* wb = (W_blinker*)w->d;
     ++wb->count;
@@ -461,31 +455,32 @@ void wset_st(W* w, W_st st){
 
 void wspinner_draw(W* w){
   W_spinner* wsp = (W_spinner*)w->d;
-  uint8_t pos = (uint8_t)(wsp->fpos/wsp->font->h);
+  uint8_t pos = (uint8_t)(wsp->fpos/wsp->fonts[wsp->fid]->h);
   wsp->pos = pos;
   //printf("pos = %d\n",pos);
-  uint16_t offset = pos*wsp->font->h;
+  uint16_t offset = pos*wsp->fonts[wsp->fid]->h;
   lcd_frame(w->x-4,w->y-4,w->x+w->w+4,w->y+w->h+4,wsp->cfr,2);
   if(wsp->pos >= wsp->nc)wsp->pos=0;
 
-  if((wsp->fpos%wsp->font->h) == 0){
+  if((wsp->fpos%wsp->fonts[wsp->fid]->h) == 0){
     pos = (!pos)?wsp->nc-1:pos-1;
-    lcd_string((uint8_t)w->x,(uint8_t)w->y+4,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,false,wsp->cf,wsp->cb);
+    lcd_stringm((uint8_t)w->x,(uint8_t)w->y+4,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->fonts,wsp->cf,wsp->cb,0);
     if(++pos>=wsp->nc)pos-=(wsp->nc);
-    lcd_string((uint8_t)w->x,(uint8_t)w->y+wsp->font->h+4,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,false,wsp->cf,wsp->cb);
+    lcd_stringm((uint8_t)w->x,(uint8_t)w->y+wsp->fonts[wsp->fid]->h+4,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->fonts,wsp->cf,wsp->cb,0);
     if(wsp->pos>=wsp->nc)wsp->pos-=wsp->nc;
     if(++pos>=wsp->nc)pos-=(wsp->nc);
-    lcd_string((uint8_t)w->x,(uint8_t)w->y+2*wsp->font->h+4,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,false,wsp->cf,wsp->cb);
+    lcd_stringm((uint8_t)w->x,(uint8_t)w->y+2*wsp->fonts[wsp->fid]->h+4,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->fonts,wsp->cf,wsp->cb,0);
   }else{
-    uint16_t o = (wsp->fpos%wsp->font->h);
+    uint16_t o = (wsp->fpos%wsp->fonts[wsp->fid]->h);
+    printf("o=%d fpos=%d fposmax=%d f:%08x [%d] ",o,wsp->fpos,wsp->fonts[wsp->fid]->w*wsp->nc-1,wsp->fonts[wsp->fid],wsp->fid);
     pos = (!pos)?wsp->nc-1:pos-1;
-    lcd_string_offset((uint8_t)w->x,(uint8_t)w->y+4,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,false,wsp->cf,wsp->cb,0,o,0);
+    lcd_stringmo((uint8_t)w->x,(uint8_t)w->y+4,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->fonts,wsp->cf,wsp->cb,0, 0,0 ,o,0);
     if(++pos>=wsp->nc)pos-=(wsp->nc);
-    lcd_string((uint8_t)w->x,(uint8_t)w->y-o+wsp->font->h+4,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,false,wsp->cf,wsp->cb);
+    lcd_stringm((uint8_t)w->x,(uint8_t)w->y-o+wsp->fonts[wsp->fid]->h+4,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->fonts,wsp->cf,wsp->cb,0);
     if(++pos>=wsp->nc)pos-=(wsp->nc);
-    lcd_string((uint8_t)w->x,(uint8_t)w->y-o+2*wsp->font->h+4,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,false,wsp->cf,wsp->cb);
+    lcd_stringm((uint8_t)w->x,(uint8_t)w->y-o+2*wsp->fonts[wsp->fid]->h+4,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->fonts,wsp->cf,wsp->cb,0);
     ++pos;if(pos>=wsp->nc)pos-=(wsp->nc);
-    lcd_string_offset((uint8_t)w->x,(uint8_t)w->y-o+3*wsp->font->h+4,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,false,wsp->cf,wsp->cb,0,0,wsp->font->h-o);
+    lcd_stringmo((uint8_t)w->x,(uint8_t)w->y-o+3*wsp->fonts[wsp->fid]->h+4,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->fonts,wsp->cf,wsp->cb,0, 0,0 ,0,wsp->fonts[wsp->fid]->h-o);
 
     if(wsp->velocity){
       wsp->fpos += wsp->velocity;
@@ -496,61 +491,69 @@ void wspinner_draw(W* w){
       }
     }else if(!wsp->fixed && o && ((time_us_32()-w->lt)/1000)>200){   //
       uint16_t od;
-      if(o>(wsp->font->h>>1)){
-        od = o - (wsp->font->h>>1);
+      if(o>(wsp->fonts[wsp->fid]->h>>1)){
+        od = o - (wsp->fonts[wsp->fid]->h>>1);
         if(!od&&o)od=5;
         if(od>4){o+=3;}
         else if(od>2){o+=2;}
         else if(od>0){o+=1;}
-        if(o>wsp->font->h)o=wsp->font->h;
-        wsp->fpos = wsp->pos * wsp->font->h+o;
+        if(o>wsp->fonts[wsp->fid]->h)o=wsp->fonts[wsp->fid]->h;
+        wsp->fpos = wsp->pos * wsp->fonts[wsp->fid]->h+o;
       }else{
-        od = (wsp->font->h>>1) - o;
+        od = (wsp->fonts[wsp->fid]->h>>1) - o;
         if(!od&&o)od=5;
         if(od>4){o-=3;}
         else if(od>2){o-=2;}
         else if(od>0){o-=1;}
-        wsp->fpos = wsp->pos * wsp->font->h+o;
+        wsp->fpos = wsp->pos * wsp->fonts[wsp->fid]->h+o;
       }
-      printf("o %d %d [%d]\n",o,od,wsp->font->h);
+      //printf("o %d %d [%d]\n",o,od,wsp->fonts[wsp->fid]->h);
 
-      if(wsp->fpos >= wsp->font->h*wsp->nc){wsp->fpos-=wsp->font->h*wsp->nc;}
-      if(wsp->fpos < 0){wsp->fpos+=wsp->font->h*wsp->nc;}
+      if(wsp->fpos >= wsp->fonts[wsp->fid]->h*wsp->nc){wsp->fpos-=wsp->fonts[wsp->fid]->h*wsp->nc;}
+      if(wsp->fpos < 0){wsp->fpos+=wsp->fonts[wsp->fid]->h*wsp->nc;}
     }
   }
   lcd_number((uint8_t)w->x,(uint8_t)w->y-2*Font16.h,(uint32_t)wsp->fpos,&Font16,GREEN,wsp->cb);
-  lcd_xline((uint8_t)w->x,(uint8_t)w->y+wsp->font->h, w->w-8,__builtin_bswap16(GREEN),2);
-  lcd_xline((uint8_t)w->x,(uint8_t)w->y+2*wsp->font->h+4, w->w-8,__builtin_bswap16(GREEN),2);
+  lcd_xline((uint8_t)w->x,(uint8_t)w->y+wsp->fonts[wsp->fid]->h, w->w-8,__builtin_bswap16(GREEN),2);
+  lcd_xline((uint8_t)w->x,(uint8_t)w->y+2*wsp->fonts[wsp->fid]->h+4, w->w-8,__builtin_bswap16(GREEN),2);
 }
 
 
 void wspinner_draw_h(W* w){
   W_spinner* wsp = (W_spinner*)w->d;
-  uint8_t pos = (uint8_t)(wsp->fpos/wsp->font->w);
+  //printf("fpos = %d ",wsp->fpos);
+  //if(wsp->fpos >= wsp->fonts[wsp->fid]->w*wsp->nc){wsp->fpos-=wsp->fonts[wsp->fid]->w*wsp->nc;}
+  //if(wsp->fpos < 0){wsp->fpos+=wsp->fonts[wsp->fid]->w*wsp->nc;}
+  uint8_t pos = (uint8_t)(wsp->fpos/wsp->fonts[wsp->fid]->w);
+  if(pos>=wsp->nc)pos-=wsp->nc;
   wsp->pos = pos;
-  //printf("pos = %d\n",pos);
-  uint16_t offset = pos*wsp->font->w;
-  lcd_frame(w->x-4,w->y-4,w->x+w->w+4,w->y+w->h+4,wsp->cfr,2);
+  uint16_t offset = pos*wsp->fonts[wsp->fid]->w;
+  lcd_frame(w->x-6,w->y-4,w->x+w->w-6,w->y+w->h+4,wsp->cfr,2);
   if(wsp->pos >= wsp->nc)wsp->pos=0;
 
-  if((wsp->fpos%wsp->font->w) == 0){
+  if((wsp->fpos%wsp->fonts[wsp->fid]->w) == 0){
     pos = (!pos)?wsp->nc-1:pos-1;
-    lcd_strc((uint8_t)w->x+4,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,wsp->cf,wsp->cb);
+    lcd_stringm((uint8_t)w->x,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->fonts,wsp->cf,wsp->cb,1);
     if(++pos>=wsp->nc)pos-=(wsp->nc);
-    lcd_strc((uint8_t)w->x+wsp->font->w+4,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,wsp->cf,wsp->cb);
+    lcd_stringm((uint8_t)w->x+wsp->fonts[wsp->fid]->w,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->fonts,wsp->cf,wsp->cb,1);
     if(wsp->pos>=wsp->nc)wsp->pos-=wsp->nc;
     if(++pos>=wsp->nc)pos-=(wsp->nc);
-    lcd_strc((uint8_t)w->x+2*wsp->font->w+4,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,wsp->cf,wsp->cb);
+    lcd_stringm((uint8_t)w->x+2*wsp->fonts[wsp->fid]->w,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->fonts,wsp->cf,wsp->cb,1);
   }else{
-    uint16_t o = (wsp->fpos%wsp->font->w);
+    uint16_t o = (wsp->fpos%wsp->fonts[wsp->fid]->w);
+    printf("o=%d fpos=%d fposmax=%d f:%08x [%d] ",o,wsp->fpos,wsp->fonts[wsp->fid]->w*(wsp->nc-1),wsp->fonts[wsp->fid],wsp->fid);
+    if(o>=wsp->fonts[wsp->fid]->w*wsp->nc){
+      o -= wsp->fonts[wsp->fid]->w*(wsp->nc);
+    }
+    printf(" {%d}\n",o);
     pos = (!pos)?wsp->nc-1:pos-1;
-    lcd_string_offset_lr((uint8_t)w->x+4,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,true,wsp->cf,wsp->cb,1,o,0);
+    lcd_stringmo((uint8_t)w->x,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->fonts,wsp->cf,wsp->cb,1,o,0,0,0);
     if(++pos>=wsp->nc)pos-=(wsp->nc);
-    lcd_strc((uint8_t)w->x-o+wsp->font->w+4,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,wsp->cf,wsp->cb);
+    lcd_stringm((uint8_t)w->x-o+1*wsp->fonts[wsp->fid]->w,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->fonts,wsp->cf,wsp->cb,1);
     if(++pos>=wsp->nc)pos-=(wsp->nc);
-    lcd_strc((uint8_t)w->x-o+2*wsp->font->w+4,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,wsp->cf,wsp->cb);
+    lcd_stringm((uint8_t)w->x-o+2*wsp->fonts[wsp->fid]->w,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->fonts,wsp->cf,wsp->cb,1);
     ++pos;if(pos>=wsp->nc)pos-=(wsp->nc);
-    lcd_string_offset_lr((uint8_t)w->x-o+3*wsp->font->w+4,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->font,true,wsp->cf,wsp->cb,1,0,o);
+    lcd_stringmo((uint8_t)w->x-o+3*wsp->fonts[wsp->fid]->w,(uint8_t)w->y,wsp->e?((char**)wsp->e)[pos]:wsp->get_text(pos),wsp->fonts,wsp->cf,wsp->cb,1,0,o,0,0);
 
     if(wsp->velocity){
       wsp->fpos += wsp->velocity;
@@ -561,31 +564,31 @@ void wspinner_draw_h(W* w){
       }
     }else if(!wsp->fixed && o && ((time_us_32()-w->lt)/1000)>200){   //
       uint16_t od;
-      if(o>(wsp->font->w>>1)){
-        od = o - (wsp->font->w>>1);
+      if(o>(wsp->fonts[wsp->fid]->w>>1)){
+        od = o - (wsp->fonts[wsp->fid]->w>>1);
         if(!od&&o)od=5;
         if(od>4){o+=3;}
         else if(od>2){o+=2;}
         else if(od>0){o+=1;}
-        if(o>wsp->font->w)o=wsp->font->w;
-        wsp->fpos = wsp->pos * wsp->font->w+o;
+        if(o>wsp->fonts[wsp->fid]->w)o=wsp->fonts[wsp->fid]->w;
+        wsp->fpos = wsp->pos * wsp->fonts[wsp->fid]->w+o;
       }else{
-        od = (wsp->font->w>>1) - o;
+        od = (wsp->fonts[wsp->fid]->w>>1) - o;
         if(!od&&o)od=5;
         if(od>4){o-=3;}
         else if(od>2){o-=2;}
         else if(od>0){o-=1;}
-        wsp->fpos = wsp->pos * wsp->font->w+o;
+        wsp->fpos = wsp->pos * wsp->fonts[wsp->fid]->w+o;
       }
-      printf("o %d %d [%d]\n",o,od,wsp->font->w);
+      printf("o %d %d [%d]\n",o,od,wsp->fonts[wsp->fid]->w);
 
-      if(wsp->fpos >= wsp->font->w*wsp->nc){wsp->fpos-=wsp->font->w*wsp->nc;}
-      if(wsp->fpos < 0){wsp->fpos+=wsp->font->w*wsp->nc;}
+      if(wsp->fpos >= wsp->fonts[wsp->fid]->w*wsp->nc){wsp->fpos-=wsp->fonts[wsp->fid]->w*wsp->nc;}
+      if(wsp->fpos < 0){wsp->fpos+=wsp->fonts[wsp->fid]->w*wsp->nc;}
     }
   }
   lcd_number((uint8_t)w->x,(uint8_t)w->y-2*Font16.h,(uint32_t)wsp->fpos,&Font16,GREEN,wsp->cb);
-  lcd_yline((uint8_t)w->x+wsp->font->w,(uint8_t)w->y+16, w->h-8,__builtin_bswap16(GREEN),2);
-  lcd_yline((uint8_t)w->x+2*wsp->font->w,(uint8_t)w->y+16, w->h-8,__builtin_bswap16(GREEN),2);
+  lcd_yline((uint8_t)w->x+wsp->fonts[wsp->fid]->w-1,(uint8_t)w->y+8, w->h-8,__builtin_bswap16(GREEN),2);
+  lcd_yline((uint8_t)w->x+2*wsp->fonts[wsp->fid]->w+1,(uint8_t)w->y+8, w->h-8,__builtin_bswap16(GREEN),2);
 }
 
 
@@ -593,7 +596,7 @@ void wspinner_set(W* w, uint8_t i){
   W_spinner* wsp = (W_spinner*)w->d;
   if(wsp){
     wsp->pos = i;
-    wsp->fpos = wsp->pos * wsp->font->h;
+    wsp->fpos = wsp->pos * wsp->fonts[wsp->fid]->h;
   }
 }
 
@@ -601,7 +604,7 @@ void wspinner_set_h(W* w, uint8_t i){
   W_spinner* wsp = (W_spinner*)w->d;
   if(wsp){
     wsp->pos = i;
-    wsp->fpos = wsp->pos * wsp->font->w;
+    wsp->fpos = wsp->pos * wsp->fonts[wsp->fid]->w;
   }
 }
 
@@ -612,28 +615,28 @@ void wspinner_set_max(W* w, uint8_t i){
 
 void wspinner_setfp(W* w){
   W_spinner* wsp = (W_spinner*)w->d;
-  if(wsp){    wsp->pos = (wsp->fpos/wsp->font->h);  }
+  if(wsp){    wsp->pos = (wsp->fpos/wsp->fonts[wsp->fid]->h);  }
 }
 
 void wspinner_setfp_h(W* w){
   W_spinner* wsp = (W_spinner*)w->d;
-  if(wsp){    wsp->pos = (wsp->fpos/wsp->font->w);  }
+  if(wsp){    wsp->pos = (wsp->fpos/wsp->fonts[wsp->fid]->w);  }
 }
 
 void wspinner_adjust(W_spinner* wsp){
-  if(wsp->fpos >= wsp->font->h*wsp->nc){
-    wsp->fpos -= wsp->font->h*wsp->nc;
+  if(wsp->fpos >= wsp->fonts[wsp->fid]->h*wsp->nc){
+    wsp->fpos -= wsp->fonts[wsp->fid]->h*wsp->nc;
   }else if(wsp->fpos < 0){
-    wsp->fpos += wsp->font->h*wsp->nc;
+    wsp->fpos += wsp->fonts[wsp->fid]->h*wsp->nc;
   }
   wsp->moved = true;
 }
 
 void wspinner_adjust_h(W_spinner* wsp){
-  if(wsp->fpos >= wsp->font->w*wsp->nc){
-    wsp->fpos -= wsp->font->w*wsp->nc;
+  if(wsp->fpos >= wsp->fonts[wsp->fid]->w*wsp->nc){
+    wsp->fpos -= wsp->fonts[wsp->fid]->w*wsp->nc; printf("*fp-\n");
   }else if(wsp->fpos < 0){
-    wsp->fpos += wsp->font->w*wsp->nc;
+    wsp->fpos += wsp->fonts[wsp->fid]->w*wsp->nc; printf("*fp+\n");
   }
   wsp->moved = true;
 }
