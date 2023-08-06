@@ -6,14 +6,10 @@
 ![s_ru](https://github.com/dawigit/picoclock/blob/main/img/s_ru.png)
 ![s_ua](https://github.com/dawigit/picoclock/blob/main/img/s_ua.png)
 
-#### TOUCH
 ![s_qdtm](https://github.com/dawigit/picoclock/blob/main/img/s_qdtm.png) ![s_rotozcy](https://github.com/dawigit/picoclock/blob/main/img/s_rotozcy.png) ![s_rotozg](https://github.com/dawigit/picoclock/blob/main/img/s_rotozg.png) ![s_rotozr](https://github.com/dawigit/picoclock/blob/main/img/s_rotozr.png)
 ![s_bigfont](https://github.com/dawigit/picoclock/blob/main/img/s_bigfont.png) ![s_configicon_new](https://github.com/dawigit/picoclock/blob/main/img/s_configicon_new.png)
 ![s_spinmin](https://github.com/dawigit/picoclock/blob/main/img/s_spinmin.png) ![s_spindotw](https://github.com/dawigit/picoclock/blob/main/img/s_spindotw.png) ![s_spindotw_cn](https://github.com/dawigit/picoclock/blob/main/img/s_spindotw_cn.png)
 
-#### NON-TOUCH
-![s_gb](https://github.com/dawigit/picoclock/blob/main/img/s_gb.png) ![s_ch](https://github.com/dawigit/picoclock/blob/main/img/s_ch.png)  
-![s_configicon](https://github.com/dawigit/picoclock/blob/main/img/s_configicon.png) ![s_configmenu](https://github.com/dawigit/picoclock/blob/main/img/s_configmenu.png)
 
 https://github.com/dawigit/picoclock/tree/main/img/ancestral#readme old images
 
