@@ -1,4 +1,5 @@
 ### Changelog:
+- spi transfer (at full speed) via dma -> 20fps
 - raspberry texture added
 - some seamless textures added (good with rotozoom)
 - texture mapping (using hardware_interp)

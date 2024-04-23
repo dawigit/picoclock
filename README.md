@@ -84,7 +84,7 @@ Find the '--address' with:
 - 'editpos'		[set editposition (0-8)]
 
 ### float values
-- 'fspin'   [set fspin (+/-0.005) is a very slow rotation]
+- 'fspin'   [set fspin (+/-0.001) for a very slow rotation]
 
 #### no args
 - 'cir0'		[dynamic circle off]

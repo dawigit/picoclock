@@ -32,6 +32,7 @@ endif()
 target_link_libraries(main
 lcd QMI8658
 pico_stdlib
+hardware_dma
 hardware_spi
 hardware_i2c
 hardware_pwm

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include "stdio.h"
 #include "hardware/adc.h"
+#include "hardware/dma.h"
 #include "hardware/spi.h"
 #include "hardware/i2c.h"
 #include "hardware/pwm.h"

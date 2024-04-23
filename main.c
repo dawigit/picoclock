@@ -53,7 +53,7 @@ static __attribute__((section (".noinit")))char losabuf[4096];
 #include "img/bg1_256.h"
 #include "img/bg2_256.h"
 #include "img/bg3_256.h"
-#include "img/bg4_256.h"
+//#include "img/bg4_256.h"
 //#include "img/bg5_256.h"
 //#include "img/bg6_256.h"
 #endif
@@ -180,12 +180,12 @@ static LOSA_t* plosa=(LOSA_t*)losabuf;
 #define LOSASIZE (&plosa->dummy - &plosa->theme)
 
 datetime_t default_time = {
-  .year  = 2023,
-  .month = 8,
-  .day   = 5,
-  .dotw  = 4, // 0 is Sunday, so 5 is Friday
-  .hour  = 11,
-  .min   = 12,
+  .year  = 2024,
+  .month = 4,
+  .day   = 22,
+  .dotw  = 1, // 0 is Sunday, so 5 is Friday
+  .hour  = 23,
+  .min   = 39,
   .sec   = 0
 };
 
@@ -266,6 +266,11 @@ W* wl[14] = {NULL};
 W* wb_dotw; //day of the week content box (lat/cn)
 
 WBez2_t* w_move = NULL;
+
+bool showfps = false;
+uint16_t fps = 0;
+uint8_t fps_sec = 0;
+
 
 Battery_t bat0 = {"GOOD\0", 150.0f, 4.16f, 3.325781f, 4.158838f, 0.0f, 0.0f}; // 150mA
 Battery_t bat1 = {"GOOD\0",1100.0f, 3.2f, 2.76f, 2.3f, 0.0f, 0.0f}; //1100ma rp2040_tlcd
@@ -646,13 +651,13 @@ uint16_t* tbg = NULL;
   const int16_t bg_size[MAX_BG] = {256,256,256};
   const bool bg_dynamic[MAX_BG] = {true,true,true};
 #else
-  #define MAX_BG 9
+  #define MAX_BG 8
   const char* backgrounds[MAX_BG] = {e8,i8,b256,bega,sand,
     //bg1_256,bg2_256,bg3_256, bg4_256,bg5_256,bg6_256
-    bg1_256,bg2_256,bg3_256, bg4_256
+    bg1_256,bg2_256,bg3_256, //bg4_256
   };
-  const int16_t bg_size[MAX_BG] = {256,256,256,240,240,256,256,256,256};
-  const bool bg_dynamic[MAX_BG] = {true,true,true,false,false,false,false,false,false};
+  const int16_t bg_size[MAX_BG] = {256,256,256,240,240,256,256,256};
+  const bool bg_dynamic[MAX_BG] = {true,true,true,false,false,false,false,false};
 #endif
 
 
@@ -814,6 +819,7 @@ int16_t comt;
 uint8_t comc;
 
 uint8_t* b0=NULL;
+uint32_t* b1=NULL;
 
 //shell vars!
 int16_t bcx0 = 80;
@@ -967,7 +973,9 @@ void __no_inline_not_in_flash_func(flash_data)(){
 	flash_range_program (xip_offset, (uint8_t*)losabuf, FLASH_SECTOR_SIZE);
 	for(size_t i=0;i<FLASH_SECTOR_SIZE;i++){ losabuf[i]=p[i];	}
 	restore_interrupts(ints);
+  //sleep_ms(500);
 	printf("FLASHED!\n");
+
 }
 
 void check_save_data(){
@@ -1096,6 +1104,8 @@ void empty_deinit(){
 }
 
 void doreset(){
+  spi_deinit(SPI_PORT);
+  i2c_deinit(I2C_PORT);
   watchdog_reboot((uint32_t)&empty_deinit,0,1);
   watchdog_enable(1, 1);
 }
@@ -1497,6 +1507,7 @@ void command(char* c){
     if(strstr(left,"rota")){ plosa->gfxmode=GFX_ROTATE;}
     if(strstr(left,"roto")){ plosa->gfxmode=GFX_ROTOZOOM;}
     if(strstr(left,"norm")){ plosa->gfxmode=GFX_NORMAL;}
+    if(strstr(left,"fps")){ showfps = (showfps)?false:true;}
     if(strstr(left,"stat")){
       if(plosa->theme>=THEMES){plosa->theme=0;}
       if(plosa->editpos>8){plosa->editpos=0;}
@@ -2283,7 +2294,7 @@ void draw_content(){
 
 int main(void)
 {
-  sleep_ms(200);  // "Rain-wait" wait 100ms after booting (for other chips to initialize)
+  sleep_ms(100);  // "Rain-wait" wait 100ms after booting (for other chips to initialize)
   rtc_init();
 	stdio_init_all();
 
@@ -2321,10 +2332,13 @@ int main(void)
     plosa->scandir&=0x03;
     // I2C Config
     i2c_init(I2C_PORT, 100 * 1000);
+    //sleep_ms(500);
+
     gpio_set_function(DEV_SDA_PIN, GPIO_FUNC_I2C);
     gpio_set_function(DEV_SCL_PIN, GPIO_FUNC_I2C);
     gpio_pull_up(DEV_SDA_PIN);
     gpio_pull_up(DEV_SCL_PIN);
+    //sleep_ms(500);
 
     i2c_scan();
     lcd_init();
@@ -2338,6 +2352,7 @@ int main(void)
     printf("%s\n",flashstatus);
     printf("LOSASIZE=%d\n",LOSASIZE);
     b0 = malloc(LCD_SZ);
+    b1 = (uint32_t*)b0;
     if(b0==0){printf("b0==0!\n");}
     uint32_t o = 0;
     lcd_setimg((uint16_t*)b0);
@@ -2993,8 +3008,8 @@ int main(void)
           }
         }
       }
-      get_acc_ec();
-      //QMI8658_read_xyz(acc, gyro, &tim_count);
+      //get_acc_ec();
+      QMI8658_read_xyz(acc, gyro, &tim_count);
       //if(++qmis>2){
       //  qmis = 0;
       //}
@@ -3087,8 +3102,9 @@ int main(void)
           }
         }
       }
-      for(int i=0;i<LCD_SZ;i++){b0[i]=0x00;}  //clear buffer
-
+      //for(int i=0;i<LCD_SZ;i++){b0[i]=0x00;}  //clear buffer
+      for(int i=0;i<LCD_SZ/4;i++){b1[i]=0x00;}  //clear buffer faster
+      
       // draw-bg
 
       if(cmode!=CM_Editpos || plosa->editpos==EPOS_CENTER ){
@@ -3350,6 +3366,19 @@ int main(void)
       make_buffers();
       wdraw(&wroot);
       lcd_display(b0);
+      // show fps
+      /*
+      */
+      if(showfps){
+        if(plosa->dt.sec != fps_sec){
+          printf("FPS: %d\n",fps);
+          fps = 0;
+          fps_sec = plosa->dt.sec;
+        }
+        ++fps;
+      }
+        
+      // show fps
 
       if(SHELL_ENABLED){        shell();      }
       plosa->save_crc=crc(&plosa->theme,LOSASIZE);
@@ -3576,22 +3605,22 @@ void wtest(){
   wsp_dotw_cn = wadd_spinner(&wroot,120-((f40[2])->w>>1),120-((3* (f40[2])->h)>>1),3* (f40[2])->w+8,3* (f40[2])->h,
             st_spinner_char_h,plosa->dt.dotw, 7, (void**)NULL,get_dotw_all, f40, 2, WHITE, BLACK, BLUE);
   whide(wsp_dotw_cn);
-  wsp_day = wadd_spinner(&wroot,130-((f32[0])->w>>1),120-((3* (f32[0])->h)>>1),2* (f32[0])->w+8,3* (f32[0])->h+8,
+  wsp_day = wadd_spinner(&wroot,130-((f40[0])->w>>1),120-((3* (f40[0])->h)>>1),2* (f40[0])->w+8,3* (f40[0])->h+8,
             st_spinner_char_v,plosa->dt.day-1, last[plosa->dt.month], (void**)numbers+1, NULL, f40, 0, WHITE, BLACK, BLUE);
   whide(wsp_day);
-  wsp_month = wadd_spinner(&wroot,130-((f32[0])->w>>1),120-((3* (f32[0])->h)>>1),2* (f32[0])->w+8,3* (f32[0])->h+8,
+  wsp_month = wadd_spinner(&wroot,130-((f40[0])->w>>1),120-((3* (f40[0])->h)>>1),2* (f40[0])->w+8,3* (f40[0])->h+8,
             st_spinner_char_v,plosa->dt.month, 12 , (void**)numbers+1, NULL, f40, 0, WHITE, BLACK, BLUE);
   whide(wsp_month);
-  wsp_year = wadd_spinner(&wroot,130-((f32[0])->w>>1),120-((3* (f32[0])->h)>>1),2* (f32[0])->w+8,3* (f32[0])->h+8,
+  wsp_year = wadd_spinner(&wroot,130-((f40[0])->w>>1),120-((3* (f40[0])->h)>>1),2* (f40[0])->w+8,3* (f40[0])->h+8,
             st_spinner_char_v,plosa->dt.year-2000, 100 , (void**)numbers, NULL, f40, 0, WHITE, BLACK, BLUE);
   whide(wsp_year);
-  wsp_hour = wadd_spinner(&wroot,130-((f32[0])->w>>1),120-((3* (f32[0])->h)>>1),2* (f32[0])->w+8,3* (f32[0])->h+8,
+  wsp_hour = wadd_spinner(&wroot,130-((f40[0])->w>>1),120-((3* (f40[0])->h)>>1),2* (f40[0])->w+8,3* (f40[0])->h+8,
             st_spinner_char_v,plosa->dt.hour, 24, (void**)hours, NULL, f40, 0, WHITE, BLACK, BLUE);
   whide(wsp_hour);
-  wsp_min = wadd_spinner(&wroot,130+((f32[0])->w>>1),120-((3* (f32[0])->h)>>1),2* (f32[0])->w+8,3* (f32[0])->h+8,
+  wsp_min = wadd_spinner(&wroot,130+((f40[0])->w>>1),120-((3* (f40[0])->h)>>1),2* (f40[0])->w+8,3* (f40[0])->h+8,
             st_spinner_char_v,plosa->dt.min, 60, (void**)numbers, NULL, f40, 0, WHITE, BLACK, BLUE);
   whide(wsp_min);
-  wsp_sec = wadd_spinner(&wroot,130+((f32[0])->w>>1),120-((3* (f32[0])->h)>>1),2* (f32[0])->w+8,3* (f32[0])->h+8,
+  wsp_sec = wadd_spinner(&wroot,130+((f40[0])->w>>1),120-((3* (f40[0])->h)>>1),2* (f40[0])->w+8,3* (f40[0])->h+8,
             st_spinner_char_v,plosa->dt.sec, 60, (void**)numbers, NULL, f40, 0, WHITE, BLACK, BLUE);
   whide(wsp_sec);
   //cim_flags = wcim_make(THEMES,0);

@@ -95,7 +95,8 @@ void lcd_module_init(){
   pwm_set_clkdiv(slice_num, 50);
   pwm_set_enabled(slice_num, true);
   // SPI Config
-  spi_init(SPI_PORT, 40000 * 1000);
+  spi_init(SPI_PORT, 63 * 1000 * 1000); //max
+  printf("SPI BAUD: %d\n",spi_get_baudrate(SPI_PORT));
   gpio_set_function(LCD_CLK_PIN, GPIO_FUNC_SPI);
   gpio_set_function(LCD_MOSI_PIN, GPIO_FUNC_SPI);
 
@@ -419,8 +420,51 @@ void lcd_clr(uint16_t color){
 void lcd_display(uint8_t* image){
     lcd_setwin(0, 0, LCD_W-1, LCD_H-1);
     gpio_put(LCD_DC_PIN, 1);
-    spi_write_blocking(SPI_PORT,image,LCD_SZ);
+    int chan_tx = -1;
+    int chan_rx = -1;
+    size_t len = LCD_W*LCD_H*2;
+    chan_tx = dma_claim_unused_channel(false);
+    chan_rx = dma_claim_unused_channel(false);
+    if(!(chan_rx >= 0 && chan_tx >= 0)){
+      printf("%d %d no chan\n",chan_rx,chan_tx);
+      return;
+    }
+
+    uint8_t dev_null;
+    dma_channel_config c = dma_channel_get_default_config(chan_tx);
+    channel_config_set_transfer_data_size(&c, DMA_SIZE_8);
+    channel_config_set_dreq(&c, spi_get_dreq(SPI_PORT, true));
+    dma_channel_configure(chan_tx, &c,
+        &spi_get_hw(SPI_PORT)->dr,
+        image,
+        len,
+        false);
+
+    c = dma_channel_get_default_config(chan_rx);
+    channel_config_set_transfer_data_size(&c, DMA_SIZE_8);
+    channel_config_set_dreq(&c, spi_get_dreq(SPI_PORT, false));
+    channel_config_set_read_increment(&c, false);
+    channel_config_set_write_increment(&c, 0);
+    dma_channel_configure(chan_rx, &c,
+        &dev_null,
+        &spi_get_hw(SPI_PORT)->dr,
+        len,
+        false);
+
+    dma_start_channel_mask((1u << chan_rx) | (1u << chan_tx));
+    dma_channel_wait_for_finish_blocking(chan_rx);
+    dma_channel_wait_for_finish_blocking(chan_tx);
+
+    // If we have claimed only one channel successfully, we should release immediately
+    if (chan_rx >= 0) {
+        dma_channel_unclaim(chan_rx);
+    }
+    if (chan_tx >= 0) {
+        dma_channel_unclaim(chan_tx);
+    }
 }
+
+
 
 void lcd_displaypart(uint8_t xs, uint8_t ys, uint8_t xe, uint8_t ye, uint8_t* image){
     lcd_setwin(xs, ys, xe , ye);
