@@ -23,8 +23,7 @@ https://github.com/dawigit/picoclock/tree/main/img/ancestral#readme old images
 - ![conf_clock](https://github.com/dawigit/picoclock/blob/main/img/conf_clock.png)  change clock hand texture
 - ![conf_bender](https://github.com/dawigit/picoclock/blob/main/img/conf_bender.png)  dis-/enable second bender
 
-
-![uscn1](https://user-images.githubusercontent.com/26333559/196231673-cdbe89fb-14fd-46a9-b566-e3241b16d3c8.png)
+![s_uscn](https://github.com/user-attachments/assets/149f43a9-c9dd-47f6-a785-b9cf913c84e9)
 ![trde1](https://user-images.githubusercontent.com/26333559/196231689-c6d9e030-b088-4c9f-bef6-1a3cd4f5b1c6.png)
 
 #### Touch control (with RP2040-TOUCH-LCD-1.28)
